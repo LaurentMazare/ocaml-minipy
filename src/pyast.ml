@@ -2,6 +2,8 @@ open! Base
 
 (* These types are derived from:
    https://github.com/python/cpython/blob/3.7/Parser/Python.asdl
+   It would be nicer to derive these types automatically from
+   the asdl file.
 *)
 module Python37 = struct
   type identifier = string [@@deriving yojson, sexp]
@@ -203,14 +205,16 @@ module Python37 = struct
         }
 
   and withitem =
-    { context_expr : expr
-    ; optional_vals : expr option
-    }
+    | WithItem of
+        { context_expr : expr
+        ; optional_vals : expr option
+        }
 
   and alias =
-    { name : identifier
-    ; asname : identifier option
-    }
+    | Alias of
+        { name : identifier
+        ; asname : identifier option
+        }
 
   and excepthandler =
     | ExceptHandler of
