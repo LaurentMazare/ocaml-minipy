@@ -87,11 +87,59 @@ module Python37 = struct
         ; ctx : expr_context
         }
     | Num of { n : int }
+    | Bytes of { s : string }
+    | Str of { s : string }
+    | JoinedStr of { values : expr list }
+    | Ellipsis
+    | List of
+        { elts : expr list
+        ; ctx : expr_context
+        }
+    | Tuple of
+        { elts : expr list
+        ; ctx : expr_context
+        }
+    | Lambda of
+        { args : arguments
+        ; body : expr
+        }
+    | IfExp of
+        { test : expr
+        ; body : expr
+        ; orelse : expr
+        }
+    | Dict of
+        { keys : expr list
+        ; values : expr list
+        }
+    | Set of { elts : expr list }
+    | ListComp of
+        { elt : expr
+        ; generators : comprehension list
+        }
+    | SetComp of
+        { elt : expr
+        ; generators : comprehension list
+        }
+    | DictComp of
+        { key : expr
+        ; value : expr
+        ; generators : comprehension list
+        }
+
+  and comprehension =
+    | Comprehension of
+        { target : expr
+        ; iter : expr
+        ; ifs : expr list
+        ; is_async : int
+        }
 
   and keyword =
-    { arg : identifier option
-    ; value : expr
-    }
+    | Keyword of
+        { arg : identifier option
+        ; value : expr
+        }
 
   and stmt =
     | FunctionDef of function_def
