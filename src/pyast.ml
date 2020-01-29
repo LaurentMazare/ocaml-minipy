@@ -286,6 +286,7 @@ module Python37 = struct
         }
     | Global of { names : identifier list }
     | Nonlocal of { names : identifier list }
+    | Expr of { value : expr }
     | Pass
     | Break
     | Continue
@@ -303,7 +304,7 @@ let of_file filename =
     |> Python37.mod__of_yojson
     |> Python37.sexp_of_mod_
     |> Sexp.to_string
-    |> Stdio.printf ">%s\n%!"
+    |> Stdio.printf "%s\n%!"
   with
   | Ppx_yojson_conv_lib.Yojson_conv.Of_yojson_error (exn, yojson) ->
     Stdio.eprintf

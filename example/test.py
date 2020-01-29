@@ -37,6 +37,7 @@ def pyast(fn):
 
 @pyast
 def test(x):
+  print(x)
   return x + 1
 
 with open('/tmp/test.json', 'w') as fobj:
