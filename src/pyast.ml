@@ -5,6 +5,13 @@ open! Base
 *)
 module Python37 = struct
   type identifier = string [@@deriving yojson, sexp]
+  type constant = string [@@deriving yojson, sexp]
+
+  type singleton =
+    | None_ [@key "None"]
+    | True
+    | False
+  [@@deriving yojson, sexp]
 
   type function_def =
     { name : identifier
@@ -28,6 +35,15 @@ module Python37 = struct
     ; body : stmt list
     ; orelse : stmt list
     }
+
+  and slice =
+    | Slice of
+        { lower : expr option
+        ; upper : expr option
+        ; step : expr option
+        }
+    | ExtSlice of { dims : slice list }
+    | Index of { value : expr }
 
   and arguments =
     | Arguments of
@@ -72,6 +88,18 @@ module Python37 = struct
     | AugStore
     | Param
 
+  and cmpop =
+    | Eq
+    | NotEq
+    | Lt
+    | LtE
+    | Gt
+    | GtE
+    | Is
+    | IsNot
+    | In
+    | NotIn
+
   and expr =
     | BoolOp of
         { op : boolop
@@ -90,7 +118,23 @@ module Python37 = struct
     | Bytes of { s : string }
     | Str of { s : string }
     | JoinedStr of { values : expr list }
+    | NameConstant of { value : singleton }
     | Ellipsis
+    | Constant of { value : constant }
+    | Attribute of
+        { value : expr
+        ; attr : identifier
+        ; ctx : expr_context
+        }
+    | Subscript of
+        { value : expr
+        ; slice : slice
+        ; ctx : expr_context
+        }
+    | Starred of
+        { value : expr
+        ; ctx : expr_context
+        }
     | List of
         { elts : expr list
         ; ctx : expr_context
@@ -126,6 +170,23 @@ module Python37 = struct
         ; value : expr
         ; generators : comprehension list
         }
+    | GeneratorExp of
+        { elt : expr
+        ; generators : comprehension list
+        }
+    | Await of { value : expr }
+    | Yield of { value : expr option }
+    | YieldFrom of { value : expr }
+    | Compare of
+        { left : expr
+        ; ops : cmpop list
+        ; comparators : expr list
+        }
+    | Call of
+        { func : expr
+        ; args : expr list
+        ; keywords : keyword list
+        }
 
   and comprehension =
     | Comprehension of
@@ -139,6 +200,23 @@ module Python37 = struct
     | Keyword of
         { arg : identifier option
         ; value : expr
+        }
+
+  and withitem =
+    { context_expr : expr
+    ; optional_vals : expr option
+    }
+
+  and alias =
+    { name : identifier
+    ; asname : identifier option
+    }
+
+  and excepthandler =
+    | ExceptHandler of
+        { type_ : expr option [@key "type"]
+        ; name : identifier option
+        ; body : stmt list
         }
 
   and stmt =
@@ -169,6 +247,44 @@ module Python37 = struct
         ; body : stmt list
         ; orelse : stmt list
         }
+    | If of
+        { test : expr
+        ; body : stmt list
+        ; orelse : stmt
+        }
+    | With of
+        { items : withitem list
+        ; body : stmt list
+        }
+    | AsyncWith of
+        { items : withitem list
+        ; body : stmt list
+        }
+    | Raise of
+        { exc : expr option
+        ; cause : expr option
+        }
+    | Try of
+        { body : stmt list
+        ; handlers : excepthandler list
+        ; orelse : stmt list
+        ; finalbody : stmt list
+        }
+    | Assert of
+        { test : expr
+        ; msg : expr option
+        }
+    | Import of { names : alias list }
+    | ImportFrom of
+        { module_ : identifier option [@key "module"]
+        ; names : alias list
+        ; level : int option
+        }
+    | Global of { names : identifier list }
+    | Nonlocal of { names : identifier list }
+    | Pass
+    | Break
+    | Continue
 
   and mod_ =
     | Module of { body : stmt list }
