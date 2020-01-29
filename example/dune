@@ -1,0 +1,4 @@
+(executables
+  (names test)
+  (libraries base stdio pyast)
+)

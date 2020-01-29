@@ -10,7 +10,8 @@ def node_to_python(node):
     elif isinstance(value, list):
       value = [node_to_python(v) for v in value]
     fields[name] = value
-  return (node.__class__.__name__, fields)
+  name = node.__class__.__name__
+  return (name, fields) if fields else (name,)
 
 class PyAst(object):
   def __init__(self, fn):
