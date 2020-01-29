@@ -311,3 +311,6 @@ let of_file filename =
       "Exn: %s\nJson: %s\n%!"
       (Exn.to_string exn)
       (Yojson.Safe.to_string yojson)
+
+module Lexer = Lexer
+module Parser = Parser

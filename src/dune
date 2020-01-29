@@ -4,3 +4,6 @@
   (libraries base stdio unix yojson)
   (preprocess (pps ppx_let ppx_sexp_conv ppx_yojson_conv))
 )
+
+(ocamllex lexer)
+(menhir (modules parser))
