@@ -145,24 +145,46 @@ let apply_comp op left right =
   | NotEq -> Caml.( <> ) left right
   | _ -> failwith "TODO cmp"
 
-exception Return of value
+exception Return_exn of value
 
 module Env : sig
   type t
 
-  val create : prev_env:t option -> t
+  (* [body] is used to extract local variables. *)
+  val create : prev_env:t option -> body:stmt list option -> t
   val find_exn : t -> name:string -> value
   val set : t -> name:string -> value:value -> unit
 end = struct
   type t =
     { scope : (string, value) Hashtbl.t
     ; prev_env : t option
+    ; local_variables : string Hash_set.t
     }
 
-  let create ~prev_env = { scope = Hashtbl.create (module String); prev_env }
+  let local_variables body =
+    let local_variables = Hash_set.create (module String) in
+    let rec loop = function
+      | Return _ | Delete _ | Expr _ | FunctionDef _ -> ()
+      | If { test = _; body; orelse } | While { test = _; body; orelse } ->
+        List.iter body ~f:loop;
+        List.iter orelse ~f:loop
+      | Assign { targets = [ Name name ]; value = _ } -> Hash_set.add local_variables name
+      | Assign _ -> failwith "TODO Generic Assign"
+    in
+    List.iter body ~f:loop;
+    local_variables
+
+  let create ~prev_env ~body =
+    { scope = Hashtbl.create (module String)
+    ; prev_env
+    ; local_variables = local_variables (Option.value body ~default:[])
+    }
+
   let set t ~name ~value = Hashtbl.set t.scope ~key:name ~data:value
 
   let find_exn t ~name =
+    if Hash_set.mem t.local_variables name && not (Hashtbl.mem t.scope name)
+    then Printf.failwithf "Variable %s accessed before being initialized" name ();
     let rec loop t =
       match Hashtbl.find t.scope name with
       | Some value -> value
@@ -174,7 +196,7 @@ end = struct
     loop t
 end
 
-(* Dummy evaluation, scoping is not handled properly yet. *)
+(* Very naive evaluation. *)
 let simple_eval t =
   let rec eval_stmt env = function
     | Expr { value } -> ignore (eval_expr env value : value)
@@ -198,7 +220,7 @@ let simple_eval t =
       Env.set env ~name ~value
     | Assign _ -> failwith "TODO Generic Assign"
     | Return { value } ->
-      raise (Return (Option.value_map value ~f:(eval_expr env) ~default:Val_none))
+      raise (Return_exn (Option.value_map value ~f:(eval_expr env) ~default:Val_none))
     | Delete _ -> failwith "TODO Delete"
   and eval_expr env = function
     | Bool b -> Val_bool b
@@ -233,7 +255,7 @@ let simple_eval t =
       let arg_values = List.map args ~f:(eval_expr env) in
       (match func with
       | Val_function { args; body } ->
-        let env = Env.create ~prev_env:(Some env) in
+        let env = Env.create ~prev_env:(Some env) ~body:(Some body) in
         let res =
           List.iter2 args arg_values ~f:(fun name value -> Env.set env ~name ~value)
         in
@@ -243,7 +265,7 @@ let simple_eval t =
              eval_stmts env body;
              Val_none
            with
-          | Return value -> value)
+          | Return_exn value -> value)
         | Unequal_lengths ->
           Printf.failwithf
             "expected %d arguments, got %d"
@@ -253,5 +275,5 @@ let simple_eval t =
       | _ -> failwith "not a function")
     | Attribute { value = _; attr = _ } -> failwith "TODO attribute"
   and eval_stmts env stmts = List.iter stmts ~f:(eval_stmt env) in
-  let env = Env.create ~prev_env:None in
+  let env = Env.create ~prev_env:None ~body:None in
   eval_stmts env t
