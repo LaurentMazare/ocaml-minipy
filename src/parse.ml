@@ -1,8 +1,6 @@
 open! Base
 open! Lexing
 
-let verbose = true
-
 let token_to_string (token : Parser.token) =
   match token with
   | WHILE -> "WHILE"
@@ -40,19 +38,20 @@ let token_to_string (token : Parser.token) =
   | COMMA -> "COMMA"
   | COLON -> "COLON"
   | BREAK -> "BREAK"
+  | BOOL b -> Printf.sprintf "BOOL<%b>" b
 
 let print_position lexbuf =
   let pos = lexbuf.lex_curr_p in
   Printf.sprintf "%s:%d:%d" pos.pos_fname pos.pos_lnum (pos.pos_cnum - pos.pos_bol + 1)
 
-let parse ~filename =
+let parse ~filename ~print_tokens =
   Stdio.In_channel.with_file filename ~f:(fun in_channel ->
       let lexbuf = Lexing.from_channel in_channel in
       lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
       let env = Lexer.Env.create () in
       let read lexbuf =
         let token = Lexer.read env lexbuf in
-        if verbose then Stdio.printf "token: <%s>\n%!" (token_to_string token);
+        if print_tokens then Stdio.printf "token: <%s>\n%!" (token_to_string token);
         token
       in
       try Ok (Parser.mod_ read lexbuf) with

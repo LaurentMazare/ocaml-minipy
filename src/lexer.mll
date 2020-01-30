@@ -63,6 +63,9 @@ rule read env = parse
   | "else" { [ELSE] }
   | "return" { [RETURN] }
   | "del" { [DELETE] }
+  | "while" { [WHILE] }
+  | "True" { [BOOL true] }
+  | "False" { [BOOL false] }
   (* TODO: other string delimiters... *)
   | '"' { [string (Buffer.create 1024) lexbuf] }
   | '-'? ['0'-'9']+ as int { [INTEGER int] }
@@ -78,6 +81,8 @@ rule read env = parse
   | ',' { [COMMA] }
   | '+' { [OPADD] }
   | '-' { [OPSUB] }
+  | '*' { [OPMUL] }
+  | '/' { [OPDIV] }
   | ':' { [COLON] }
   | "==" { [OPEQ] }
   | "!=" { [OPNEQ] }
