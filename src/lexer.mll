@@ -32,13 +32,22 @@ module Env = struct
     then failwith "too many closing delimiters"
 
   let last_indent t =
-    Option.value (Base.Stack.top t.indents) ~default:0
+    Option.value (Stack.top t.indents) ~default:0
 
   let push_indent t indent =
-    Base.Stack.push t.indents indent
+    Stack.push t.indents indent
 
-  let drop_indent t =
-    ignore (Base.Stack.pop_exn t.indents : int)
+  let drop_indent t ~until =
+    let rec loop acc =
+      match Stack.top t.indents with
+      | None -> if until = 0 then Some acc else None
+      | Some level when level = until -> Some acc
+      | Some level when level < until -> None
+      | Some _level (* when level > until *) ->
+          ignore (Stack.pop_exn t.indents : int);
+          loop (acc + 1)
+    in
+    loop 0
 
   let token t = Queue.dequeue t.tokens
 
@@ -53,6 +62,7 @@ rule read env = parse
   | "elif" { [ELIF] }
   | "else" { [ELSE] }
   | "return" { [RETURN] }
+  | "del" { [DELETE] }
   (* TODO: other string delimiters... *)
   | '"' { [string (Buffer.create 1024) lexbuf] }
   | '-'? ['0'-'9']+ as int { [INTEGER int] }
@@ -68,6 +78,7 @@ rule read env = parse
   | ',' { [COMMA] }
   | '+' { [OPADD] }
   | '-' { [OPSUB] }
+  | ':' { [COLON] }
   | "==" { [OPEQ] }
   | "!=" { [OPNEQ] }
   | '=' { [EQUAL] }
@@ -86,10 +97,12 @@ rule read env = parse
       then [NEWLINES]
       else if last_indent > indent
       then (
-        Env.drop_indent env;
-        if indent != last_indent
-        then raise (SyntaxError (Printf.sprintf "Unexpected indentation %d <> %d" indent last_indent));
-        [NEWLINES; DEDENT]
+        let dropped =
+          match Env.drop_indent env ~until:indent with
+          | None -> raise (SyntaxError (Printf.sprintf "Unexpected indentation level %d" indent))
+          | Some dropped -> dropped
+        in
+        NEWLINES :: List.init dropped (fun _ -> DEDENT)
       ) else (
         Env.push_indent env indent;
         [NEWLINES; INDENT]
@@ -97,7 +110,11 @@ rule read env = parse
   }
   | ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '_' '0'-'9']* as id { [IDENTIFIER id] }
   | _ { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
-  | eof { [EOF] }
+  | eof {
+    match Env.drop_indent env ~until:0 with
+    | None -> [EOF]
+    | Some dropped -> List.init dropped (fun _ -> DEDENT) @ [EOF]
+  }
 and string buf = parse
  | "\\\"" { Buffer.add_char buf '\"'; string buf lexbuf }
  | "\\n" { Buffer.add_char buf '\n'; string buf lexbuf }

@@ -22,6 +22,11 @@ type operator =
 [@@deriving sexp]
 
 type stmt =
+  | FunctionDef of
+      { name : string
+      ; args : string list (* TODO: other args *)
+      ; body : stmt list
+      }
   | If of
       { test : expr
       ; body : stmt list
@@ -32,6 +37,8 @@ type stmt =
       { targets : expr list
       ; value : expr
       }
+  | Return of { value : expr option }
+  | Delete of { targets : expr list }
 
 and expr =
   | Num of int
@@ -46,6 +53,15 @@ and expr =
       { left : expr
       ; op : operator
       ; right : expr
+      }
+  | IfExp of
+      { test : expr
+      ; body : expr
+      ; orelse : expr
+      }
+  | Call of
+      { func : expr
+      ; args : expr list (* TODO; keywords : keyword list *)
       }
 [@@deriving sexp]
 
