@@ -87,6 +87,10 @@ and expr =
       { func : expr
       ; args : expr list (* TODO; keywords : keyword list *)
       }
+  | Attribute of
+      { value : expr
+      ; attr : string
+      }
 [@@deriving sexp]
 
 type t = stmt list [@@deriving sexp]
@@ -192,7 +196,7 @@ let simple_eval t =
     | Assign { targets = [ Name name ]; value } ->
       let value = eval_expr env value in
       Env.set env ~name ~value
-    | Assign _ -> failwith "TODO Assign"
+    | Assign _ -> failwith "TODO Generic Assign"
     | Return { value } ->
       raise (Return (Option.value_map value ~f:(eval_expr env) ~default:Val_none))
     | Delete _ -> failwith "TODO Delete"
@@ -202,7 +206,10 @@ let simple_eval t =
     | Float f -> Val_float f
     | Str s -> Val_str s
     | Name name -> Env.find_exn env ~name
-    | BoolOp _ -> failwith "TODO BoolOp"
+    | BoolOp { op = And; values } ->
+      Val_bool (List.for_all values ~f:(fun v -> eval_expr env v |> value_to_bool))
+    | BoolOp { op = Or; values } ->
+      Val_bool (List.exists values ~f:(fun v -> eval_expr env v |> value_to_bool))
     | BinOp { left; op; right } ->
       let left = eval_expr env left in
       let right = eval_expr env right in
@@ -244,6 +251,7 @@ let simple_eval t =
             (List.length arg_values)
             ())
       | _ -> failwith "not a function")
+    | Attribute { value = _; attr = _ } -> failwith "TODO attribute"
   and eval_stmts env stmts = List.iter stmts ~f:(eval_stmt env) in
   let env = Env.create ~prev_env:None in
   eval_stmts env t

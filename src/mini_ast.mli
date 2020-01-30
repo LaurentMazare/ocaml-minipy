@@ -87,6 +87,10 @@ and expr =
       { func : expr
       ; args : expr list (* TODO; keywords : keyword list *)
       }
+  | Attribute of
+      { value : expr
+      ; attr : string
+      }
 [@@deriving sexp]
 
 type t = stmt list [@@deriving sexp]

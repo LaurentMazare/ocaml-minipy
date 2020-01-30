@@ -66,6 +66,8 @@ rule read env = parse
   | "while" { [WHILE] }
   | "True" { [BOOL true] }
   | "False" { [BOOL false] }
+  | "and" { [OPAND] }
+  | "or" { [OPOR] }
   (* TODO: other string delimiters... *)
   | '"' { [string (Buffer.create 1024) lexbuf] }
   | '-'? ['0'-'9']+ as int { [INTEGER int] }

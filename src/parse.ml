@@ -39,6 +39,8 @@ let token_to_string (token : Parser.token) =
   | COLON -> "COLON"
   | BREAK -> "BREAK"
   | BOOL b -> Printf.sprintf "BOOL<%b>" b
+  | OPAND -> "OPAND"
+  | OPOR -> "OPOR"
 
 let print_position lexbuf =
   let pos = lexbuf.lex_curr_p in
