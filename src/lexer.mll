@@ -91,7 +91,7 @@ rule read env = parse
   | '=' { [EQUAL] }
   (* TODO: handle tabs *)
   (* This discards lines with only spaces in them. *)
-  | '\n' [' ' '\n']* as str {
+  | ('#' [^'\n']*)? '\n' [' ' '\n']* as str {
     for _i = 1 to String.count str ~f:(Base.Char.(=) '\n') do
       next_line lexbuf
     done;

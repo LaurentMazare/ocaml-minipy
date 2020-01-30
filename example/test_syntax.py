@@ -1,6 +1,8 @@
+# here are some comments
+
 x = 3.14
 y = 3.14 - 1 + 2 - 2
-print(x)
+print(x) #test
 print(y)
 print(x+y)
 
@@ -36,8 +38,8 @@ def fff(x, y):
   if x == y:
     if x == 3:
       if True:
-        print("yay2")
-    else: print("nay2")
+        print("yay3")
+    else: print("nay3")
 
 fff(3, 3)
 fff(2, 3)
