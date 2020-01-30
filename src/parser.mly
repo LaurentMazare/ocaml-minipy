@@ -10,24 +10,28 @@
 %token DEF RETURN IF ELIF ELSE WHILE FOR BREAK
 %token LPAREN RPAREN LBRACE RBRACE LBRACK RBRACK
 %token INDENT DEDENT
-%token NEWLINE
+%token NEWLINES
 %token EOF
 
-%type <Mini_ast.t> stmt_list mod_
+%left OPSUB
+%left OPADD
+
+%type <Mini_ast.t> mod_ stmt_list stmt_list_
 %type <Mini_ast.stmt> stmt
 %type <Mini_ast.expr> expr
 %start mod_
 %%
 
 mod_:
-  | EOF { [] }
-  | v=stmt_list EOF { v }
+  | l=stmt_list EOF { l }
 ;
 
 stmt_list:
-  | NEWLINE { [] }
-  | NEWLINE tl=stmt_list { tl }
-  | hd=stmt NEWLINE tl=stmt_list { hd::tl }
+  | NEWLINES l=stmt_list_ { l }
+
+stmt_list_:
+  | { [] }
+  | s=stmt NEWLINES l=stmt_list_ { s :: l }
 ;
 
 stmt:
@@ -39,5 +43,7 @@ expr:
   | STRING { Str $1 }
   | INTEGER { Num (int_of_string $1) }
   | FLOAT { Float (float_of_string $1) }
+  | left=expr OPADD right=expr { BinOp { left; op = Add; right } }
+  | left=expr OPSUB right=expr { BinOp { left; op = Sub; right } }
 ;
 

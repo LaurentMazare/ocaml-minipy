@@ -1,4 +1,4 @@
 (executables
-  (names test)
+  (names test mini_test)
   (libraries base stdio pyast)
 )

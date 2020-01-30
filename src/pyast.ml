@@ -312,5 +312,5 @@ let of_file filename =
       (Exn.to_string exn)
       (Yojson.Safe.to_string yojson)
 
-module Lexer = Lexer
-module Parser = Parser
+module Mini_ast = Mini_ast
+module Parse = Parse
