@@ -7,7 +7,7 @@ let parse_str data =
   let tmp_file = Caml.Filename.temp_file "minitest" ".py" in
   Exn.protect
     ~f:(fun () ->
-      Stdio.Out_channel.write_all tmp_file ~data;
+      Stdio.Out_channel.write_all tmp_file ~data:(data ^ "\n");
       if debug
       then (
         let tokens = Parse.tokens_file tmp_file in
@@ -31,4 +31,21 @@ let%expect_test _ =
   Interpreter.simple_eval ast;
   [%expect {|
         ((Val_str"Hello World!"))
+      |}];
+  let ast = parse_str "print(41+1)" in
+  Interpreter.simple_eval ast;
+  [%expect {|
+        ((Val_int 42))
+      |}]
+
+let%expect_test _ =
+  let ast = parse_str {|
+def f(x, y):
+  return x+y
+
+print(f(1000, 337))
+|} in
+  Interpreter.simple_eval ast;
+  [%expect {|
+        ((Val_int 1337))
       |}]
