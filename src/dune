@@ -1,10 +1,14 @@
 (library
   (name pyast)
   (public_name pyast)
-  (libraries base stdio unix yojson)
+  (libraries base menhirLib stdio unix yojson)
   (preprocess (pps ppx_let ppx_sexp_conv ppx_yojson_conv))
 )
 
-(ocamllex lexer)
-(menhir (modules parser) (flags ("--explain" "--dump")))
+(rule
+ (targets parser_messages.ml)
+ (deps parser.messages parser.mly)
+ (action  (with-stdout-to %{targets} (run menhir --compile-errors %{deps}))))
 
+(ocamllex lexer)
+(menhir (modules parser) (flags ("--table" "--explain" "--dump")))
