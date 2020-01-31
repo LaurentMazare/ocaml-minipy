@@ -55,20 +55,21 @@ let token_to_string (token : Parser.token) =
   | OPAND -> "OPAND"
   | OPOR -> "OPOR"
 
-let tokens ~filename =
-  Stdio.In_channel.with_file filename ~f:(fun in_channel ->
-      let lexbuf = Lexing.from_channel in_channel in
-      lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
-      let env = Lexer.Env.create () in
-      let rec loop acc =
-        let token = Lexer.read env lexbuf in
-        Stdio.printf "token: <%s>\n%!" (token_to_string token);
-        let acc = token :: acc in
-        match token with
-        | EOF -> List.rev acc
-        | _ -> loop acc
-      in
-      loop [])
+let tokens ?(filename = "unk") in_channel =
+  let lexbuf = Lexing.from_channel in_channel in
+  lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
+  let env = Lexer.Env.create () in
+  let rec loop acc =
+    let token = Lexer.read env lexbuf in
+    Stdio.printf "token: <%s>\n%!" (token_to_string token);
+    let acc = token :: acc in
+    match token with
+    | EOF -> List.rev acc
+    | _ -> loop acc
+  in
+  loop []
+
+let tokens_file filename = Stdio.In_channel.with_file filename ~f:(tokens ~filename)
 
 let get_line filename lineno =
   try
@@ -133,8 +134,9 @@ let parse parse_fun lexbuf =
     let context = get_line pos.pos_fname pos.pos_lnum in
     Error { Error.message; context }
 
-let parse ~filename =
-  Stdio.In_channel.with_file filename ~f:(fun in_channel ->
-      let lexbuf = Lexing.from_channel in_channel in
-      lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
-      parse Parser.Incremental.mod_ lexbuf)
+let parse ?(filename = "unk") in_channel =
+  let lexbuf = Lexing.from_channel in_channel in
+  lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
+  parse Parser.Incremental.mod_ lexbuf
+
+let parse_file filename = Stdio.In_channel.with_file filename ~f:(parse ~filename)

@@ -1,4 +1,7 @@
-open! Base
+(* In this example, the Python type is extracted using the Python
+   interpreter with the ast module (see examples/test.py), this
+   is converted to json and read from this file.
+*)
 open! Base
 
 (* These types are derived from:
