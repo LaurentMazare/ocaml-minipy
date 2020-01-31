@@ -13,7 +13,7 @@ def node_to_python(node):
   name = node.__class__.__name__
   return (name, fields) if fields else (name,)
 
-class PyAst(object):
+class MiniPy(object):
   def __init__(self, fn):
     filename = inspect.getsourcefile(fn)
     lines, lineno = inspect.getsourcelines(fn)
@@ -30,12 +30,12 @@ class PyAst(object):
   def write(self, fobj):
     json.dump(self._tree, fobj)
 
-def pyast(fn):
+def minipy(fn):
   if not isinstance(fn, types.FunctionType):
     raise ValueError('not a function')
-  return PyAst(fn)
+  return MiniPy(fn)
 
-@pyast
+@minipy
 def test(x):
   print(x)
   return x + 1

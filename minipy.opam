@@ -1,8 +1,8 @@
 opam-version: "2.0"
-name:         "pyast"
-bug-reports:  "https://github.com/LaurentMazare/ocaml-pyast/issues"
-homepage:     "https://github.com/LaurentMazare/ocaml-pyast"
-dev-repo:     "git+https://github.com/LaurentMazare/ocaml-pyast.git"
+name:         "minipy"
+bug-reports:  "https://github.com/LaurentMazare/ocaml-minipy/issues"
+homepage:     "https://github.com/LaurentMazare/ocaml-minipy"
+dev-repo:     "git+https://github.com/LaurentMazare/ocaml-minipy.git"
 maintainer:   "Laurent Mazare <lmazare@gmail.com>"
 authors:      [ "Laurent Mazare" ]
 

@@ -1,0 +1,12 @@
+(executables
+  (names mini_test)
+  (modules mini_test)
+  (libraries base stdio minipy)
+)
+
+(executables
+  (names test)
+  (modules test)
+  (libraries base stdio minipy yojson)
+  (preprocess (pps ppx_let ppx_sexp_conv ppx_yojson_conv))
+)

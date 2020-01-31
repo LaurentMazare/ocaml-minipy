@@ -28,10 +28,10 @@
 %left DOT
 %nonassoc LPAREN
 
-%type <Mini_ast.t> mod_
-%type <Mini_ast.stmt list> block, orelse
-%type <Mini_ast.stmt> stmt stmt_
-%type <Mini_ast.expr> expr
+%type <Ast.t> mod_
+%type <Ast.stmt list> block, orelse
+%type <Ast.stmt> stmt stmt_
+%type <Ast.expr> expr
 %start mod_
 %%
 

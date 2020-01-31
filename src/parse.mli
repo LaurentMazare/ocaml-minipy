@@ -10,5 +10,5 @@ end
 
 val token_to_string : Parser.token -> string
 val tokens : filename:string -> Parser.token list
-val parse : filename:string -> (Mini_ast.t, Error.t) Result.t
+val parse : filename:string -> (Ast.t, Error.t) Result.t
 val ok_exn : ('a, Error.t) Result.t -> 'a

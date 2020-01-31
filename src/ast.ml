@@ -1,4 +1,4 @@
-open! Base
+open Base
 
 type boolop =
   | And
@@ -94,5 +94,3 @@ and expr =
 [@@deriving sexp]
 
 type t = stmt list [@@deriving sexp]
-
-val simple_eval : t -> unit

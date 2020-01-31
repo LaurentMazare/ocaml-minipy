@@ -1,4 +1,5 @@
 open! Base
+open! Base
 
 (* These types are derived from:
    https://github.com/python/cpython/blob/3.7/Parser/Python.asdl
@@ -312,5 +313,4 @@ let of_file filename =
       (Exn.to_string exn)
       (Yojson.Safe.to_string yojson)
 
-module Mini_ast = Mini_ast
-module Parse = Parse
+let () = of_file "/tmp/test.json"

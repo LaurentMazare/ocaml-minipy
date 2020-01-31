@@ -1,6 +1,6 @@
 (library
-  (name pyast)
-  (public_name pyast)
+  (name minipy)
+  (public_name minipy)
   (libraries base menhirLib stdio unix yojson)
   (preprocess (pps ppx_let ppx_sexp_conv ppx_yojson_conv))
 )
