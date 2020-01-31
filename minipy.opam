@@ -19,7 +19,6 @@ depends: [
   "ocaml" {>= "4.07"}
   "ocaml-compiler-libs"
   "stdio" {>= "v.0.12.0"}
-  "yojson"
 ]
 
 depopts: [
@@ -28,8 +27,8 @@ depopts: [
 conflicts: [
 ]
 
-synopsis: "OCaml library for Python ASTs"
+synopsis: "OCaml minimalist Python-like interpreter"
 
 description: """
-An OCaml library to manipulate some Python Abstract Syntax Trees.
+A very simple and naive intrepreter for a Python-like language.
 """

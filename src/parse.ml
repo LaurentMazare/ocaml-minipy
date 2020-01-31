@@ -61,7 +61,6 @@ let tokens ?(filename = "unk") in_channel =
   let env = Lexer.Env.create () in
   let rec loop acc =
     let token = Lexer.read env lexbuf in
-    Stdio.printf "token: <%s>\n%!" (token_to_string token);
     let acc = token :: acc in
     match token with
     | EOF -> List.rev acc
