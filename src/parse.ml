@@ -30,7 +30,7 @@ let token_to_string (token : Parser.token) =
   | OPEDIV -> "OPEDIV"
   | OPDIV -> "OPDIV"
   | OPADD -> "OPADD"
-  | NEWLINES -> "NEWLINES"
+  | NEWLINE -> "NEWLINE"
   | LPAREN -> "LPAREN"
   | LBRACK -> "LBRACK"
   | LBRACE -> "LBRACE"
@@ -41,7 +41,7 @@ let token_to_string (token : Parser.token) =
   | FOR -> "FOR"
   | FLOAT s -> Printf.sprintf "FLOAT<%s>" s
   | EQUAL -> "EQUAL"
-  | EOF -> "EOF"
+  | ENDMARKER -> "ENDMARKER"
   | ELSE -> "ELSE"
   | ELIF -> "ELIF"
   | DOT -> "DOT"
@@ -49,6 +49,7 @@ let token_to_string (token : Parser.token) =
   | DEF -> "DEF"
   | DEDENT -> "DEDENT"
   | COMMA -> "COMMA"
+  | SEMICOLON -> "SEMICOLON"
   | COLON -> "COLON"
   | BREAK -> "BREAK"
   | BOOL b -> Printf.sprintf "BOOL<%b>" b
@@ -63,7 +64,7 @@ let tokens ?(filename = "unk") in_channel =
     let token = Lexer.read env lexbuf in
     let acc = token :: acc in
     match token with
-    | EOF -> List.rev acc
+    | ENDMARKER -> List.rev acc
     | _ -> loop acc
   in
   loop []

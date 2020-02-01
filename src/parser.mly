@@ -1,11 +1,16 @@
 %{
+(* Python grammar specification.
+   Adapted from: https://docs.python.org/3/reference/grammar.html
+*)
+
+module List = Base.List
 %}
 
 %token <string> INTEGER
 %token <string> FLOAT
 %token <string> IDENTIFIER STRING
 %token <bool> BOOL
-%token COLON
+%token COLON SEMICOLON
 %token OPAND OPOR
 %token OPADD OPSUB OPMUL OPDIV OPEDIV OPMOD
 %token OPNEQ OPEQ
@@ -13,8 +18,8 @@
 %token DEF RETURN DELETE IF ELIF ELSE WHILE FOR BREAK
 %token LPAREN RPAREN LBRACE RBRACE LBRACK RBRACK
 %token INDENT DEDENT
-%token NEWLINES
-%token EOF
+%token NEWLINE
+%token ENDMARKER
 
 %left IF ELSE
 %left OPOR
@@ -29,29 +34,58 @@
 %nonassoc LPAREN
 
 %type <Ast.t> mod_
-%type <Ast.stmt list> block, orelse
-%type <Ast.stmt> stmt stmt_
+%type <Ast.stmt list> newline_or_stmt suite orelse
+%type <Ast.stmt list> stmt simple_stmt
+%type <Ast.stmt> compound_stmt small_stmt flow_stmt
 %type <Ast.expr> expr
+%type <Ast.expr * Ast.stmt list> elif
 %start mod_
 %%
 
 mod_:
-  | NEWLINES* l=stmt* EOF { l }
+  | l=newline_or_stmt* ENDMARKER { List.concat l }
+;
+
+newline_or_stmt:
+  | NEWLINE { [] }
+  | s=stmt { s }
 ;
 
 stmt:
-  | s=stmt_ NEWLINES { s }
-  | IF test=expr COLON body=block orelse=orelse { If { test; body; orelse } }
-  | WHILE test=expr COLON body=block orelse=orelse { While { test; body; orelse } }
-  | DEF name=IDENTIFIER LPAREN args=separated_list(COMMA, IDENTIFIER) RPAREN COLON body=block
+  | s=simple_stmt { s }
+  | s=compound_stmt { [ s ] }
+;
+
+simple_stmt:
+  | l=separated_nonempty_list(COLON, small_stmt) SEMICOLON? NEWLINE { l }
+;
+
+small_stmt:
+  | value=expr { Expr { value } }
+  | target=expr EQUAL value=expr { Assign { targets = [ target ]; value } }
+  | DELETE e=expr { Delete { targets = [ e ] } }
+  | s=flow_stmt { s }
+;
+
+flow_stmt:
+  | RETURN { Return { value = None } }
+  | RETURN v=expr { Return { value = Some v } }
+;
+
+suite:
+  | s=simple_stmt { s }
+  | NEWLINE INDENT l=stmt+ DEDENT { List.concat l }
+;
+
+compound_stmt:
+  | IF test=expr COLON body=suite elif* orelse=orelse { If { test; body; orelse } }
+  | WHILE test=expr COLON body=suite orelse=orelse { While { test; body; orelse } }
+  | DEF name=IDENTIFIER LPAREN args=separated_list(COMMA, IDENTIFIER) RPAREN COLON body=suite
     { FunctionDef { name; args; body }}
 ;
 
-stmt_:
-  | t=IDENTIFIER EQUAL v=expr { Assign { targets = [ Name t ]; value = v } }
-  | RETURN { Return { value = None } }
-  | RETURN v=expr { Return { value = Some v } }
-  | value=expr { Expr { value } }
+elif:
+  | ELIF e=expr COLON s=suite { e, s }
 ;
 
 expr:
@@ -77,10 +111,5 @@ expr:
 
 orelse:
   | { [] }
-  | ELSE COLON b=block { b }
-;
-
-block:
-  | s=stmt_ NEWLINES { [ s ] }
-  | NEWLINES INDENT body=nonempty_list(stmt) DEDENT { body }
+  | ELSE COLON b=suite { b }
 ;

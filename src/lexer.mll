@@ -91,6 +91,7 @@ rule read env = parse
   | '*' { [OPMUL] }
   | '/' { [OPDIV] }
   | ':' { [COLON] }
+  | ';' { [SEMICOLON] }
   | "==" { [OPEQ] }
   | "!=" { [OPNEQ] }
   | '=' { [EQUAL] }
@@ -102,11 +103,11 @@ rule read env = parse
     done;
     let indent = String.length str - String.rindex_exn str '\n' - 1 in
     if env.nestings <> 0
-    then [NEWLINES]
+    then [NEWLINE]
     else
       let last_indent = Env.last_indent env in
       if last_indent = indent
-      then [NEWLINES]
+      then [NEWLINE]
       else if last_indent > indent
       then (
         let dropped =
@@ -114,18 +115,18 @@ rule read env = parse
           | None -> raise (SyntaxError (Printf.sprintf "Unexpected indentation level %d" indent))
           | Some dropped -> dropped
         in
-        NEWLINES :: List.init dropped (fun _ -> DEDENT)
+        NEWLINE :: List.init dropped (fun _ -> DEDENT)
       ) else (
         Env.push_indent env indent;
-        [NEWLINES; INDENT]
+        [NEWLINE; INDENT]
       )
   }
   | ['a'-'z' 'A'-'Z' '_'] ['a'-'z' 'A'-'Z' '_' '0'-'9']* as id { [IDENTIFIER id] }
   | _ { raise (SyntaxError ("Unexpected char: " ^ Lexing.lexeme lexbuf)) }
   | eof {
     match Env.drop_indent env ~until:0 with
-    | None -> [EOF]
-    | Some dropped -> List.init dropped (fun _ -> DEDENT) @ [EOF]
+    | None -> [ENDMARKER]
+    | Some dropped -> List.init dropped (fun _ -> DEDENT) @ [ENDMARKER]
   }
 and string buf = parse
  | "\\\"" { Buffer.add_char buf '\"'; string buf lexbuf }
