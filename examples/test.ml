@@ -258,7 +258,7 @@ module Python37 = struct
     | If of
         { test : expr
         ; body : stmt list
-        ; orelse : stmt
+        ; orelse : stmt list
         }
     | With of
         { items : withitem list

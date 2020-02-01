@@ -4,6 +4,14 @@
 *)
 
 module List = Base.List
+
+let combine_if ~test ~body ~elif ~orelse =
+  let orelse =
+    List.rev elif
+    |> List.fold ~init:orelse ~f:(fun orelse (test, body) ->
+        [ Ast.If { test; body; orelse } ])
+  in
+  Ast.If { test; body; orelse }
 %}
 
 %token <string> INTEGER
@@ -78,7 +86,7 @@ suite:
 ;
 
 compound_stmt:
-  | IF test=expr COLON body=suite elif* orelse=orelse { If { test; body; orelse } }
+  | IF test=expr COLON body=suite elif=elif* orelse=orelse { combine_if ~test ~body ~elif ~orelse }
   | WHILE test=expr COLON body=suite orelse=orelse { While { test; body; orelse } }
   | DEF name=IDENTIFIER LPAREN args=separated_list(COMMA, IDENTIFIER) RPAREN COLON body=suite
     { FunctionDef { name; args; body }}
