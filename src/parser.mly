@@ -43,7 +43,7 @@ let combine_if ~test ~body ~elif ~orelse =
 
 %type <Ast.t> mod_
 %type <Ast.stmt list> newline_or_stmt suite orelse
-%type <Ast.stmt list> stmt simple_stmt
+%type <Ast.stmt list> stmt simple_stmt semicolon_simple_stmt simple_stmt_or_empty
 %type <Ast.stmt> compound_stmt small_stmt flow_stmt
 %type <Ast.expr> expr
 %type <Ast.expr * Ast.stmt list> elif
@@ -65,7 +65,17 @@ stmt:
 ;
 
 simple_stmt:
-  | l=separated_nonempty_list(COLON, small_stmt) SEMICOLON? NEWLINE { l }
+  | s=small_stmt l=semicolon_simple_stmt { s :: l }
+;
+
+semicolon_simple_stmt:
+  | NEWLINE { [] }
+  | SEMICOLON l=simple_stmt_or_empty { l }
+;
+ 
+simple_stmt_or_empty:
+  | NEWLINE { [] }
+  | s=small_stmt l=semicolon_simple_stmt { s :: l }
 ;
 
 small_stmt:
