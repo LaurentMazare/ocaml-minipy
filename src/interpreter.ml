@@ -45,6 +45,17 @@ let apply_subscript ~value ~index =
     else Printf.failwithf "unexpected index %d for an array of length %d" i v_len ()
   | _ -> failwith "TODO apply-subscript"
 
+let apply_subscript_assign ~lvalue ~slice ~rvalue =
+  match lvalue, slice with
+  | Val_list v, Val_int i ->
+    let v_len = Array.length v in
+    if 0 <= i && i < v_len
+    then v.(i) <- rvalue
+    else if i < 0 && -v_len <= i
+    then v.(v_len + i) <- rvalue
+    else Printf.failwithf "unexpected index %d for an array of length %d" i v_len ()
+  | _ -> failwith "TODO apply-subscript-assign"
+
 let apply_unary_op op operand =
   match op, operand with
   | UAdd, (Val_int _ as v) -> v
@@ -159,6 +170,11 @@ let rec eval_stmt env = function
   | Assign { targets = [ Name name ]; value } ->
     let value = eval_expr env value in
     Env.set env ~name ~value
+  | Assign { targets = [ Subscript { value = lvalue; slice } ]; value = rvalue } ->
+    let lvalue = eval_expr env lvalue in
+    let rvalue = eval_expr env rvalue in
+    let slice = eval_expr env slice in
+    apply_subscript_assign ~lvalue ~slice ~rvalue
   | Assign _ -> failwith "TODO Generic Assign"
   | Return { value } ->
     raise (Return_exn (Option.value_map value ~f:(eval_expr env) ~default:Val_none))
