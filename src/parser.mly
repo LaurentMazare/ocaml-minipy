@@ -120,6 +120,8 @@ expr:
   | left=expr OPDIV right=expr { BinOp { left; op = Div; right } }
   | left=expr OPADD right=expr { BinOp { left; op = Add; right } }
   | left=expr OPSUB right=expr { BinOp { left; op = Sub; right } }
+  | OPSUB operand=expr { UnaryOp { op = USub; operand } }
+  | OPADD operand=expr { UnaryOp { op = UAdd; operand } }
   | body=expr IF test=expr ELSE orelse=expr { IfExp { body; test; orelse } }
   | func=expr LPAREN args=separated_list(COMMA, expr) RPAREN { Call { func; args } }
   | value=expr DOT attr=IDENTIFIER { Attribute { value; attr } }

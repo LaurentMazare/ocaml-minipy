@@ -34,11 +34,19 @@ let value_to_float v =
   | Val_int i -> Float.of_int i
   | v -> Printf.failwithf "not a bool %s" (sexp_of_value v |> Sexp.to_string_mach) ()
 
+let apply_unary_op op operand =
+  match op, operand with
+  | UAdd, (Val_int _ as v) -> v
+  | UAdd, (Val_float _ as v) -> v
+  | USub, Val_int v -> Val_int (-v)
+  | USub, Val_float v -> Val_float (-.v)
+  | _ -> failwith "TODO unaryop"
+
 let apply_op op left right =
   match op, left, right with
   | Add, Val_int v, Val_int v' -> Val_int (v + v')
   | Add, Val_float v, v' | Add, v', Val_float v -> Val_float (v +. value_to_float v')
-  | Sub, Val_int v, Val_int v' -> Val_int (v + v')
+  | Sub, Val_int v, Val_int v' -> Val_int (v - v')
   | Sub, Val_float v, v' -> Val_float (v -. value_to_float v')
   | Sub, v, Val_float v' -> Val_float (value_to_float v -. v')
   | Mult, Val_int v, Val_int v' -> Val_int (v * v')
@@ -156,6 +164,9 @@ and eval_expr env = function
     Val_bool (List.for_all values ~f:(fun v -> eval_expr env v |> value_to_bool))
   | BoolOp { op = Or; values } ->
     Val_bool (List.exists values ~f:(fun v -> eval_expr env v |> value_to_bool))
+  | UnaryOp { op; operand } ->
+    let operand = eval_expr env operand in
+    apply_unary_op op operand
   | BinOp { left; op; right } ->
     let left = eval_expr env left in
     let right = eval_expr env right in

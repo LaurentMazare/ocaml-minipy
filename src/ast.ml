@@ -5,6 +5,13 @@ type boolop =
   | Or
 [@@deriving sexp]
 
+type unaryop =
+  | Invert
+  | Not
+  | UAdd
+  | USub
+[@@deriving sexp]
+
 type operator =
   | Add
   | Sub
@@ -73,6 +80,10 @@ and expr =
       { left : expr
       ; op : operator
       ; right : expr
+      }
+  | UnaryOp of
+      { op : unaryop
+      ; operand : expr
       }
   | IfExp of
       { test : expr
