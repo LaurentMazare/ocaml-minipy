@@ -44,11 +44,10 @@ let combine_if ~test ~body ~elif ~orelse =
 
 %type <Ast.t> mod_
 %type <Ast.stmt list> newline_or_stmt suite orelse
-%type <Ast.stmt list> stmt simple_stmt semicolon_simple_stmt simple_stmt_or_empty
+%type <Ast.stmt list> stmt simple_stmt simple_stmt_or_empty
 %type <Ast.stmt> compound_stmt small_stmt flow_stmt
 %type <Ast.expr> expr expr_or_tuple
-%type <Ast.expr list option> comma_expr_or_tuple
-%type <Ast.expr list> comma_expr_or_tuple_ expr_or_tuple_or_empty
+%type <Ast.expr list> expr_or_tuple_or_empty
 %type <Ast.expr * Ast.stmt list> elif
 %start mod_
 %%
@@ -68,17 +67,14 @@ stmt:
 ;
 
 simple_stmt:
-  | s=small_stmt l=semicolon_simple_stmt { s :: l }
-;
-
-semicolon_simple_stmt:
-  | NEWLINE { [] }
-  | SEMICOLON l=simple_stmt_or_empty { l }
+  | s=small_stmt NEWLINE { [ s ] }
+  | s=small_stmt SEMICOLON l=simple_stmt_or_empty { s :: l }
 ;
 
 simple_stmt_or_empty:
   | NEWLINE { [] }
-  | s=small_stmt l=semicolon_simple_stmt { s :: l }
+  | s=small_stmt NEWLINE { [s] }
+  | s=small_stmt SEMICOLON l=simple_stmt_or_empty { s :: l }
 ;
 
 small_stmt:
@@ -110,22 +106,14 @@ elif:
 ;
 
 expr_or_tuple:
-  | e=expr l=comma_expr_or_tuple { Option.value_map l ~default:e ~f:(fun l -> Tuple (Array.of_list (e :: l))) }
-;
-
-comma_expr_or_tuple:
-  | { None }
-  | COMMA l=expr_or_tuple_or_empty { Some l }
-;
-
-comma_expr_or_tuple_:
-  | { [] }
-  | COMMA l=expr_or_tuple_or_empty { l }
+  | e=expr { e }
+  | e=expr COMMA l=expr_or_tuple_or_empty { Tuple (Array.of_list (e :: l)) }
 ;
 
 expr_or_tuple_or_empty:
   | { [] }
-  | e=expr l=comma_expr_or_tuple_ { e :: l }
+  | e=expr { [e] }
+  | e=expr COMMA l=expr_or_tuple_or_empty { e :: l }
 ;
 
 expr:
