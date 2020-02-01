@@ -57,8 +57,8 @@ fff(2, 3)
   [%expect
     {|
         ((Val_float 3.14))
-        ((Val_float 6.1400000000000006))
-        ((Val_float 9.2800000000000011))
+        ((Val_float 2.14))
+        ((Val_float 5.28))
         ((Val_int 41))
         ((Val_int 42))
         ((Val_int 43))
