@@ -104,6 +104,10 @@ and expr =
       { value : expr
       ; attr : string
       }
+  | Subscript of
+      { value : expr
+      ; slice : expr
+      }
 [@@deriving sexp]
 
 type t = stmt list [@@deriving sexp]

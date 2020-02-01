@@ -34,6 +34,17 @@ let value_to_float v =
   | Val_int i -> Float.of_int i
   | v -> Printf.failwithf "not a bool %s" (sexp_of_value v |> Sexp.to_string_mach) ()
 
+let apply_subscript ~value ~index =
+  match value, index with
+  | Val_tuple v, Val_int i | Val_list v, Val_int i ->
+    let v_len = Array.length v in
+    if 0 <= i && i < v_len
+    then v.(i)
+    else if i < 0 && -v_len <= i
+    then v.(v_len + i)
+    else Printf.failwithf "unexpected index %d for an array of length %d" i v_len ()
+  | _ -> failwith "TODO apply-subscript"
+
 let apply_unary_op op operand =
   match op, operand with
   | UAdd, (Val_int _ as v) -> v
@@ -205,6 +216,10 @@ and eval_expr env = function
           ())
     | _ -> failwith "not a function")
   | Attribute { value = _; attr = _ } -> failwith "TODO attribute"
+  | Subscript { value; slice } ->
+    let value = eval_expr env value in
+    let index = eval_expr env slice in
+    apply_subscript ~value ~index
 
 and eval_stmts env stmts = List.iter stmts ~f:(eval_stmt env)
 

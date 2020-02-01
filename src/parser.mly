@@ -41,6 +41,7 @@ let combine_if ~test ~body ~elif ~orelse =
 %left OPDIV
 %left DOT
 %nonassoc LPAREN
+%nonassoc LBRACK
 
 %type <Ast.t> mod_
 %type <Ast.stmt list> newline_or_stmt suite orelse
@@ -137,6 +138,7 @@ expr:
   | value=expr DOT attr=IDENTIFIER { Attribute { value; attr } }
   | LPAREN e=expr_or_tuple RPAREN { e }
   | LBRACK l=separated_list(COMMA, expr) RBRACK { List (Array.of_list l) }
+  | value=expr LBRACK slice=expr RBRACK { Subscript { value; slice } }
 ;
 
 orelse:
