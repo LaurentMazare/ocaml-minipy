@@ -3,7 +3,7 @@ open Minipy
 
 let%expect_test "if" =
   let ast =
-    parse_str
+    Basic_tests.parse_str
       {|
 
 x = 1
@@ -76,7 +76,8 @@ elif x == 2:
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect {|
+  [%expect
+    {|
         ((Val_str bar1))
         ((Val_str bar2))
         ((Val_str bar3))
@@ -89,4 +90,3 @@ elif x == 2:
         ((Val_str bar))
         ((Val_str Bar))
       |}]
-

@@ -3,7 +3,7 @@ open Minipy
 
 let%expect_test "syntax" =
   let ast =
-    parse_str
+    Basic_tests.parse_str
       {|
 
 # here are some comments
@@ -78,4 +78,3 @@ fff(2, 3)
         ((Val_int 2))
         ((Val_str nay1))
       |}]
-
