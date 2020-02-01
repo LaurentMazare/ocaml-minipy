@@ -77,3 +77,15 @@ print(fact(10))
   [%expect {|
         3628800
       |}]
+
+let%expect_test "fn" =
+  let ast = parse_str {|
+def f(x, y):
+  return [x, y, x+y]
+
+print(f(1000, 337))
+|} in
+  Interpreter.simple_eval ast;
+  [%expect {|
+        ((Val_list((Val_int 1000)(Val_int 337)(Val_int 1337))))
+      |}]

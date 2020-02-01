@@ -64,6 +64,7 @@ and expr =
   | Float of float
   | Str of string
   | Name of string
+  | List of expr array
   | BoolOp of
       { op : boolop
       ; values : expr list

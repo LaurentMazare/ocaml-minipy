@@ -72,6 +72,7 @@ expr:
   | func=expr LPAREN args=separated_list(COMMA, expr) RPAREN { Call { func; args } }
   | value=expr DOT attr=IDENTIFIER { Attribute { value; attr } }
   | LPAREN e=expr RPAREN { e }
+  | LBRACK l=separated_list(COMMA, expr) RBRACK { List (Array.of_list l) }
 ;
 
 orelse:
