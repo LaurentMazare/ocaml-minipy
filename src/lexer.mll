@@ -69,7 +69,8 @@ rule read env = parse
   | "and" { [OPAND] }
   | "or" { [OPOR] }
   (* TODO: other string delimiters... *)
-  | '"' { [string (Buffer.create 1024) lexbuf] }
+  | '"' { [string_double_quote (Buffer.create 1024) lexbuf] }
+  | '\'' { [string_single_quote (Buffer.create 1024) lexbuf] }
   | ['0'-'9']+ as int { [INTEGER int] }
   | '0' ['x' 'X'] ['0'-'9' 'a'-'f' 'A'-'F']+ as int { [INTEGER int] }
   | '0' ['b' 'B'] ['0'-'1']+ as int { [INTEGER int] }
@@ -128,13 +129,18 @@ rule read env = parse
     | None -> [ENDMARKER]
     | Some dropped -> List.init dropped (fun _ -> DEDENT) @ [ENDMARKER]
   }
-and string buf = parse
- | "\\\"" { Buffer.add_char buf '\"'; string buf lexbuf }
- | "\\n" { Buffer.add_char buf '\n'; string buf lexbuf }
- | "\\t" { Buffer.add_char buf '\t'; string buf lexbuf }
+and string_double_quote buf = parse
+ | "\\\"" { Buffer.add_char buf '\"'; string_double_quote buf lexbuf }
+ | "\\n" { Buffer.add_char buf '\n'; string_double_quote buf lexbuf }
+ | "\\t" { Buffer.add_char buf '\t'; string_double_quote buf lexbuf }
  | '"' { STRING (Buffer.contents buf) }
- | _ as c { Buffer.add_char buf c; string buf lexbuf }
-
+ | _ as c { Buffer.add_char buf c; string_double_quote buf lexbuf }
+and string_single_quote buf = parse
+ | "\\\'" { Buffer.add_char buf '\''; string_single_quote buf lexbuf }
+ | "\\n" { Buffer.add_char buf '\n'; string_single_quote buf lexbuf }
+ | "\\t" { Buffer.add_char buf '\t'; string_single_quote buf lexbuf }
+ | '\'' { STRING (Buffer.contents buf) }
+ | _ as c { Buffer.add_char buf c; string_single_quote buf lexbuf }
 
 {
   let read env lexbuf =

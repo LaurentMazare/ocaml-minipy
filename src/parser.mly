@@ -4,6 +4,7 @@
 *)
 
 module List = Base.List
+module Option = Base.Option
 
 let combine_if ~test ~body ~elif ~orelse =
   let orelse =
@@ -45,7 +46,9 @@ let combine_if ~test ~body ~elif ~orelse =
 %type <Ast.stmt list> newline_or_stmt suite orelse
 %type <Ast.stmt list> stmt simple_stmt semicolon_simple_stmt simple_stmt_or_empty
 %type <Ast.stmt> compound_stmt small_stmt flow_stmt
-%type <Ast.expr> expr
+%type <Ast.expr> expr expr_or_tuple
+%type <Ast.expr list option> comma_expr_or_tuple
+%type <Ast.expr list> comma_expr_or_tuple_ expr_or_tuple_or_empty
 %type <Ast.expr * Ast.stmt list> elif
 %start mod_
 %%
@@ -72,22 +75,22 @@ semicolon_simple_stmt:
   | NEWLINE { [] }
   | SEMICOLON l=simple_stmt_or_empty { l }
 ;
- 
+
 simple_stmt_or_empty:
   | NEWLINE { [] }
   | s=small_stmt l=semicolon_simple_stmt { s :: l }
 ;
 
 small_stmt:
-  | value=expr { Expr { value } }
-  | target=expr EQUAL value=expr { Assign { targets = [ target ]; value } }
-  | DELETE e=expr { Delete { targets = [ e ] } }
+  | value=expr_or_tuple { Expr { value } }
+  | target=expr_or_tuple EQUAL value=expr_or_tuple { Assign { targets = [ target ]; value } }
+  | DELETE e=expr_or_tuple { Delete { targets = [ e ] } }
   | s=flow_stmt { s }
 ;
 
 flow_stmt:
   | RETURN { Return { value = None } }
-  | RETURN v=expr { Return { value = Some v } }
+  | RETURN v=expr_or_tuple { Return { value = Some v } }
 ;
 
 suite:
@@ -104,6 +107,25 @@ compound_stmt:
 
 elif:
   | ELIF e=expr COLON s=suite { e, s }
+;
+
+expr_or_tuple:
+  | e=expr l=comma_expr_or_tuple { Option.value_map l ~default:e ~f:(fun l -> Tuple (Array.of_list (e :: l))) }
+;
+
+comma_expr_or_tuple:
+  | { None }
+  | COMMA l=expr_or_tuple_or_empty { Some l }
+;
+
+comma_expr_or_tuple_:
+  | { [] }
+  | COMMA l=expr_or_tuple_or_empty { l }
+;
+
+expr_or_tuple_or_empty:
+  | { [] }
+  | e=expr l=comma_expr_or_tuple_ { e :: l }
 ;
 
 expr:
@@ -125,7 +147,7 @@ expr:
   | body=expr IF test=expr ELSE orelse=expr { IfExp { body; test; orelse } }
   | func=expr LPAREN args=separated_list(COMMA, expr) RPAREN { Call { func; args } }
   | value=expr DOT attr=IDENTIFIER { Attribute { value; attr } }
-  | LPAREN e=expr RPAREN { e }
+  | LPAREN e=expr_or_tuple RPAREN { e }
   | LBRACK l=separated_list(COMMA, expr) RBRACK { List (Array.of_list l) }
 ;
 

@@ -72,6 +72,7 @@ and expr =
   | Str of string
   | Name of string
   | List of expr array
+  | Tuple of expr array
   | BoolOp of
       { op : boolop
       ; values : expr list

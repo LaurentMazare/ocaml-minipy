@@ -159,6 +159,7 @@ and eval_expr env = function
   | Float f -> Val_float f
   | Str s -> Val_str s
   | List l -> Val_list (Array.map l ~f:(eval_expr env))
+  | Tuple l -> Val_tuple (Array.map l ~f:(eval_expr env))
   | Name name -> Env.find_exn env ~name
   | BoolOp { op = And; values } ->
     Val_bool (List.for_all values ~f:(fun v -> eval_expr env v |> value_to_bool))

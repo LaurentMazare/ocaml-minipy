@@ -1,6 +1,6 @@
 mod_: DEF IDENTIFIER LPAREN IDENTIFIER COMMA WHILE
 ##
-## Ends in an error in state: 83.
+## Ends in an error in state: 94.
 ##
 ## separated_nonempty_list(COMMA,IDENTIFIER) -> IDENTIFIER COMMA . separated_nonempty_list(COMMA,IDENTIFIER) [ RPAREN ]
 ##
@@ -12,7 +12,7 @@ mod_: DEF IDENTIFIER LPAREN IDENTIFIER COMMA WHILE
 
 mod_: DEF IDENTIFIER LPAREN IDENTIFIER WHILE
 ##
-## Ends in an error in state: 82.
+## Ends in an error in state: 93.
 ##
 ## separated_nonempty_list(COMMA,IDENTIFIER) -> IDENTIFIER . [ RPAREN ]
 ## separated_nonempty_list(COMMA,IDENTIFIER) -> IDENTIFIER . COMMA separated_nonempty_list(COMMA,IDENTIFIER) [ RPAREN ]
@@ -25,9 +25,9 @@ mod_: DEF IDENTIFIER LPAREN IDENTIFIER WHILE
 
 mod_: DEF IDENTIFIER LPAREN RPAREN COLON WHILE
 ##
-## Ends in an error in state: 88.
+## Ends in an error in state: 99.
 ##
-## compound_stmt -> DEF IDENTIFIER LPAREN loption(separated_nonempty_list(COMMA,IDENTIFIER)) RPAREN COLON . suite [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## compound_stmt -> DEF IDENTIFIER LPAREN loption(separated_nonempty_list(COMMA,IDENTIFIER)) RPAREN COLON . suite [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## DEF IDENTIFIER LPAREN loption(separated_nonempty_list(COMMA,IDENTIFIER)) RPAREN COLON
@@ -37,9 +37,9 @@ mod_: DEF IDENTIFIER LPAREN RPAREN COLON WHILE
 
 mod_: DEF IDENTIFIER LPAREN RPAREN WHILE
 ##
-## Ends in an error in state: 87.
+## Ends in an error in state: 98.
 ##
-## compound_stmt -> DEF IDENTIFIER LPAREN loption(separated_nonempty_list(COMMA,IDENTIFIER)) RPAREN . COLON suite [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## compound_stmt -> DEF IDENTIFIER LPAREN loption(separated_nonempty_list(COMMA,IDENTIFIER)) RPAREN . COLON suite [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## DEF IDENTIFIER LPAREN loption(separated_nonempty_list(COMMA,IDENTIFIER)) RPAREN
@@ -49,9 +49,9 @@ mod_: DEF IDENTIFIER LPAREN RPAREN WHILE
 
 mod_: DEF IDENTIFIER LPAREN WHILE
 ##
-## Ends in an error in state: 81.
+## Ends in an error in state: 92.
 ##
-## compound_stmt -> DEF IDENTIFIER LPAREN . loption(separated_nonempty_list(COMMA,IDENTIFIER)) RPAREN COLON suite [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## compound_stmt -> DEF IDENTIFIER LPAREN . loption(separated_nonempty_list(COMMA,IDENTIFIER)) RPAREN COLON suite [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## DEF IDENTIFIER LPAREN
@@ -61,9 +61,9 @@ mod_: DEF IDENTIFIER LPAREN WHILE
 
 mod_: DEF IDENTIFIER WHILE
 ##
-## Ends in an error in state: 80.
+## Ends in an error in state: 91.
 ##
-## compound_stmt -> DEF IDENTIFIER . LPAREN loption(separated_nonempty_list(COMMA,IDENTIFIER)) RPAREN COLON suite [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## compound_stmt -> DEF IDENTIFIER . LPAREN loption(separated_nonempty_list(COMMA,IDENTIFIER)) RPAREN COLON suite [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## DEF IDENTIFIER
@@ -73,9 +73,9 @@ mod_: DEF IDENTIFIER WHILE
 
 mod_: DEF WHILE
 ##
-## Ends in an error in state: 79.
+## Ends in an error in state: 90.
 ##
-## compound_stmt -> DEF . IDENTIFIER LPAREN loption(separated_nonempty_list(COMMA,IDENTIFIER)) RPAREN COLON suite [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## compound_stmt -> DEF . IDENTIFIER LPAREN loption(separated_nonempty_list(COMMA,IDENTIFIER)) RPAREN COLON suite [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## DEF
@@ -83,34 +83,11 @@ mod_: DEF WHILE
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
-mod_: DELETE STRING WHILE
-##
-## Ends in an error in state: 52.
-##
-## expr -> expr . OPAND expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPOR expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPEQ expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPNEQ expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPMUL expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPDIV expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPADD expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPSUB expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . IF expr ELSE expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . DOT IDENTIFIER [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## small_stmt -> DELETE expr . [ SEMICOLON NEWLINE ]
-##
-## The known suffix of the stack is as follows:
-## DELETE expr
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE>
-
 mod_: DELETE WHILE
 ##
-## Ends in an error in state: 51.
+## Ends in an error in state: 63.
 ##
-## small_stmt -> DELETE . expr [ SEMICOLON NEWLINE ]
+## small_stmt -> DELETE . expr_or_tuple [ SEMICOLON NEWLINE ]
 ##
 ## The known suffix of the stack is as follows:
 ## DELETE
@@ -120,9 +97,9 @@ mod_: DELETE WHILE
 
 mod_: IF STRING COLON NEWLINE INDENT SEMICOLON
 ##
-## Ends in an error in state: 47.
+## Ends in an error in state: 59.
 ##
-## suite -> NEWLINE INDENT . nonempty_list(stmt) DEDENT [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE ELIF DELETE DEF DEDENT BOOL ]
+## suite -> NEWLINE INDENT . nonempty_list(stmt) DEDENT [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE ELIF DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## NEWLINE INDENT
@@ -132,7 +109,7 @@ mod_: IF STRING COLON NEWLINE INDENT SEMICOLON
 
 mod_: IF STRING COLON NEWLINE INDENT STRING NEWLINE SEMICOLON
 ##
-## Ends in an error in state: 90.
+## Ends in an error in state: 101.
 ##
 ## nonempty_list(stmt) -> stmt . [ DEDENT ]
 ## nonempty_list(stmt) -> stmt . nonempty_list(stmt) [ DEDENT ]
@@ -145,9 +122,9 @@ mod_: IF STRING COLON NEWLINE INDENT STRING NEWLINE SEMICOLON
 
 mod_: IF STRING COLON NEWLINE WHILE
 ##
-## Ends in an error in state: 46.
+## Ends in an error in state: 58.
 ##
-## suite -> NEWLINE . INDENT nonempty_list(stmt) DEDENT [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE ELIF DELETE DEF DEDENT BOOL ]
+## suite -> NEWLINE . INDENT nonempty_list(stmt) DEDENT [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE ELIF DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## NEWLINE
@@ -157,9 +134,9 @@ mod_: IF STRING COLON NEWLINE WHILE
 
 mod_: IF STRING COLON STRING NEWLINE ELIF STRING COLON BOOL NEWLINE SEMICOLON
 ##
-## Ends in an error in state: 77.
+## Ends in an error in state: 88.
 ##
-## list(elif) -> elif . list(elif) [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE DELETE DEF DEDENT BOOL ]
+## list(elif) -> elif . list(elif) [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## elif
@@ -169,9 +146,9 @@ mod_: IF STRING COLON STRING NEWLINE ELIF STRING COLON BOOL NEWLINE SEMICOLON
 
 mod_: IF STRING COLON STRING NEWLINE ELIF STRING COLON WHILE
 ##
-## Ends in an error in state: 56.
+## Ends in an error in state: 68.
 ##
-## elif -> ELIF expr COLON . suite [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE ELIF DELETE DEF DEDENT BOOL ]
+## elif -> ELIF expr COLON . suite [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE ELIF DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## ELIF expr COLON
@@ -181,9 +158,9 @@ mod_: IF STRING COLON STRING NEWLINE ELIF STRING COLON WHILE
 
 mod_: IF STRING COLON STRING NEWLINE ELIF STRING WHILE
 ##
-## Ends in an error in state: 55.
+## Ends in an error in state: 67.
 ##
-## elif -> ELIF expr . COLON suite [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE ELIF DELETE DEF DEDENT BOOL ]
+## elif -> ELIF expr . COLON suite [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE ELIF DELETE DEF DEDENT BOOL ]
 ## expr -> expr . OPAND expr [ OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT COLON ]
 ## expr -> expr . OPOR expr [ OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT COLON ]
 ## expr -> expr . OPEQ expr [ OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT COLON ]
@@ -204,9 +181,9 @@ mod_: IF STRING COLON STRING NEWLINE ELIF STRING WHILE
 
 mod_: IF STRING COLON STRING NEWLINE ELIF WHILE
 ##
-## Ends in an error in state: 54.
+## Ends in an error in state: 66.
 ##
-## elif -> ELIF . expr COLON suite [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE ELIF DELETE DEF DEDENT BOOL ]
+## elif -> ELIF . expr COLON suite [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE ELIF DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## ELIF
@@ -216,9 +193,9 @@ mod_: IF STRING COLON STRING NEWLINE ELIF WHILE
 
 mod_: IF STRING COLON STRING NEWLINE SEMICOLON
 ##
-## Ends in an error in state: 53.
+## Ends in an error in state: 65.
 ##
-## compound_stmt -> IF expr COLON suite . list(elif) orelse [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## compound_stmt -> IF expr COLON suite . list(elif) orelse [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## IF expr COLON suite
@@ -228,9 +205,9 @@ mod_: IF STRING COLON STRING NEWLINE SEMICOLON
 
 mod_: IF STRING COLON WHILE
 ##
-## Ends in an error in state: 50.
+## Ends in an error in state: 62.
 ##
-## compound_stmt -> IF expr COLON . suite list(elif) orelse [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## compound_stmt -> IF expr COLON . suite list(elif) orelse [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## IF expr COLON
@@ -240,9 +217,9 @@ mod_: IF STRING COLON WHILE
 
 mod_: IF STRING WHILE
 ##
-## Ends in an error in state: 49.
+## Ends in an error in state: 61.
 ##
-## compound_stmt -> IF expr . COLON suite list(elif) orelse [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## compound_stmt -> IF expr . COLON suite list(elif) orelse [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ## expr -> expr . OPAND expr [ OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT COLON ]
 ## expr -> expr . OPOR expr [ OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT COLON ]
 ## expr -> expr . OPEQ expr [ OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT COLON ]
@@ -263,9 +240,9 @@ mod_: IF STRING WHILE
 
 mod_: IF WHILE
 ##
-## Ends in an error in state: 48.
+## Ends in an error in state: 60.
 ##
-## compound_stmt -> IF . expr COLON suite list(elif) orelse [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## compound_stmt -> IF . expr COLON suite list(elif) orelse [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## IF
@@ -275,7 +252,7 @@ mod_: IF WHILE
 
 mod_: LBRACK STRING COMMA WHILE
 ##
-## Ends in an error in state: 38.
+## Ends in an error in state: 40.
 ##
 ## separated_nonempty_list(COMMA,expr) -> expr COMMA . separated_nonempty_list(COMMA,expr) [ RPAREN RBRACK ]
 ##
@@ -287,7 +264,7 @@ mod_: LBRACK STRING COMMA WHILE
 
 mod_: LBRACK STRING RPAREN
 ##
-## Ends in an error in state: 10.
+## Ends in an error in state: 12.
 ##
 ## expr -> LBRACK loption(separated_nonempty_list(COMMA,expr)) . RBRACK [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -298,15 +275,15 @@ mod_: LBRACK STRING RPAREN
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 12, spurious reduction of production separated_nonempty_list(COMMA,expr) -> expr 
-## In state 9, spurious reduction of production loption(separated_nonempty_list(COMMA,expr)) -> separated_nonempty_list(COMMA,expr) 
+## In state 14, spurious reduction of production separated_nonempty_list(COMMA,expr) -> expr 
+## In state 11, spurious reduction of production loption(separated_nonempty_list(COMMA,expr)) -> separated_nonempty_list(COMMA,expr) 
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 mod_: LBRACK STRING WHILE
 ##
-## Ends in an error in state: 12.
+## Ends in an error in state: 14.
 ##
 ## expr -> expr . OPAND expr [ RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT COMMA ]
 ## expr -> expr . OPOR expr [ RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT COMMA ]
@@ -330,7 +307,7 @@ mod_: LBRACK STRING WHILE
 
 mod_: LBRACK WHILE
 ##
-## Ends in an error in state: 4.
+## Ends in an error in state: 6.
 ##
 ## expr -> LBRACK . loption(separated_nonempty_list(COMMA,expr)) RBRACK [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -340,34 +317,30 @@ mod_: LBRACK WHILE
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
-mod_: LPAREN STRING WHILE
+mod_: LPAREN STRING SEMICOLON
 ##
-## Ends in an error in state: 40.
+## Ends in an error in state: 42.
 ##
-## expr -> expr . OPAND expr [ RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT ]
-## expr -> expr . OPOR expr [ RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT ]
-## expr -> expr . OPEQ expr [ RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT ]
-## expr -> expr . OPNEQ expr [ RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT ]
-## expr -> expr . OPMUL expr [ RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT ]
-## expr -> expr . OPDIV expr [ RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT ]
-## expr -> expr . OPADD expr [ RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT ]
-## expr -> expr . OPSUB expr [ RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT ]
-## expr -> expr . IF expr ELSE expr [ RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT ]
-## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT ]
-## expr -> expr . DOT IDENTIFIER [ RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT ]
-## expr -> LPAREN expr . RPAREN [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> LPAREN expr_or_tuple . RPAREN [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
 ## The known suffix of the stack is as follows:
-## LPAREN expr
+## LPAREN expr_or_tuple
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 44, spurious reduction of production comma_expr_or_tuple -> 
+## In state 51, spurious reduction of production expr_or_tuple -> expr comma_expr_or_tuple 
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 mod_: LPAREN WHILE
 ##
-## Ends in an error in state: 3.
+## Ends in an error in state: 5.
 ##
-## expr -> LPAREN . expr RPAREN [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> LPAREN . expr_or_tuple RPAREN [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
 ## The known suffix of the stack is as follows:
 ## LPAREN
@@ -377,7 +350,7 @@ mod_: LPAREN WHILE
 
 mod_: NEWLINE SEMICOLON
 ##
-## Ends in an error in state: 100.
+## Ends in an error in state: 111.
 ##
 ## list(newline_or_stmt) -> newline_or_stmt . list(newline_or_stmt) [ ENDMARKER ]
 ##
@@ -387,35 +360,103 @@ mod_: NEWLINE SEMICOLON
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
-mod_: RETURN STRING WHILE
+mod_: OPADD STRING WHILE
 ##
-## Ends in an error in state: 45.
+## Ends in an error in state: 52.
 ##
-## expr -> expr . OPAND expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPOR expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPEQ expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPNEQ expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPMUL expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPDIV expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPADD expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPSUB expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . IF expr ELSE expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . DOT IDENTIFIER [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## flow_stmt -> RETURN expr . [ SEMICOLON NEWLINE ]
+## expr -> expr . OPAND expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . OPOR expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . OPEQ expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . OPNEQ expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . OPMUL expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . OPDIV expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . OPADD expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . OPSUB expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> OPADD expr . [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . IF expr ELSE expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . DOT IDENTIFIER [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
 ## The known suffix of the stack is as follows:
-## RETURN expr
+## OPADD expr
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+mod_: OPADD WHILE
+##
+## Ends in an error in state: 4.
+##
+## expr -> OPADD . expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## OPADD
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+mod_: OPSUB STRING WHILE
+##
+## Ends in an error in state: 53.
+##
+## expr -> expr . OPAND expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . OPOR expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . OPEQ expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . OPNEQ expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . OPMUL expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . OPDIV expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . OPADD expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . OPSUB expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> OPSUB expr . [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . IF expr ELSE expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+## expr -> expr . DOT IDENTIFIER [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## OPSUB expr
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+mod_: OPSUB WHILE
+##
+## Ends in an error in state: 3.
+##
+## expr -> OPSUB . expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
+##
+## The known suffix of the stack is as follows:
+## OPSUB
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+mod_: RETURN STRING RPAREN
+##
+## Ends in an error in state: 70.
+##
+## simple_stmt -> small_stmt . semicolon_simple_stmt [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE ELIF DELETE DEF DEDENT BOOL ]
+##
+## The known suffix of the stack is as follows:
+## small_stmt
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 44, spurious reduction of production comma_expr_or_tuple -> 
+## In state 51, spurious reduction of production expr_or_tuple -> expr comma_expr_or_tuple 
+## In state 57, spurious reduction of production flow_stmt -> RETURN expr_or_tuple 
+## In state 77, spurious reduction of production small_stmt -> flow_stmt 
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 mod_: RETURN WHILE
 ##
-## Ends in an error in state: 44.
+## Ends in an error in state: 56.
 ##
 ## flow_stmt -> RETURN . [ SEMICOLON NEWLINE ]
-## flow_stmt -> RETURN . expr [ SEMICOLON NEWLINE ]
+## flow_stmt -> RETURN . expr_or_tuple [ SEMICOLON NEWLINE ]
 ##
 ## The known suffix of the stack is as follows:
 ## RETURN
@@ -435,9 +476,56 @@ mod_: SEMICOLON
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
+mod_: STRING COMMA STRING COMMA WHILE
+##
+## Ends in an error in state: 48.
+##
+## comma_expr_or_tuple_ -> COMMA . expr_or_tuple_or_empty [ SEMICOLON RPAREN NEWLINE EQUAL ]
+##
+## The known suffix of the stack is as follows:
+## COMMA
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+mod_: STRING COMMA STRING WHILE
+##
+## Ends in an error in state: 47.
+##
+## expr -> expr . OPAND expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . OPOR expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . OPEQ expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . OPNEQ expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . OPMUL expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . OPDIV expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . OPADD expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . OPSUB expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . IF expr ELSE expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . DOT IDENTIFIER [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr_or_tuple_or_empty -> expr . comma_expr_or_tuple_ [ SEMICOLON RPAREN NEWLINE EQUAL ]
+##
+## The known suffix of the stack is as follows:
+## expr
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+mod_: STRING COMMA WHILE
+##
+## Ends in an error in state: 45.
+##
+## comma_expr_or_tuple -> COMMA . expr_or_tuple_or_empty [ SEMICOLON RPAREN NEWLINE EQUAL ]
+##
+## The known suffix of the stack is as follows:
+## COMMA
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
 mod_: STRING DOT WHILE
 ##
-## Ends in an error in state: 22.
+## Ends in an error in state: 24.
 ##
 ## expr -> expr DOT . IDENTIFIER [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -447,44 +535,21 @@ mod_: STRING DOT WHILE
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
-mod_: STRING EQUAL STRING WHILE
-##
-## Ends in an error in state: 64.
-##
-## expr -> expr . OPAND expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPOR expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPEQ expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPNEQ expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPMUL expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPDIV expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPADD expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . OPSUB expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . IF expr ELSE expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## expr -> expr . DOT IDENTIFIER [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF DOT ]
-## small_stmt -> expr EQUAL expr . [ SEMICOLON NEWLINE ]
-##
-## The known suffix of the stack is as follows:
-## expr EQUAL expr
-##
-
-<YOUR SYNTAX ERROR MESSAGE HERE>
-
 mod_: STRING EQUAL WHILE
 ##
-## Ends in an error in state: 63.
+## Ends in an error in state: 79.
 ##
-## small_stmt -> expr EQUAL . expr [ SEMICOLON NEWLINE ]
+## small_stmt -> expr_or_tuple EQUAL . expr_or_tuple [ SEMICOLON NEWLINE ]
 ##
 ## The known suffix of the stack is as follows:
-## expr EQUAL
+## expr_or_tuple EQUAL
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 mod_: STRING IF STRING ELSE STRING WHILE
 ##
-## Ends in an error in state: 37.
+## Ends in an error in state: 39.
 ##
 ## expr -> expr . OPAND expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ## expr -> expr . OPOR expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
@@ -507,7 +572,7 @@ mod_: STRING IF STRING ELSE STRING WHILE
 
 mod_: STRING IF STRING ELSE WHILE
 ##
-## Ends in an error in state: 36.
+## Ends in an error in state: 38.
 ##
 ## expr -> expr IF expr ELSE . expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -519,7 +584,7 @@ mod_: STRING IF STRING ELSE WHILE
 
 mod_: STRING IF STRING WHILE
 ##
-## Ends in an error in state: 35.
+## Ends in an error in state: 37.
 ##
 ## expr -> expr . OPAND expr [ OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF ELSE DOT ]
 ## expr -> expr . OPOR expr [ OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF ELSE DOT ]
@@ -542,7 +607,7 @@ mod_: STRING IF STRING WHILE
 
 mod_: STRING IF WHILE
 ##
-## Ends in an error in state: 34.
+## Ends in an error in state: 36.
 ##
 ## expr -> expr IF . expr ELSE expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -554,7 +619,7 @@ mod_: STRING IF WHILE
 
 mod_: STRING LPAREN STRING RBRACK
 ##
-## Ends in an error in state: 20.
+## Ends in an error in state: 22.
 ##
 ## expr -> expr LPAREN loption(separated_nonempty_list(COMMA,expr)) . RPAREN [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -565,15 +630,15 @@ mod_: STRING LPAREN STRING RBRACK
 ## This implies that, although the LR(1) items shown above provide an
 ## accurate view of the past (what has been recognized so far), they
 ## may provide an INCOMPLETE view of the future (what was expected next).
-## In state 12, spurious reduction of production separated_nonempty_list(COMMA,expr) -> expr 
-## In state 9, spurious reduction of production loption(separated_nonempty_list(COMMA,expr)) -> separated_nonempty_list(COMMA,expr) 
+## In state 14, spurious reduction of production separated_nonempty_list(COMMA,expr) -> expr 
+## In state 11, spurious reduction of production loption(separated_nonempty_list(COMMA,expr)) -> separated_nonempty_list(COMMA,expr) 
 ##
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
 mod_: STRING LPAREN WHILE
 ##
-## Ends in an error in state: 19.
+## Ends in an error in state: 21.
 ##
 ## expr -> expr LPAREN . loption(separated_nonempty_list(COMMA,expr)) RPAREN [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -585,7 +650,7 @@ mod_: STRING LPAREN WHILE
 
 mod_: STRING OPADD STRING WHILE
 ##
-## Ends in an error in state: 31.
+## Ends in an error in state: 33.
 ##
 ## expr -> expr . OPAND expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ## expr -> expr . OPOR expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
@@ -608,7 +673,7 @@ mod_: STRING OPADD STRING WHILE
 
 mod_: STRING OPADD WHILE
 ##
-## Ends in an error in state: 30.
+## Ends in an error in state: 32.
 ##
 ## expr -> expr OPADD . expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -620,7 +685,7 @@ mod_: STRING OPADD WHILE
 
 mod_: STRING OPAND STRING WHILE
 ##
-## Ends in an error in state: 33.
+## Ends in an error in state: 35.
 ##
 ## expr -> expr . OPAND expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ## expr -> expr OPAND expr . [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
@@ -643,7 +708,7 @@ mod_: STRING OPAND STRING WHILE
 
 mod_: STRING OPAND WHILE
 ##
-## Ends in an error in state: 32.
+## Ends in an error in state: 34.
 ##
 ## expr -> expr OPAND . expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -655,7 +720,7 @@ mod_: STRING OPAND WHILE
 
 mod_: STRING OPDIV STRING WHILE
 ##
-## Ends in an error in state: 18.
+## Ends in an error in state: 20.
 ##
 ## expr -> expr . OPAND expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ## expr -> expr . OPOR expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
@@ -678,7 +743,7 @@ mod_: STRING OPDIV STRING WHILE
 
 mod_: STRING OPDIV WHILE
 ##
-## Ends in an error in state: 17.
+## Ends in an error in state: 19.
 ##
 ## expr -> expr OPDIV . expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -690,7 +755,7 @@ mod_: STRING OPDIV WHILE
 
 mod_: STRING OPEQ STRING WHILE
 ##
-## Ends in an error in state: 29.
+## Ends in an error in state: 31.
 ##
 ## expr -> expr . OPAND expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ## expr -> expr . OPOR expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
@@ -713,7 +778,7 @@ mod_: STRING OPEQ STRING WHILE
 
 mod_: STRING OPEQ WHILE
 ##
-## Ends in an error in state: 28.
+## Ends in an error in state: 30.
 ##
 ## expr -> expr OPEQ . expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -725,7 +790,7 @@ mod_: STRING OPEQ WHILE
 
 mod_: STRING OPMUL STRING WHILE
 ##
-## Ends in an error in state: 16.
+## Ends in an error in state: 18.
 ##
 ## expr -> expr . OPAND expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ## expr -> expr . OPOR expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
@@ -748,7 +813,7 @@ mod_: STRING OPMUL STRING WHILE
 
 mod_: STRING OPMUL WHILE
 ##
-## Ends in an error in state: 15.
+## Ends in an error in state: 17.
 ##
 ## expr -> expr OPMUL . expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -760,7 +825,7 @@ mod_: STRING OPMUL WHILE
 
 mod_: STRING OPNEQ STRING WHILE
 ##
-## Ends in an error in state: 27.
+## Ends in an error in state: 29.
 ##
 ## expr -> expr . OPAND expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ## expr -> expr . OPOR expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
@@ -783,7 +848,7 @@ mod_: STRING OPNEQ STRING WHILE
 
 mod_: STRING OPNEQ WHILE
 ##
-## Ends in an error in state: 26.
+## Ends in an error in state: 28.
 ##
 ## expr -> expr OPNEQ . expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -795,7 +860,7 @@ mod_: STRING OPNEQ WHILE
 
 mod_: STRING OPOR STRING WHILE
 ##
-## Ends in an error in state: 25.
+## Ends in an error in state: 27.
 ##
 ## expr -> expr . OPAND expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ## expr -> expr . OPOR expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
@@ -818,7 +883,7 @@ mod_: STRING OPOR STRING WHILE
 
 mod_: STRING OPOR WHILE
 ##
-## Ends in an error in state: 24.
+## Ends in an error in state: 26.
 ##
 ## expr -> expr OPOR . expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -830,7 +895,7 @@ mod_: STRING OPOR WHILE
 
 mod_: STRING OPSUB STRING WHILE
 ##
-## Ends in an error in state: 14.
+## Ends in an error in state: 16.
 ##
 ## expr -> expr . OPAND expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ## expr -> expr . OPOR expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
@@ -853,7 +918,7 @@ mod_: STRING OPSUB STRING WHILE
 
 mod_: STRING OPSUB WHILE
 ##
-## Ends in an error in state: 13.
+## Ends in an error in state: 15.
 ##
 ## expr -> expr OPSUB . expr [ SEMICOLON RPAREN RBRACK OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL ELSE DOT COMMA COLON ]
 ##
@@ -863,11 +928,52 @@ mod_: STRING OPSUB WHILE
 
 <YOUR SYNTAX ERROR MESSAGE HERE>
 
+mod_: STRING RPAREN
+##
+## Ends in an error in state: 78.
+##
+## small_stmt -> expr_or_tuple . [ SEMICOLON NEWLINE ]
+## small_stmt -> expr_or_tuple . EQUAL expr_or_tuple [ SEMICOLON NEWLINE ]
+##
+## The known suffix of the stack is as follows:
+## expr_or_tuple
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 44, spurious reduction of production comma_expr_or_tuple -> 
+## In state 51, spurious reduction of production expr_or_tuple -> expr comma_expr_or_tuple 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
+mod_: STRING SEMICOLON RETURN BOOL RPAREN
+##
+## Ends in an error in state: 73.
+##
+## simple_stmt_or_empty -> small_stmt . semicolon_simple_stmt [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE ELIF DELETE DEF DEDENT BOOL ]
+##
+## The known suffix of the stack is as follows:
+## small_stmt
+##
+## WARNING: This example involves spurious reductions.
+## This implies that, although the LR(1) items shown above provide an
+## accurate view of the past (what has been recognized so far), they
+## may provide an INCOMPLETE view of the future (what was expected next).
+## In state 44, spurious reduction of production comma_expr_or_tuple -> 
+## In state 51, spurious reduction of production expr_or_tuple -> expr comma_expr_or_tuple 
+## In state 57, spurious reduction of production flow_stmt -> RETURN expr_or_tuple 
+## In state 77, spurious reduction of production small_stmt -> flow_stmt 
+##
+
+<YOUR SYNTAX ERROR MESSAGE HERE>
+
 mod_: STRING SEMICOLON WHILE
 ##
-## Ends in an error in state: 59.
+## Ends in an error in state: 71.
 ##
-## semicolon_small_stmt -> SEMICOLON . small_stmt [ SEMICOLON NEWLINE ]
+## semicolon_simple_stmt -> SEMICOLON . simple_stmt_or_empty [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER ELSE ELIF DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## SEMICOLON
@@ -877,21 +983,20 @@ mod_: STRING SEMICOLON WHILE
 
 mod_: STRING WHILE
 ##
-## Ends in an error in state: 62.
+## Ends in an error in state: 44.
 ##
-## expr -> expr . OPAND expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT ]
-## expr -> expr . OPOR expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT ]
-## expr -> expr . OPEQ expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT ]
-## expr -> expr . OPNEQ expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT ]
-## expr -> expr . OPMUL expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT ]
-## expr -> expr . OPDIV expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT ]
-## expr -> expr . OPADD expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT ]
-## expr -> expr . OPSUB expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT ]
-## expr -> expr . IF expr ELSE expr [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT ]
-## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT ]
-## expr -> expr . DOT IDENTIFIER [ SEMICOLON OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT ]
-## small_stmt -> expr . [ SEMICOLON NEWLINE ]
-## small_stmt -> expr . EQUAL expr [ SEMICOLON NEWLINE ]
+## expr -> expr . OPAND expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . OPOR expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . OPEQ expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . OPNEQ expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . OPMUL expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . OPDIV expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . OPADD expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . OPSUB expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . IF expr ELSE expr [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . LPAREN loption(separated_nonempty_list(COMMA,expr)) RPAREN [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr -> expr . DOT IDENTIFIER [ SEMICOLON RPAREN OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD NEWLINE LPAREN IF EQUAL DOT COMMA ]
+## expr_or_tuple -> expr . comma_expr_or_tuple [ SEMICOLON RPAREN NEWLINE EQUAL ]
 ##
 ## The known suffix of the stack is as follows:
 ## expr
@@ -901,9 +1006,9 @@ mod_: STRING WHILE
 
 mod_: WHILE STRING COLON STRING NEWLINE ELSE COLON WHILE
 ##
-## Ends in an error in state: 74.
+## Ends in an error in state: 85.
 ##
-## orelse -> ELSE COLON . suite [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## orelse -> ELSE COLON . suite [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## ELSE COLON
@@ -913,9 +1018,9 @@ mod_: WHILE STRING COLON STRING NEWLINE ELSE COLON WHILE
 
 mod_: WHILE STRING COLON STRING NEWLINE ELSE WHILE
 ##
-## Ends in an error in state: 73.
+## Ends in an error in state: 84.
 ##
-## orelse -> ELSE . COLON suite [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## orelse -> ELSE . COLON suite [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## ELSE
@@ -925,9 +1030,9 @@ mod_: WHILE STRING COLON STRING NEWLINE ELSE WHILE
 
 mod_: WHILE STRING COLON STRING NEWLINE SEMICOLON
 ##
-## Ends in an error in state: 96.
+## Ends in an error in state: 107.
 ##
-## compound_stmt -> WHILE expr COLON suite . orelse [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## compound_stmt -> WHILE expr COLON suite . orelse [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## WHILE expr COLON suite
@@ -937,9 +1042,9 @@ mod_: WHILE STRING COLON STRING NEWLINE SEMICOLON
 
 mod_: WHILE STRING COLON WHILE
 ##
-## Ends in an error in state: 43.
+## Ends in an error in state: 55.
 ##
-## compound_stmt -> WHILE expr COLON . suite orelse [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## compound_stmt -> WHILE expr COLON . suite orelse [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## WHILE expr COLON
@@ -949,9 +1054,9 @@ mod_: WHILE STRING COLON WHILE
 
 mod_: WHILE STRING WHILE
 ##
-## Ends in an error in state: 42.
+## Ends in an error in state: 54.
 ##
-## compound_stmt -> WHILE expr . COLON suite orelse [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## compound_stmt -> WHILE expr . COLON suite orelse [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ## expr -> expr . OPAND expr [ OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT COLON ]
 ## expr -> expr . OPOR expr [ OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT COLON ]
 ## expr -> expr . OPEQ expr [ OPSUB OPOR OPNEQ OPMUL OPEQ OPDIV OPAND OPADD LPAREN IF DOT COLON ]
@@ -974,7 +1079,7 @@ mod_: WHILE WHILE
 ##
 ## Ends in an error in state: 1.
 ##
-## compound_stmt -> WHILE . expr COLON suite orelse [ WHILE STRING RETURN NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
+## compound_stmt -> WHILE . expr COLON suite orelse [ WHILE STRING RETURN OPSUB OPADD NEWLINE LPAREN LBRACK INTEGER IF IDENTIFIER FLOAT ENDMARKER DELETE DEF DEDENT BOOL ]
 ##
 ## The known suffix of the stack is as follows:
 ## WHILE
