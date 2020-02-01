@@ -71,8 +71,13 @@ rule read env = parse
   (* TODO: other string delimiters... *)
   | '"' { [string (Buffer.create 1024) lexbuf] }
   | '-'? ['0'-'9']+ as int { [INTEGER int] }
-  | '-'? '0' 'x' ['0'-'9' 'A'-'F']+ as int { [INTEGER int] }
-  | '-'? ['0'-'9']+ '.' ['0'-'9']+ as float { [FLOAT float] }
+  | '-'? '0' ['x' 'X'] ['0'-'9' 'a'-'f' 'A'-'F']+ as int { [INTEGER int] }
+  | '-'? '0' ['b' 'B'] ['0'-'1']+ as int { [INTEGER int] }
+  | '-'? '0' ['o' 'O'] ['0'-'7']+ as int { [INTEGER int] }
+  | '-'? ['0'-'9']+ '.' ['0'-'9']* as float { [FLOAT float] }
+  | '-'? ['0'-'9']* '.' ['0'-'9']+ as float { [FLOAT float] }
+  | '-'? ['0'-'9']+ '.' ['0'-'9']* ['e' 'E'] ['+' '-']? ['0'-'9']+ as float { [FLOAT float] }
+  | '-'? ['0'-'9']* '.' ['0'-'9']+ ['e' 'E'] ['+' '-']? ['0'-'9']+ as float { [FLOAT float] }
   | '(' { Env.enter env; [LPAREN] }
   | '{' { Env.enter env; [LBRACE] }
   | '[' { Env.enter env; [LBRACK] }
