@@ -107,6 +107,12 @@ rule read env = parse
   | '>' { [OPGT] }
   | ">=" { [OPGTEQ] }
   | '=' { [EQUAL] }
+  | "+=" { [ADDEQ] }
+  | "-=" { [SUBEQ] }
+  | "*=" { [MULEQ] }
+  | "/=" { [DIVEQ] }
+  | "//=" { [EDIVEQ] }
+  | "%=" { [MODEQ] }
   (* TODO: handle tabs *)
   (* This discards lines with only spaces in them. *)
   | ('#' [^'\n']*)? '\n' [' ' '\n']* as str {

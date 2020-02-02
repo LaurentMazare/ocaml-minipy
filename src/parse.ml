@@ -62,6 +62,12 @@ let token_to_string (token : Parser.token) =
   | OPLTEQ -> "OPLTEQ"
   | OPGT -> "OPGT"
   | OPGTEQ -> "OPGTEQ"
+  | ADDEQ -> "ADDEQ"
+  | SUBEQ -> "SUBEQ"
+  | MULEQ -> "MULEQ"
+  | DIVEQ -> "DIVEQ"
+  | EDIVEQ -> "EDIVEQ"
+  | MODEQ -> "MODEQ"
 
 let tokens ?(filename = "unk") in_channel =
   let lexbuf = Lexing.from_channel in_channel in

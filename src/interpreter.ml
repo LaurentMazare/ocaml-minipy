@@ -182,6 +182,8 @@ end = struct
         List.iter body ~f:loop;
         List.iter orelse ~f:loop
       | Assign { targets; value = _ } -> List.iter targets ~f:loop_expr
+      | AugAssign { target = _; op = _; value = _ } -> ()
+      (* Augmented assign does not create a new bindings but replaces an existing one. *)
       | Return _ | Delete _ | Expr _ | FunctionDef _ | Break | Continue | Pass -> ()
     and loop_expr = function
       | Name name -> Hash_set.add local_variables name
@@ -273,6 +275,10 @@ let rec eval_stmt env = function
   | Assign { targets; value } ->
     let value = eval_expr env value in
     List.iter targets ~f:(fun target -> eval_assign env ~target ~value)
+  | AugAssign { target; op; value } ->
+    let value = eval_expr env value in
+    let value = apply_op op (eval_expr env target) value in
+    eval_assign env ~target ~value
   | Return { value } ->
     raise (Return_exn (Option.value_map value ~f:(eval_expr env) ~default:Val_none))
   | Delete _ -> failwith "TODO Delete"

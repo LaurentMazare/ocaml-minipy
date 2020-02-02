@@ -22,6 +22,7 @@ let combine_if ~test ~body ~elif ~orelse =
 %token COLON SEMICOLON
 %token OPAND OPOR
 %token OPADD OPSUB OPMUL OPDIV OPEDIV OPMOD
+%token ADDEQ SUBEQ MULEQ DIVEQ EDIVEQ MODEQ
 %token OPNEQ OPEQ OPLT OPLTEQ OPGT OPGTEQ
 %token DOT COMMA EQUAL
 %token DEF RETURN DELETE IF ELIF ELSE WHILE FOR IN BREAK CONTINUE PASS
@@ -91,6 +92,12 @@ small_stmt:
     | value :: targets -> Assign { targets; value }
     | _ -> assert false
   }
+  | target=expr_or_tuple ADDEQ value=expr_or_tuple { AugAssign { target; value; op = Add } }
+  | target=expr_or_tuple SUBEQ value=expr_or_tuple { AugAssign { target; value; op = Sub } }
+  | target=expr_or_tuple MULEQ value=expr_or_tuple { AugAssign { target; value; op = Mult } }
+  | target=expr_or_tuple DIVEQ value=expr_or_tuple { AugAssign { target; value; op = Div } }
+  | target=expr_or_tuple EDIVEQ value=expr_or_tuple { AugAssign { target; value; op = FloorDiv } }
+  | target=expr_or_tuple MODEQ value=expr_or_tuple { AugAssign { target; value; op = Mod } }
   | DELETE e=expr_or_tuple { Delete { targets = [ e ] } }
   | PASS { Pass }
   | s=flow_stmt { s }

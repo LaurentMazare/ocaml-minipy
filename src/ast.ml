@@ -68,6 +68,11 @@ type stmt =
       { targets : expr list
       ; value : expr
       }
+  | AugAssign of
+      { target : expr
+      ; op : operator
+      ; value : expr
+      }
   | Return of { value : expr option }
   | Delete of { targets : expr list }
   | Pass

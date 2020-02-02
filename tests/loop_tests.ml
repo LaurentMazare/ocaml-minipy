@@ -39,12 +39,12 @@ def double_loop(n):
   k = 0
   res = 0
   while k < n:
-    k = k + 1
+    k += 1
     while True:
-      k = k + 1
+      k += 1
       if k % 2 == 0: continue
       if k % 5 == 0: break
-    res = res + k
+    res += k
   return res
 
 print(double_loop(100))
@@ -66,7 +66,7 @@ let%expect_test "for" =
 
 res1, res2, res3, res4 = 1, 0, 0, 0
 for i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
-  res1 = res1 * i
+  res1 *= i
   if i % 2 == 0: continue
   elif i % 3 == 0: res2 = res2 + i
   else: res3 = res3 + i
