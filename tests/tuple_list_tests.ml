@@ -26,6 +26,11 @@ x[-1] = [1, 2]
 print(x)
 x[-1][-1] = [1, 2]
 print(x)
+
+x, y, z = "foo", "bar", (1, 2, 3)
+print(z, x, y)
+x, (y, z) = "bar", ("foo", (3, 2, 1))
+print(z, x, y)
 |}
   in
   Interpreter.simple_eval ast;
@@ -39,4 +44,6 @@ print(x)
         ((Val_list((Val_int 1)(Val_int 4)(Val_int 3))))
         ((Val_list((Val_int 1)(Val_int 4)(Val_list((Val_int 1)(Val_int 2))))))
         ((Val_list((Val_int 1)(Val_int 4)(Val_list((Val_int 1)(Val_list((Val_int 1)(Val_int 2))))))))
+        ((Val_tuple((Val_int 1)(Val_int 2)(Val_int 3)))(Val_str foo)(Val_str bar))
+        ((Val_tuple((Val_int 3)(Val_int 2)(Val_int 1)))(Val_str bar)(Val_str foo))
       |}]

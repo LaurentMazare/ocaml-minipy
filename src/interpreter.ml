@@ -117,8 +117,22 @@ end = struct
       | If { test = _; body; orelse } | While { test = _; body; orelse } ->
         List.iter body ~f:loop;
         List.iter orelse ~f:loop
-      | Assign { targets = [ Name name ]; value = _ } -> Hash_set.add local_variables name
-      | Assign _ -> failwith "TODO Generic Assign"
+      | Assign { targets; value = _ } -> List.iter targets ~f:loop_expr
+    and loop_expr = function
+      | Name name -> Hash_set.add local_variables name
+      | List l | Tuple l -> Array.iter l ~f:loop_expr
+      | BoolOp _
+      | BinOp _
+      | UnaryOp _
+      | IfExp _
+      | Compare _
+      | Call _
+      | Attribute _
+      | Subscript _
+      | Bool _
+      | Num _
+      | Float _
+      | Str _ -> ()
     in
     List.iter body ~f:loop;
     local_variables
@@ -167,15 +181,9 @@ let rec eval_stmt env = function
     if eval_expr env test |> value_to_bool
     then eval_stmts env body
     else eval_stmts env orelse
-  | Assign { targets = [ Name name ]; value } ->
+  | Assign { targets; value } ->
     let value = eval_expr env value in
-    Env.set env ~name ~value
-  | Assign { targets = [ Subscript { value = lvalue; slice } ]; value = rvalue } ->
-    let lvalue = eval_expr env lvalue in
-    let rvalue = eval_expr env rvalue in
-    let slice = eval_expr env slice in
-    apply_subscript_assign ~lvalue ~slice ~rvalue
-  | Assign _ -> failwith "TODO Generic Assign"
+    List.iter targets ~f:(fun target -> eval_assign env ~target ~value)
   | Return { value } ->
     raise (Return_exn (Option.value_map value ~f:(eval_expr env) ~default:Val_none))
   | Delete _ -> failwith "TODO Delete"
@@ -238,6 +246,28 @@ and eval_expr env = function
     apply_subscript ~value ~index
 
 and eval_stmts env stmts = List.iter stmts ~f:(eval_stmt env)
+
+and eval_assign env ~target ~value =
+  match target with
+  | Name name -> Env.set env ~name ~value
+  | Subscript { value = lvalue; slice } ->
+    let lvalue = eval_expr env lvalue in
+    let slice = eval_expr env slice in
+    apply_subscript_assign ~lvalue ~slice ~rvalue:value
+  | Tuple lvalues | List lvalues ->
+    (match value with
+    | Val_tuple rvalues | Val_list rvalues ->
+      if Array.length rvalues <> Array.length lvalues
+      then
+        Printf.failwithf
+          "different sizes on both sides of the assignment %d <> %d"
+          (Array.length lvalues)
+          (Array.length rvalues)
+          ();
+      Array.iter2_exn lvalues rvalues ~f:(fun target value ->
+          eval_assign env ~target ~value)
+    | _ -> failwith "cannot unpack for assignment")
+  | _ -> failwith "TODO Generic Assign"
 
 let default_builtins : builtins =
   let print args =
