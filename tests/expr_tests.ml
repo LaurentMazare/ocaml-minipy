@@ -79,7 +79,7 @@ def set(dd, key, value): dd[key] = value
 set(d, (1, 2), "foobar")
 print(d[(1, 2)])
 set(d, (1, 2), "barfoo")
-print(d[(1, 2)])
+print(d[1, 2])
 |}
   in
   Interpreter.simple_eval ast;

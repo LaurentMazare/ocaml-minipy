@@ -273,7 +273,7 @@ let rec eval_stmt env = function
     let iter =
       match eval_expr env iter with
       | Val_list l | Val_tuple l -> l
-      | o -> Printf.failwithf "not implemented: for on %s" (type_as_string o) ()
+      | o -> cannot_be_interpreted_as o "list/tuple"
     in
     let iter_len = Array.length iter in
     let rec loop index =
@@ -403,7 +403,7 @@ and eval_assign env ~target ~value =
           ();
       Array.iter2_exn lvalues rvalues ~f:(fun target value ->
           eval_assign env ~target ~value)
-    | _ -> failwith "cannot unpack for assignment")
+    | v -> cannot_be_interpreted_as v "cannot unpack for assignment")
   | _ -> failwith "TODO Generic Assign"
 
 let default_builtins : builtins =

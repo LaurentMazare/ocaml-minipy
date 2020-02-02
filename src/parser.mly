@@ -180,7 +180,7 @@ expr:
   | LPAREN e=expr_or_tuple RPAREN { e }
   | LBRACK l=separated_list(COMMA, expr) RBRACK { List (Array.of_list l) }
   | LBRACE key_values=separated_list(COMMA, key_value) RBRACE { Dict { key_values } }
-  | value=expr LBRACK slice=expr RBRACK { Subscript { value; slice } }
+  | value=expr LBRACK slice=expr_or_tuple RBRACK { Subscript { value; slice } }
   | LAMBDA args=separated_list(COMMA, IDENTIFIER) COLON body=expr { Lambda { args; body } }
 ;
 
