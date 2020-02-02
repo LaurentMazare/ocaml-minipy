@@ -68,6 +68,8 @@ let token_to_string (token : Parser.token) =
   | DIVEQ -> "DIVEQ"
   | EDIVEQ -> "EDIVEQ"
   | MODEQ -> "MODEQ"
+  | ASSERT -> "ASSERT"
+  | LAMBDA -> "LAMBDA"
 
 let tokens ?(filename = "unk") in_channel =
   let lexbuf = Lexing.from_channel in_channel in

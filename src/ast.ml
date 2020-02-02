@@ -63,6 +63,10 @@ type stmt =
       ; body : stmt list
       ; orelse : stmt list
       }
+  | Assert of
+      { test : expr
+      ; msg : expr option
+      }
   | Expr of { value : expr }
   | Assign of
       { targets : expr list
@@ -87,6 +91,10 @@ and expr =
   | Name of string
   | List of expr array
   | Tuple of expr array
+  | Lambda of
+      { args : string list
+      ; body : expr
+      }
   | BoolOp of
       { op : boolop
       ; values : expr list

@@ -27,6 +27,7 @@ This is a work in progress, most of the supported features are only partially im
 
 - List comprehensions.
 - Lambdas, `lambda`.
+- Fix the handling of captured variables in nested functions.
 - Dictionaries.
 - Delete operator, `del`.
 - Slices, e.g. `x[12:15]`.

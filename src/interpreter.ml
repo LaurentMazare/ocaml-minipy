@@ -144,6 +144,7 @@ let apply_comp op left right =
 exception Return_exn of value
 exception Break
 exception Continue
+exception Assert of value
 
 type builtins = (string, value list -> value, String.comparator_witness) Map.t
 
@@ -184,10 +185,12 @@ end = struct
       | Assign { targets; value = _ } -> List.iter targets ~f:loop_expr
       | AugAssign { target = _; op = _; value = _ } -> ()
       (* Augmented assign does not create a new bindings but replaces an existing one. *)
-      | Return _ | Delete _ | Expr _ | FunctionDef _ | Break | Continue | Pass -> ()
+      | Assert _ | Return _ | Delete _ | Expr _ | FunctionDef _ | Break | Continue | Pass
+        -> ()
     and loop_expr = function
       | Name name -> Hash_set.add local_variables name
       | List l | Tuple l -> Array.iter l ~f:loop_expr
+      | Lambda _
       | BoolOp _
       | BinOp _
       | UnaryOp _
@@ -285,6 +288,11 @@ let rec eval_stmt env = function
   | Break -> raise Break
   | Continue -> raise Continue
   | Pass -> ()
+  | Assert { test; msg } ->
+    if not (eval_expr env test |> value_to_bool)
+    then (
+      let msg = Option.value_map msg ~f:(eval_expr env) ~default:Val_none in
+      raise (Assert msg))
 
 and eval_expr env = function
   | Bool b -> Val_bool b
@@ -342,6 +350,7 @@ and eval_expr env = function
     let value = eval_expr env value in
     let index = eval_expr env slice in
     apply_subscript ~value ~index
+  | Lambda _ -> failwith "TODO lambda"
 
 and eval_stmts env stmts = List.iter stmts ~f:(eval_stmt env)
 

@@ -25,12 +25,14 @@ let combine_if ~test ~body ~elif ~orelse =
 %token ADDEQ SUBEQ MULEQ DIVEQ EDIVEQ MODEQ
 %token OPNEQ OPEQ OPLT OPLTEQ OPGT OPGTEQ
 %token DOT COMMA EQUAL
-%token DEF RETURN DELETE IF ELIF ELSE WHILE FOR IN BREAK CONTINUE PASS
+%token DEF RETURN DELETE ASSERT IF ELIF ELSE WHILE FOR IN BREAK CONTINUE PASS
 %token LPAREN RPAREN LBRACE RBRACE LBRACK RBRACK
+%token LAMBDA
 %token INDENT DEDENT
 %token NEWLINE
 %token ENDMARKER
 
+%nonassoc COLON
 %left IF ELSE
 %left OPOR
 %left OPAND
@@ -57,6 +59,7 @@ let combine_if ~test ~body ~elif ~orelse =
 %type <Ast.expr> expr expr_or_tuple
 %type <Ast.expr list> expr_or_tuple_or_empty
 %type <Ast.expr * Ast.stmt list> elif
+%type <Ast.expr option> assert_message
 %start mod_
 %%
 
@@ -101,6 +104,7 @@ small_stmt:
   | DELETE e=expr_or_tuple { Delete { targets = [ e ] } }
   | PASS { Pass }
   | s=flow_stmt { s }
+  | ASSERT test=expr msg=assert_message { Assert { test; msg } }
 ;
 
 assign_right:
@@ -130,6 +134,11 @@ compound_stmt:
 
 elif:
   | ELIF e=expr COLON s=suite { e, s }
+;
+
+assert_message:
+  | { None }
+  | COMMA e=expr { Some(e) }
 ;
 
 expr_or_tuple:
@@ -171,6 +180,7 @@ expr:
   | LPAREN e=expr_or_tuple RPAREN { e }
   | LBRACK l=separated_list(COMMA, expr) RBRACK { List (Array.of_list l) }
   | value=expr LBRACK slice=expr RBRACK { Subscript { value; slice } }
+  | LAMBDA args=separated_list(COMMA, IDENTIFIER) COLON body=expr { Lambda { args; body } }
 ;
 
 orelse:
