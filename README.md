@@ -23,12 +23,13 @@ This is a work in progress, most of the supported features are only partially im
     - Attributes, e.g. `x.foo`.
     - Subscripts, e.g. `x[foo]`.
     - Lambdas, `lambda`.
+    - List comprehensions (only for lists, no support for dict/set).
 - Built-ins `print`, `range`.
 - Dictionaries.
 
 ## Todo
 
-- List comprehensions.
+- Sets.
 - Fix the handling of captured variables in nested functions and lambdas.
 - Delete operator, `del`.
 - Slices, e.g. `x[12:15]`.

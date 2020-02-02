@@ -73,6 +73,12 @@ let value_to_int v =
   | Val_int i -> i
   | v -> cannot_be_interpreted_as v "int"
 
+let value_to_iterable v =
+  match v with
+  | Val_list l | Val_tuple l -> l
+  | Val_str s -> String.to_array s |> Array.map ~f:(fun c -> Val_str (Char.to_string c))
+  | o -> cannot_be_interpreted_as o "iterable"
+
 let apply_subscript ~value ~index =
   match value, index with
   | Val_tuple v, Val_int i | Val_list v, Val_int i ->
@@ -271,11 +277,7 @@ let rec eval_stmt env = function
     in
     loop ()
   | For { target; iter; body; orelse } ->
-    let iter =
-      match eval_expr env iter with
-      | Val_list l | Val_tuple l -> l
-      | o -> cannot_be_interpreted_as o "list/tuple"
-    in
+    let iter = eval_expr env iter |> value_to_iterable in
     let iter_len = Array.length iter in
     let rec loop index =
       if index < iter_len
@@ -329,7 +331,7 @@ and eval_expr env = function
     | `Ok dict -> Val_dict dict
     | `Duplicate_key key ->
       Printf.failwithf "duplicate key %s" (sexp_of_value key |> Sexp.to_string_mach) ())
-  | ListComp _ -> failwith "TODO ListComprehensions"
+  | ListComp { elt; generators } -> eval_list_comp env ~elt ~generators
   | Tuple l -> Val_tuple (Array.map l ~f:(eval_expr env))
   | Name name -> Env.find_exn env ~name
   | BoolOp { op = And; values } ->
@@ -408,6 +410,20 @@ and eval_assign env ~target ~value =
     | v -> cannot_be_interpreted_as v "cannot unpack for assignment")
   | _ -> failwith "TODO Generic Assign"
 
+and eval_list_comp env ~elt ~generators =
+  let rec loop env generators =
+    match generators with
+    | [] -> [| eval_expr env elt |]
+    | { target; iter; ifs } :: generators ->
+      let iter = eval_expr env iter |> value_to_iterable in
+      Array.concat_map iter ~f:(fun value ->
+          let env = Env.nest ~prev_env:env ~body:[] in
+          eval_assign env ~target ~value;
+          let ifs = List.for_all ifs ~f:(fun if_ -> eval_expr env if_ |> value_to_bool) in
+          if ifs then loop env generators else [||])
+  in
+  Val_list (loop env generators)
+
 let default_builtins : builtins =
   let print args =
     [%sexp_of: value list] args |> Sexp.to_string_mach |> Stdio.printf "%s\n";
@@ -424,7 +440,18 @@ let default_builtins : builtins =
     in
     Val_list (Array.of_list_map l ~f:(fun i -> Val_int i))
   in
-  Map.of_alist_exn (module String) [ "print", print; "range", range ]
+  let len args =
+    let l =
+      match args with
+      | [ Val_tuple l ] | [ Val_list l ] -> Array.length l
+      | [ Val_str s ] -> String.length s
+      | [ Val_dict d ] -> Hashtbl.length d
+      | [ v ] -> cannot_be_interpreted_as v "type with len"
+      | _ -> failwith "len takes exactly one argument"
+    in
+    Val_int l
+  in
+  Map.of_alist_exn (module String) [ "print", print; "range", range; "len", len ]
 
 let simple_eval ?(builtins = default_builtins) t =
   let env = Env.empty ~builtins in

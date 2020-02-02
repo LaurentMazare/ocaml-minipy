@@ -1,7 +1,7 @@
 open Base
 open Minipy
 
-let%expect_test "expr" =
+let%expect_test "tuple/list" =
   let ast =
     Basic_tests.parse_str
       {|
@@ -53,4 +53,27 @@ print((x, y, z), (a, b, c))
         ((Val_tuple((Val_int 3)(Val_int 2)(Val_int 1)))(Val_str bar)(Val_str foo))
         ((Val_tuple((Val_int 42)(Val_float 3.141592)))(Val_tuple((Val_int 42)(Val_float 3.141592)))(Val_int 42)(Val_float 3.141592))
         ((Val_tuple((Val_tuple((Val_int 4)(Val_int 5)))(Val_str foo)(Val_str bar)))(Val_tuple((Val_int 4)(Val_int 5)(Val_list((Val_str foo)(Val_str bar))))))
+      |}]
+
+let%expect_test "list comp" =
+  let ast =
+    Basic_tests.parse_str
+      {|
+l = [x*x for x in range(5)]
+print(l)
+l = [(x, y) for x in range(3) for y in range(x)]
+print(l)
+l = [x*2 for x in range(5) if x % 2 == 1]
+print(l)
+l = [(x, y) for x in range(3) for y in range(x+3) if x == y]
+print(l)
+|}
+  in
+  Interpreter.simple_eval ast;
+  [%expect
+    {|
+        ((Val_list((Val_int 0)(Val_int 1)(Val_int 4)(Val_int 9)(Val_int 16))))
+        ((Val_list((Val_tuple((Val_int 1)(Val_int 0)))(Val_tuple((Val_int 2)(Val_int 0)))(Val_tuple((Val_int 2)(Val_int 1))))))
+        ((Val_list((Val_int 2)(Val_int 6))))
+        ((Val_list((Val_tuple((Val_int 0)(Val_int 0)))(Val_tuple((Val_int 1)(Val_int 1)))(Val_tuple((Val_int 2)(Val_int 2))))))
       |}]
