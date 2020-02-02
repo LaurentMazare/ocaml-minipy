@@ -177,6 +177,10 @@ end = struct
       | If { test = _; body; orelse } | While { test = _; body; orelse } ->
         List.iter body ~f:loop;
         List.iter orelse ~f:loop
+      | For { target; iter = _; body; orelse } ->
+        loop_expr target;
+        List.iter body ~f:loop;
+        List.iter orelse ~f:loop
       | Assign { targets; value = _ } -> List.iter targets ~f:loop_expr
       | Return _ | Delete _ | Expr _ | FunctionDef _ | Break | Continue | Pass -> ()
     and loop_expr = function
@@ -242,6 +246,26 @@ let rec eval_stmt env = function
       else eval_stmts env orelse
     in
     loop ()
+  | For { target; iter; body; orelse } ->
+    let iter =
+      match eval_expr env iter with
+      | Val_list l | Val_tuple l -> l
+      | o -> Printf.failwithf "not implemented: for on %s" (type_as_string o) ()
+    in
+    let iter_len = Array.length iter in
+    let rec loop index =
+      if index < iter_len
+      then (
+        eval_assign env ~target ~value:iter.(index);
+        try
+          eval_stmts env body;
+          loop (index + 1)
+        with
+        | Break -> ()
+        | Continue -> loop (index + 1))
+      else eval_stmts env orelse
+    in
+    loop 0
   | If { test; body; orelse } ->
     if eval_expr env test |> value_to_bool
     then eval_stmts env body

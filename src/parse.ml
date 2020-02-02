@@ -39,6 +39,7 @@ let token_to_string (token : Parser.token) =
   | IF -> "IF"
   | IDENTIFIER s -> Printf.sprintf "IDENTIFIER<%s>" s
   | FOR -> "FOR"
+  | IN -> "IN"
   | FLOAT s -> Printf.sprintf "FLOAT<%s>" s
   | EQUAL -> "EQUAL"
   | ENDMARKER -> "ENDMARKER"

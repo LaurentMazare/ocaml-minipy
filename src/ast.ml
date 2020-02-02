@@ -52,6 +52,12 @@ type stmt =
       ; body : stmt list
       ; orelse : stmt list
       }
+  | For of
+      { target : expr
+      ; iter : expr
+      ; body : stmt list
+      ; orelse : stmt list
+      }
   | While of
       { test : expr
       ; body : stmt list

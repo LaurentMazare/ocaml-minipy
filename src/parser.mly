@@ -24,7 +24,7 @@ let combine_if ~test ~body ~elif ~orelse =
 %token OPADD OPSUB OPMUL OPDIV OPEDIV OPMOD
 %token OPNEQ OPEQ OPLT OPLTEQ OPGT OPGTEQ
 %token DOT COMMA EQUAL
-%token DEF RETURN DELETE IF ELIF ELSE WHILE FOR BREAK CONTINUE PASS
+%token DEF RETURN DELETE IF ELIF ELSE WHILE FOR IN BREAK CONTINUE PASS
 %token LPAREN RPAREN LBRACE RBRACE LBRACK RBRACK
 %token INDENT DEDENT
 %token NEWLINE
@@ -116,6 +116,7 @@ suite:
 compound_stmt:
   | IF test=expr COLON body=suite elif=elif* orelse=orelse { combine_if ~test ~body ~elif ~orelse }
   | WHILE test=expr COLON body=suite orelse=orelse { While { test; body; orelse } }
+  | FOR target=expr_or_tuple IN iter=expr COLON body=suite orelse=orelse { For { target; iter; body; orelse } }
   | DEF name=IDENTIFIER LPAREN args=separated_list(COMMA, IDENTIFIER) RPAREN COLON body=suite
     { FunctionDef { name; args; body }}
 ;

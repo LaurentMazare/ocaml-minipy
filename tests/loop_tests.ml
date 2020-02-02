@@ -57,3 +57,24 @@ print(double_loop(100))
         ((Val_int 30))
         ((Val_int 605))
       |}]
+
+let%expect_test "for" =
+  let ast =
+    Basic_tests.parse_str
+      {|
+# Some for loop tests
+
+res1, res2, res3, res4 = 1, 0, 0, 0
+for i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
+  res1 = res1 * i
+  if i % 2 == 0: continue
+  elif i % 3 == 0: res2 = res2 + i
+  else: res3 = res3 + i
+  res4 = res4 + i
+print(res1, res2, res3, res4)
+|}
+  in
+  Interpreter.simple_eval ast;
+  [%expect {|
+        ((Val_int 3628800)(Val_int 12)(Val_int 13)(Val_int 25))
+      |}]
