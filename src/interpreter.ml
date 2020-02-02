@@ -43,6 +43,9 @@ let type_of = function
 
 let type_as_string value = type_of value |> Type_.sexp_of_t |> Sexp.to_string_mach
 
+let cannot_be_interpreted_as v str =
+  Printf.failwithf "%s cannot be interpreted as %s" (type_as_string v) str ()
+
 let value_to_bool v =
   match v with
   | Val_bool b -> b
@@ -50,8 +53,7 @@ let value_to_bool v =
   | Val_float f -> Float.( <> ) f 0.
   | Val_list l | Val_tuple l -> not (Array.is_empty l)
   | Val_str s -> not (String.is_empty s)
-  | Val_function _ | Val_builtin_fn _ | Val_none ->
-    Printf.failwithf "not a bool %s" (sexp_of_value v |> Sexp.to_string_mach) ()
+  | Val_function _ | Val_builtin_fn _ | Val_none -> cannot_be_interpreted_as v "bool"
 
 let value_to_float v =
   match v with
@@ -59,7 +61,14 @@ let value_to_float v =
   | Val_bool false -> 0.
   | Val_float f -> f
   | Val_int i -> Float.of_int i
-  | v -> Printf.failwithf "not a bool %s" (sexp_of_value v |> Sexp.to_string_mach) ()
+  | v -> cannot_be_interpreted_as v "float"
+
+let value_to_int v =
+  match v with
+  | Val_bool true -> 1
+  | Val_bool false -> 0
+  | Val_int i -> i
+  | v -> cannot_be_interpreted_as v "int"
 
 let apply_subscript ~value ~index =
   match value, index with
@@ -383,7 +392,18 @@ let default_builtins : builtins =
     [%sexp_of: value list] args |> Sexp.to_string_mach |> Stdio.printf "%s\n";
     Val_none
   in
-  Map.of_alist_exn (module String) [ "print", print ]
+  let range args =
+    let l =
+      match args with
+      | [ v ] -> List.range 0 (value_to_int v)
+      | [ v1; v2 ] -> List.range (value_to_int v1) (value_to_int v2)
+      | [ v1; v2; s ] ->
+        List.range (value_to_int v1) (value_to_int v2) ~stride:(value_to_int s)
+      | _ -> failwith "range expects one, two, or three arguments"
+    in
+    Val_list (Array.of_list_map l ~f:(fun i -> Val_int i))
+  in
+  Map.of_alist_exn (module String) [ "print", print; "range", range ]
 
 let simple_eval ?(builtins = default_builtins) t =
   let env = Env.empty ~builtins in

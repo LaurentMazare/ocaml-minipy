@@ -23,6 +23,7 @@ This is a work in progress, most of the supported features are only partially im
     - Attributes, e.g. `x.foo`.
     - Subscripts, e.g. `x[foo]`.
     - Lambdas, `lambda`.
+- Built-ins `print`, `range`.
 
 ## Todo
 

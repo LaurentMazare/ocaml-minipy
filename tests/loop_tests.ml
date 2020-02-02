@@ -72,9 +72,17 @@ for i in [1, 2, 3, 4, 5, 6, 7, 8, 9, 10]:
   else: res3 = res3 + i
   res4 = res4 + i
 print(res1, res2, res3, res4)
+
+def fact(n):
+  res = 1
+  for k in range(1, n+1): res *= k
+  return res
+
+print(fact(5))
 |}
   in
   Interpreter.simple_eval ast;
   [%expect {|
         ((Val_int 3628800)(Val_int 12)(Val_int 13)(Val_int 25))
+        ((Val_int 120))
       |}]
