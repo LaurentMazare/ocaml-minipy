@@ -207,6 +207,7 @@ end = struct
     and loop_expr = function
       | Name name -> Hash_set.add local_variables name
       | List l | Tuple l -> Array.iter l ~f:loop_expr
+      | ListComp _
       | Dict _
       | Lambda _
       | BoolOp _
@@ -328,6 +329,7 @@ and eval_expr env = function
     | `Ok dict -> Val_dict dict
     | `Duplicate_key key ->
       Printf.failwithf "duplicate key %s" (sexp_of_value key |> Sexp.to_string_mach) ())
+  | ListComp _ -> failwith "TODO ListComprehensions"
   | Tuple l -> Val_tuple (Array.map l ~f:(eval_expr env))
   | Name name -> Env.find_exn env ~name
   | BoolOp { op = And; values } ->

@@ -91,6 +91,10 @@ and expr =
   | Name of string
   | List of expr array
   | Dict of { key_values : (expr * expr) list }
+  | ListComp of
+      { elt : expr
+      ; generators : comprehension list
+      }
   | Tuple of expr array
   | Lambda of
       { args : string list
@@ -131,6 +135,12 @@ and expr =
       { value : expr
       ; slice : expr
       }
+
+and comprehension =
+  { target : expr
+  ; iter : expr
+  ; ifs : expr list
+  }
 [@@deriving sexp]
 
 type t = stmt list [@@deriving sexp]
