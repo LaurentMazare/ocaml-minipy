@@ -90,6 +90,7 @@ and expr =
   | Str of string
   | Name of string
   | List of expr array
+  | Dict of { key_values : (expr * expr) list }
   | Tuple of expr array
   | Lambda of
       { args : string list

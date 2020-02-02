@@ -179,8 +179,13 @@ expr:
   | value=expr DOT attr=IDENTIFIER { Attribute { value; attr } }
   | LPAREN e=expr_or_tuple RPAREN { e }
   | LBRACK l=separated_list(COMMA, expr) RBRACK { List (Array.of_list l) }
+  | LBRACE key_values=separated_list(COMMA, key_value) RBRACE { Dict { key_values } }
   | value=expr LBRACK slice=expr RBRACK { Subscript { value; slice } }
   | LAMBDA args=separated_list(COMMA, IDENTIFIER) COLON body=expr { Lambda { args; body } }
+;
+
+key_value:
+  | key=expr COLON value=expr { key, value }
 ;
 
 orelse:

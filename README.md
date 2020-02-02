@@ -24,12 +24,12 @@ This is a work in progress, most of the supported features are only partially im
     - Subscripts, e.g. `x[foo]`.
     - Lambdas, `lambda`.
 - Built-ins `print`, `range`.
+- Dictionaries.
 
 ## Todo
 
 - List comprehensions.
 - Fix the handling of captured variables in nested functions and lambdas.
-- Dictionaries.
 - Delete operator, `del`.
 - Slices, e.g. `x[12:15]`.
 - Keyword arguments for functions.

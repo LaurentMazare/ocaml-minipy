@@ -8,6 +8,7 @@ module Type_ = struct
     | Int
     | Float
     | Tuple
+    | Dict
     | List
     | Str
     | Builtin_fn
@@ -22,6 +23,7 @@ type value =
   | Val_float of float
   | Val_tuple of value array
   | Val_list of value array
+  | Val_dict of (value, value) Hashtbl.Poly.t
   | Val_str of string
   | Val_builtin_fn of (value list -> value)
   | Val_function of
@@ -37,6 +39,7 @@ let type_of = function
   | Val_float _ -> Float
   | Val_tuple _ -> Tuple
   | Val_list _ -> List
+  | Val_dict _ -> Dict
   | Val_str _ -> Str
   | Val_builtin_fn _ -> Builtin_fn
   | Val_function _ -> Function
@@ -53,7 +56,7 @@ let value_to_bool v =
   | Val_float f -> Float.( <> ) f 0.
   | Val_list l | Val_tuple l -> not (Array.is_empty l)
   | Val_str s -> not (String.is_empty s)
-  | Val_function _ | Val_builtin_fn _ | Val_none -> cannot_be_interpreted_as v "bool"
+  | v -> cannot_be_interpreted_as v "bool"
 
 let value_to_float v =
   match v with
@@ -79,6 +82,10 @@ let apply_subscript ~value ~index =
     else if i < 0 && -v_len <= i
     then v.(v_len + i)
     else Printf.failwithf "unexpected index %d for an array of length %d" i v_len ()
+  | Val_dict dict, i ->
+    (match Hashtbl.find dict i with
+    | Some v -> v
+    | None -> Printf.failwithf "KeyError: %s" (sexp_of_value i |> Sexp.to_string_mach) ())
   | _ ->
     Printf.failwithf
       "not implemented: %s[%s]"
@@ -95,6 +102,7 @@ let apply_subscript_assign ~lvalue ~slice ~rvalue =
     else if i < 0 && -v_len <= i
     then v.(v_len + i) <- rvalue
     else Printf.failwithf "unexpected index %d for an array of length %d" i v_len ()
+  | Val_dict dict, key -> Hashtbl.set dict ~key ~data:rvalue
   | _ ->
     Printf.failwithf
       "not implemented: %s[%s] assign"
@@ -199,6 +207,7 @@ end = struct
     and loop_expr = function
       | Name name -> Hash_set.add local_variables name
       | List l | Tuple l -> Array.iter l ~f:loop_expr
+      | Dict _
       | Lambda _
       | BoolOp _
       | BinOp _
@@ -309,6 +318,16 @@ and eval_expr env = function
   | Float f -> Val_float f
   | Str s -> Val_str s
   | List l -> Val_list (Array.map l ~f:(eval_expr env))
+  | Dict { key_values } ->
+    let dict =
+      List.map key_values ~f:(fun (key, value) -> eval_expr env key, eval_expr env value)
+      |> Hashtbl.Poly.of_alist
+      (* In python 3.7 a duplicate key is not an error *)
+    in
+    (match dict with
+    | `Ok dict -> Val_dict dict
+    | `Duplicate_key key ->
+      Printf.failwithf "duplicate key %s" (sexp_of_value key |> Sexp.to_string_mach) ())
   | Tuple l -> Val_tuple (Array.map l ~f:(eval_expr env))
   | Name name -> Env.find_exn env ~name
   | BoolOp { op = And; values } ->
@@ -353,7 +372,7 @@ and eval_expr env = function
           (List.length args)
           (List.length arg_values)
           ())
-    | _ -> failwith "not a function")
+    | v -> cannot_be_interpreted_as v "function")
   | Attribute { value = _; attr = _ } -> failwith "TODO attribute"
   | Subscript { value; slice } ->
     let value = eval_expr env value in
