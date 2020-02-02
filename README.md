@@ -22,12 +22,12 @@ This is a work in progress, most of the supported features are only partially im
     - Ternary if operator.
     - Attributes, e.g. `x.foo`.
     - Subscripts, e.g. `x[foo]`.
+    - Lambdas, `lambda`.
 
 ## Todo
 
 - List comprehensions.
-- Lambdas, `lambda`.
-- Fix the handling of captured variables in nested functions.
+- Fix the handling of captured variables in nested functions and lambdas.
 - Dictionaries.
 - Delete operator, `del`.
 - Slices, e.g. `x[12:15]`.

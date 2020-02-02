@@ -350,7 +350,9 @@ and eval_expr env = function
     let value = eval_expr env value in
     let index = eval_expr env slice in
     apply_subscript ~value ~index
-  | Lambda _ -> failwith "TODO lambda"
+  | Lambda { args; body } ->
+    (* TODO: capture the variables properly. *)
+    Val_function { args; body = [ Return { value = Some body } ] }
 
 and eval_stmts env stmts = List.iter stmts ~f:(eval_stmt env)
 

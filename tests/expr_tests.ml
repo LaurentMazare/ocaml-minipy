@@ -42,3 +42,25 @@ print(x)
         ((Val_float 19.5))
         ((Val_float 3.1249999999999991))
       |}]
+
+let%expect_test "lambdas" =
+  let ast =
+    Basic_tests.parse_str
+      {|
+
+# here are some comments
+
+fn = lambda x: x + 1
+print(fn(0), fn(1))
+
+fn0 = lambda: 42
+fn_add = lambda x, y: x + y
+print(fn0(), fn_add(3.14159265358979, 2.71828182846))
+|}
+  in
+  Interpreter.simple_eval ast;
+  [%expect
+    {|
+        ((Val_int 1)(Val_int 2))
+        ((Val_int 42)(Val_float 5.85987448204979))
+      |}]
