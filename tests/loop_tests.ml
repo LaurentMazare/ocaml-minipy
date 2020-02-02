@@ -34,10 +34,26 @@ def sum_even(n):
   return res
 
 print(sum_even(10))
+
+def double_loop(n):
+  k = 0
+  res = 0
+  while k < n:
+    k = k + 1
+    while True:
+      k = k + 1
+      if k % 2 == 0: continue
+      if k % 5 == 0: break
+    res = res + k
+  return res
+
+print(double_loop(100))
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect {|
+  [%expect
+    {|
         ((Val_int 3628800)(Val_int 3628800))
         ((Val_int 30))
+        ((Val_int 605))
       |}]
