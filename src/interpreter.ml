@@ -1,6 +1,20 @@
 open Base
 open Ast
 
+module Type_ = struct
+  type t =
+    | None_t
+    | Bool
+    | Int
+    | Float
+    | Tuple
+    | List
+    | Str
+    | Builtin_fn
+    | Function
+  [@@deriving sexp]
+end
+
 type value =
   | Val_none
   | Val_bool of bool
@@ -15,6 +29,19 @@ type value =
       ; body : stmt list
       }
 [@@deriving sexp]
+
+let type_of = function
+  | Val_none -> Type_.None_t
+  | Val_bool _ -> Bool
+  | Val_int _ -> Int
+  | Val_float _ -> Float
+  | Val_tuple _ -> Tuple
+  | Val_list _ -> List
+  | Val_str _ -> Str
+  | Val_builtin_fn _ -> Builtin_fn
+  | Val_function _ -> Function
+
+let type_as_string value = type_of value |> Type_.sexp_of_t |> Sexp.to_string_mach
 
 let value_to_bool v =
   match v with
@@ -43,7 +70,12 @@ let apply_subscript ~value ~index =
     else if i < 0 && -v_len <= i
     then v.(v_len + i)
     else Printf.failwithf "unexpected index %d for an array of length %d" i v_len ()
-  | _ -> failwith "TODO apply-subscript"
+  | _ ->
+    Printf.failwithf
+      "not implemented: %s[%s]"
+      (type_as_string value)
+      (type_as_string index)
+      ()
 
 let apply_subscript_assign ~lvalue ~slice ~rvalue =
   match lvalue, slice with
@@ -54,7 +86,12 @@ let apply_subscript_assign ~lvalue ~slice ~rvalue =
     else if i < 0 && -v_len <= i
     then v.(v_len + i) <- rvalue
     else Printf.failwithf "unexpected index %d for an array of length %d" i v_len ()
-  | _ -> failwith "TODO apply-subscript-assign"
+  | _ ->
+    Printf.failwithf
+      "not implemented: %s[%s] assign"
+      (type_as_string lvalue)
+      (type_as_string slice)
+      ()
 
 let apply_unary_op op operand =
   match op, operand with
@@ -62,7 +99,12 @@ let apply_unary_op op operand =
   | UAdd, (Val_float _ as v) -> v
   | USub, Val_int v -> Val_int (-v)
   | USub, Val_float v -> Val_float (-.v)
-  | _ -> failwith "TODO unaryop"
+  | _ ->
+    Printf.failwithf
+      "unary op not implemented: %s %s"
+      (sexp_of_unaryop op |> Sexp.to_string_mach)
+      (type_as_string operand)
+      ()
 
 let apply_op op left right =
   match op, left, right with
@@ -74,15 +116,34 @@ let apply_op op left right =
   | Mult, Val_int v, Val_int v' -> Val_int (v * v')
   | Mult, Val_float v, v' | Mult, v', Val_float v -> Val_float (v *. value_to_float v')
   | Div, v, v' -> Val_float (value_to_float v /. value_to_float v')
-  | _ -> failwith "TODO op"
+  | Mod, Val_int v, Val_int v' -> Val_int (v % v')
+  | _ ->
+    Printf.failwithf
+      "binop not implemented: %s %s %s"
+      (type_as_string left)
+      (sexp_of_operator op |> Sexp.to_string_mach)
+      (type_as_string right)
+      ()
 
 let apply_comp op left right =
   match op with
   | Eq -> Caml.( = ) left right
   | NotEq -> Caml.( <> ) left right
-  | _ -> failwith "TODO cmp"
+  | Lt -> Caml.( < ) left right
+  | LtE -> Caml.( <= ) left right
+  | Gt -> Caml.( > ) left right
+  | GtE -> Caml.( >= ) left right
+  | _ ->
+    Printf.failwithf
+      "comparison not implemented: %s %s %s"
+      (type_as_string left)
+      (sexp_of_cmpop op |> Sexp.to_string_mach)
+      (type_as_string right)
+      ()
 
 exception Return_exn of value
+exception Break
+exception Continue
 
 type builtins = (string, value list -> value, String.comparator_witness) Map.t
 
@@ -113,11 +174,11 @@ end = struct
   let local_variables body =
     let local_variables = Hash_set.create (module String) in
     let rec loop = function
-      | Return _ | Delete _ | Expr _ | FunctionDef _ -> ()
       | If { test = _; body; orelse } | While { test = _; body; orelse } ->
         List.iter body ~f:loop;
         List.iter orelse ~f:loop
       | Assign { targets; value = _ } -> List.iter targets ~f:loop_expr
+      | Return _ | Delete _ | Expr _ | FunctionDef _ | Break | Continue | Pass -> ()
     and loop_expr = function
       | Name name -> Hash_set.add local_variables name
       | List l | Tuple l -> Array.iter l ~f:loop_expr
@@ -172,8 +233,12 @@ let rec eval_stmt env = function
     let rec loop () =
       if eval_expr env test |> value_to_bool
       then (
-        eval_stmts env body;
-        loop ())
+        try
+          eval_stmts env body;
+          loop ()
+        with
+        | Break -> ()
+        | Continue -> loop ())
       else eval_stmts env orelse
     in
     loop ()
@@ -187,6 +252,9 @@ let rec eval_stmt env = function
   | Return { value } ->
     raise (Return_exn (Option.value_map value ~f:(eval_expr env) ~default:Val_none))
   | Delete _ -> failwith "TODO Delete"
+  | Break -> raise Break
+  | Continue -> raise Continue
+  | Pass -> ()
 
 and eval_expr env = function
   | Bool b -> Val_bool b

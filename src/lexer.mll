@@ -68,6 +68,9 @@ rule read env = parse
   | "False" { [BOOL false] }
   | "and" { [OPAND] }
   | "or" { [OPOR] }
+  | "break" { [BREAK] }
+  | "continue" { [CONTINUE] }
+  | "pass" { [PASS] }
   (* TODO: other string delimiters... *)
   | '"' { [string_double_quote (Buffer.create 1024) lexbuf] }
   | '\'' { [string_single_quote (Buffer.create 1024) lexbuf] }
@@ -91,10 +94,16 @@ rule read env = parse
   | '-' { [OPSUB] }
   | '*' { [OPMUL] }
   | '/' { [OPDIV] }
+  | "//" { [OPEDIV] }
+  | '%' { [OPMOD] }
   | ':' { [COLON] }
   | ';' { [SEMICOLON] }
   | "==" { [OPEQ] }
   | "!=" { [OPNEQ] }
+  | '<' { [OPLT] }
+  | "<=" { [OPLTEQ] }
+  | '>' { [OPGT] }
+  | ">=" { [OPGTEQ] }
   | '=' { [EQUAL] }
   (* TODO: handle tabs *)
   (* This discards lines with only spaces in them. *)

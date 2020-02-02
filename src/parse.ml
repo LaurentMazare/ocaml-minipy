@@ -55,6 +55,12 @@ let token_to_string (token : Parser.token) =
   | BOOL b -> Printf.sprintf "BOOL<%b>" b
   | OPAND -> "OPAND"
   | OPOR -> "OPOR"
+  | CONTINUE -> "CONTINUE"
+  | PASS -> "PASS"
+  | OPLT -> "OPLT"
+  | OPLTEQ -> "OPLTEQ"
+  | OPGT -> "OPGT"
+  | OPGTEQ -> "OPGTEQ"
 
 let tokens ?(filename = "unk") in_channel =
   let lexbuf = Lexing.from_channel in_channel in

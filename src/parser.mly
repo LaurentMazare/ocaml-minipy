@@ -22,9 +22,9 @@ let combine_if ~test ~body ~elif ~orelse =
 %token COLON SEMICOLON
 %token OPAND OPOR
 %token OPADD OPSUB OPMUL OPDIV OPEDIV OPMOD
-%token OPNEQ OPEQ
+%token OPNEQ OPEQ OPLT OPLTEQ OPGT OPGTEQ
 %token DOT COMMA EQUAL
-%token DEF RETURN DELETE IF ELIF ELSE WHILE FOR BREAK
+%token DEF RETURN DELETE IF ELIF ELSE WHILE FOR BREAK CONTINUE PASS
 %token LPAREN RPAREN LBRACE RBRACE LBRACK RBRACK
 %token INDENT DEDENT
 %token NEWLINE
@@ -35,10 +35,16 @@ let combine_if ~test ~body ~elif ~orelse =
 %left OPAND
 %left OPNEQ
 %left OPEQ
+%left OPLT
+%left OPLTEQ
+%left OPGT
+%left OPGTEQ
 %left OPADD
 %left OPSUB
 %left OPMUL
 %left OPDIV
+%left OPEDIV
+%left OPMOD
 %left DOT
 %nonassoc LPAREN
 %nonassoc LBRACK
@@ -86,6 +92,7 @@ small_stmt:
     | _ -> assert false
   }
   | DELETE e=expr_or_tuple { Delete { targets = [ e ] } }
+  | PASS { Pass }
   | s=flow_stmt { s }
 ;
 
@@ -95,6 +102,8 @@ assign_right:
 ;
 
 flow_stmt:
+  | BREAK { Break }
+  | CONTINUE { Continue }
   | RETURN { Return { value = None } }
   | RETURN v=expr_or_tuple { Return { value = Some v } }
 ;
@@ -136,8 +145,14 @@ expr:
   | left=expr OPOR right=expr { BoolOp { values = [left; right]; op = Or } }
   | left=expr OPEQ right=expr { Compare { left; ops = Eq; comparators = right } }
   | left=expr OPNEQ right=expr { Compare { left; ops = NotEq; comparators = right } }
+  | left=expr OPLT right=expr { Compare { left; ops = Lt; comparators = right } }
+  | left=expr OPLTEQ right=expr { Compare { left; ops = LtE; comparators = right } }
+  | left=expr OPGT right=expr { Compare { left; ops = Gt; comparators = right } }
+  | left=expr OPGTEQ right=expr { Compare { left; ops = GtE; comparators = right } }
   | left=expr OPMUL right=expr { BinOp { left; op = Mult; right } }
   | left=expr OPDIV right=expr { BinOp { left; op = Div; right } }
+  | left=expr OPEDIV right=expr { BinOp { left; op = FloorDiv; right } }
+  | left=expr OPMOD right=expr { BinOp { left; op = Mod; right } }
   | left=expr OPADD right=expr { BinOp { left; op = Add; right } }
   | left=expr OPSUB right=expr { BinOp { left; op = Sub; right } }
   | OPSUB operand=expr { UnaryOp { op = USub; operand } }

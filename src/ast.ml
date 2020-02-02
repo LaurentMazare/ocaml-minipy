@@ -64,6 +64,9 @@ type stmt =
       }
   | Return of { value : expr option }
   | Delete of { targets : expr list }
+  | Pass
+  | Break
+  | Continue
 
 and expr =
   | Bool of bool
