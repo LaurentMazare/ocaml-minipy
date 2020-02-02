@@ -80,9 +80,18 @@ simple_stmt_or_empty:
 
 small_stmt:
   | value=expr_or_tuple { Expr { value } }
-  | target=expr_or_tuple EQUAL value=expr_or_tuple { Assign { targets = [ target ]; value } }
+  | e1=expr_or_tuple EQUAL e2=expr_or_tuple l=assign_right {
+    match List.rev (e1 :: e2 :: l) with
+    | value :: targets -> Assign { targets; value }
+    | _ -> assert false
+  }
   | DELETE e=expr_or_tuple { Delete { targets = [ e ] } }
   | s=flow_stmt { s }
+;
+
+assign_right:
+  | { [] }
+  | EQUAL l=separated_list(EQUAL, expr_or_tuple) { l }
 ;
 
 flow_stmt:
