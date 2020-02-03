@@ -353,7 +353,7 @@ and eval_expr env = function
     let left = eval_expr env left in
     let right = eval_expr env comparators in
     Val_bool (apply_comp ops left right)
-  | Call { func; args } ->
+  | Call { func; args; keywords = _ } ->
     let func = eval_expr env func in
     let arg_values = List.map args ~f:(eval_expr env) in
     (match func with

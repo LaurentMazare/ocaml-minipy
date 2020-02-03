@@ -23,7 +23,7 @@ let%expect_test "parse" =
   [%expect
     {|
         ((Assign (targets ((Name x))) (value (Num 1)))
-         (Expr (value (Call (func (Name print)) (args ((Num 42)))))))
+         (Expr (value (Call (func (Name print)) (args ((Num 42))) (keywords ())))))
       |}]
 
 let%expect_test "hello" =

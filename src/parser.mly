@@ -16,9 +16,9 @@ let combine_if ~test ~body ~elif ~orelse =
   in
   Ast.If { test; body; orelse }
 
-let merge_arguments arguments =
+let merge_parameters parameters =
   let a =
-    List.fold arguments
+    List.fold parameters
       ~init:{ Ast.args = []; vararg = None; kwonlyargs = []; kwarg = None }
       ~f:(fun acc arg ->
         match arg with
@@ -165,14 +165,14 @@ compound_stmt:
   | IF test=expr COLON body=suite elif=elif* orelse=orelse { combine_if ~test ~body ~elif ~orelse }
   | WHILE test=expr COLON body=suite orelse=orelse { While { test; body; orelse } }
   | FOR target=expr_or_tuple IN iter=expr COLON body=suite orelse=orelse { For { target; iter; body; orelse } }
-  | DEF name=IDENTIFIER LPAREN args=arguments RPAREN COLON body=suite { FunctionDef { name; args; body }}
+  | DEF name=IDENTIFIER LPAREN args=parameters RPAREN COLON body=suite { FunctionDef { name; args; body }}
 ;
 
-arguments:
-  | l=separated_list(COMMA, argument) { merge_arguments l }
+parameters:
+  | l=separated_list(COMMA, parameter) { merge_parameters l }
 ;
 
-argument:
+parameter:
   | id=IDENTIFIER { `arg id }
   | id=IDENTIFIER EQUAL e=expr { `kwonlyarg (id, e) }
   | OPMUL id=IDENTIFIER { `vararg id }
@@ -222,7 +222,9 @@ expr:
   | OPSUB operand=expr { UnaryOp { op = USub; operand } }
   | OPADD operand=expr { UnaryOp { op = UAdd; operand } }
   | body=expr IF test=expr ELSE orelse=expr { IfExp { body; test; orelse } }
-  | func=expr LPAREN args=separated_list(COMMA, expr) RPAREN { Call { func; args } }
+  | func=expr LPAREN args=separated_list(COMMA, argument) RPAREN {
+    let args, keywords = List.partition_map args ~f:Base.Fn.id in
+    Call { func; args; keywords } }
   | value=expr DOT attr=IDENTIFIER { Attribute { value; attr } }
   | LPAREN e=expr_or_tuple RPAREN { e }
   | LBRACK l=separated_list(COMMA, expr) RBRACK { List (Array.of_list l) }
@@ -230,7 +232,12 @@ expr:
     { ListComp { elt; generators = { target; iter; ifs } :: f } }
   | LBRACE key_values=separated_list(COMMA, key_value) RBRACE { Dict { key_values } }
   | value=expr LBRACK slice=expr_or_tuple RBRACK { Subscript { value; slice } }
-  | LAMBDA args=arguments COLON body=expr { Lambda { args; body } }
+  | LAMBDA args=parameters COLON body=expr { Lambda { args; body } }
+;
+
+argument:
+  | e=expr { `Fst e }
+  | id=IDENTIFIER EQUAL e=expr { `Snd (id, e) }
 ;
 
 key_value:

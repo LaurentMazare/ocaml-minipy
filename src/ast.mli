@@ -125,7 +125,8 @@ and expr =
       }
   | Call of
       { func : expr
-      ; args : expr list (* TODO; keywords : keyword list *)
+      ; args : expr list
+      ; keywords : (string * expr) list
       }
   | Attribute of
       { value : expr
