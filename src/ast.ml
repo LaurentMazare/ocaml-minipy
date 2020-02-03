@@ -44,7 +44,7 @@ type cmpop =
 type stmt =
   | FunctionDef of
       { name : string
-      ; args : string list (* TODO: other args *)
+      ; args : arguments
       ; body : stmt list
       }
   | If of
@@ -97,7 +97,7 @@ and expr =
       }
   | Tuple of expr array
   | Lambda of
-      { args : string list
+      { args : arguments
       ; body : expr
       }
   | BoolOp of
@@ -140,6 +140,13 @@ and comprehension =
   { target : expr
   ; iter : expr
   ; ifs : expr list
+  }
+
+and arguments =
+  { args : string list
+  ; vararg : string option
+  ; kwonlyargs : (string * expr) list
+  ; kwarg : string option
   }
 [@@deriving sexp]
 

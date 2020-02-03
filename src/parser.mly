@@ -5,6 +5,8 @@
 
 module List = Base.List
 module Option = Base.Option
+exception ParseError of string
+let errorf fmt = Printf.ksprintf (fun s -> raise (ParseError s)) fmt
 
 let combine_if ~test ~body ~elif ~orelse =
   let orelse =
@@ -13,6 +15,41 @@ let combine_if ~test ~body ~elif ~orelse =
         [ Ast.If { test; body; orelse } ])
   in
   Ast.If { test; body; orelse }
+
+let merge_arguments arguments =
+  let a =
+    List.fold arguments
+      ~init:{ Ast.args = []; vararg = None; kwonlyargs = []; kwarg = None }
+      ~f:(fun acc arg ->
+        match arg with
+        | `arg id ->
+            if Option.is_some acc.vararg
+            then errorf "positional argument %s after vararg" id;
+            if Option.is_some acc.kwarg
+            then errorf "positional argument %s after kwarg" id;
+            { acc with args = id :: acc.args }
+        | `kwonlyarg (id, e) ->
+            if Option.is_some acc.kwarg
+            then errorf "keyword argument %s after kwarg" id;
+            { acc with kwonlyargs  = (id, e) :: acc.kwonlyargs }
+        | `vararg id ->
+            if Option.is_some acc.vararg
+            then errorf "duplicate vararg" id;
+            if Option.is_some acc.kwarg
+            then errorf "vararg %s after kwarg" id;
+            { acc with vararg = Some id }
+        | `kwarg id ->
+            if Option.is_some acc.kwarg
+            then errorf "duplicate kwarg" id;
+            { acc with kwarg = Some id }
+      )
+  in
+  let all_ids =
+    a.args @ Option.to_list a.vararg @ Option.to_list a.kwarg @ List.map a.kwonlyargs ~f:fst
+  in
+  Option.iter (List.find_a_dup all_ids ~compare:String.compare) ~f:(fun dup_id ->
+    errorf "duplicate argument name %s" dup_id);
+  { a with Ast.args = List.rev a.args; kwonlyargs = List.rev a.kwonlyargs }
 %}
 
 %token <string> INTEGER
@@ -128,8 +165,18 @@ compound_stmt:
   | IF test=expr COLON body=suite elif=elif* orelse=orelse { combine_if ~test ~body ~elif ~orelse }
   | WHILE test=expr COLON body=suite orelse=orelse { While { test; body; orelse } }
   | FOR target=expr_or_tuple IN iter=expr COLON body=suite orelse=orelse { For { target; iter; body; orelse } }
-  | DEF name=IDENTIFIER LPAREN args=separated_list(COMMA, IDENTIFIER) RPAREN COLON body=suite
-    { FunctionDef { name; args; body }}
+  | DEF name=IDENTIFIER LPAREN args=arguments RPAREN COLON body=suite { FunctionDef { name; args; body }}
+;
+
+arguments:
+  | l=separated_list(COMMA, argument) { merge_arguments l }
+;
+
+argument:
+  | id=IDENTIFIER { `arg id }
+  | id=IDENTIFIER EQUAL e=expr { `kwonlyarg (id, e) }
+  | OPMUL id=IDENTIFIER { `vararg id }
+  | OPMUL OPMUL id=IDENTIFIER { `kwarg id }
 ;
 
 elif:
@@ -183,7 +230,7 @@ expr:
     { ListComp { elt; generators = { target; iter; ifs } :: f } }
   | LBRACE key_values=separated_list(COMMA, key_value) RBRACE { Dict { key_values } }
   | value=expr LBRACK slice=expr_or_tuple RBRACK { Subscript { value; slice } }
-  | LAMBDA args=separated_list(COMMA, IDENTIFIER) COLON body=expr { Lambda { args; body } }
+  | LAMBDA args=arguments COLON body=expr { Lambda { args; body } }
 ;
 
 key_value:

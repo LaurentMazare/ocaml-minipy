@@ -26,7 +26,7 @@ type value =
   | Val_str of string
   | Val_builtin_fn of (value list -> value)
   | Val_function of
-      { args : string list
+      { args : Ast.arguments
       ; body : Ast.stmt list
       }
 [@@deriving sexp]

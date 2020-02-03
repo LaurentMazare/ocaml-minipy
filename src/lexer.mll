@@ -29,7 +29,7 @@ module Env = struct
   let exit t =
     t.nestings <- t.nestings - 1;
     if t.nestings < 0
-    then failwith "too many closing delimiters"
+    then raise (SyntaxError "too many closing delimiters")
 
   let last_indent t =
     Option.value (Stack.top t.indents) ~default:0

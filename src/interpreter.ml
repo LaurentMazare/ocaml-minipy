@@ -27,7 +27,7 @@ type value =
   | Val_str of string
   | Val_builtin_fn of (value list -> value)
   | Val_function of
-      { args : string list
+      { args : arguments
       ; body : stmt list
       }
 [@@deriving sexp]
@@ -361,7 +361,8 @@ and eval_expr env = function
     | Val_function { args; body } ->
       let env = Env.nest ~prev_env:env ~body in
       let res =
-        List.iter2 args arg_values ~f:(fun name value -> Env.set env ~name ~value)
+        (* TODO: handle args, keyword arguments and kwargs *)
+        List.iter2 args.args arg_values ~f:(fun name value -> Env.set env ~name ~value)
       in
       (match res with
       | Ok () ->
@@ -373,7 +374,7 @@ and eval_expr env = function
       | Unequal_lengths ->
         Printf.failwithf
           "expected %d arguments, got %d"
-          (List.length args)
+          (List.length args.args)
           (List.length arg_values)
           ())
     | v -> cannot_be_interpreted_as v "function")
