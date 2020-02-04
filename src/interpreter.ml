@@ -1,6 +1,10 @@
 open Base
 open Ast
 
+exception RuntimeError of string
+
+let errorf fmt = Printf.ksprintf (fun s -> raise (RuntimeError s)) fmt
+
 module Type_ = struct
   type t =
     | None_t
@@ -25,12 +29,13 @@ type value =
   | Val_list of value array
   | Val_dict of (value, value) Hashtbl.Poly.t
   | Val_str of string
-  | Val_builtin_fn of (value list -> value)
+  | Val_builtin_fn of builtin_fn
   | Val_function of
       { args : arguments
       ; body : stmt list
       }
-[@@deriving sexp]
+
+and builtin_fn = value list -> (string, value) Hashtbl.t -> value [@@deriving sexp]
 
 let type_of = function
   | Val_none -> Type_.None_t
@@ -47,7 +52,7 @@ let type_of = function
 let type_as_string value = type_of value |> Type_.sexp_of_t |> Sexp.to_string_mach
 
 let cannot_be_interpreted_as v str =
-  Printf.failwithf "%s cannot be interpreted as %s" (type_as_string v) str ()
+  errorf "%s cannot be interpreted as %s" (type_as_string v) str
 
 let value_to_bool v =
   match v with
@@ -87,17 +92,12 @@ let apply_subscript ~value ~index =
     then v.(i)
     else if i < 0 && -v_len <= i
     then v.(v_len + i)
-    else Printf.failwithf "unexpected index %d for an array of length %d" i v_len ()
+    else errorf "unexpected index %d for an array of length %d" i v_len
   | Val_dict dict, i ->
     (match Hashtbl.find dict i with
     | Some v -> v
-    | None -> Printf.failwithf "KeyError: %s" (sexp_of_value i |> Sexp.to_string_mach) ())
-  | _ ->
-    Printf.failwithf
-      "not implemented: %s[%s]"
-      (type_as_string value)
-      (type_as_string index)
-      ()
+    | None -> errorf "KeyError: %s" (sexp_of_value i |> Sexp.to_string_mach))
+  | _ -> errorf "not implemented: %s[%s]" (type_as_string value) (type_as_string index)
 
 let apply_subscript_assign ~lvalue ~slice ~rvalue =
   match lvalue, slice with
@@ -107,14 +107,10 @@ let apply_subscript_assign ~lvalue ~slice ~rvalue =
     then v.(i) <- rvalue
     else if i < 0 && -v_len <= i
     then v.(v_len + i) <- rvalue
-    else Printf.failwithf "unexpected index %d for an array of length %d" i v_len ()
+    else errorf "unexpected index %d for an array of length %d" i v_len
   | Val_dict dict, key -> Hashtbl.set dict ~key ~data:rvalue
   | _ ->
-    Printf.failwithf
-      "not implemented: %s[%s] assign"
-      (type_as_string lvalue)
-      (type_as_string slice)
-      ()
+    errorf "not implemented: %s[%s] assign" (type_as_string lvalue) (type_as_string slice)
 
 let apply_unary_op op operand =
   match op, operand with
@@ -123,11 +119,10 @@ let apply_unary_op op operand =
   | USub, Val_int v -> Val_int (-v)
   | USub, Val_float v -> Val_float (-.v)
   | _ ->
-    Printf.failwithf
+    errorf
       "unary op not implemented: %s %s"
       (sexp_of_unaryop op |> Sexp.to_string_mach)
       (type_as_string operand)
-      ()
 
 let apply_op op left right =
   match op, left, right with
@@ -141,12 +136,11 @@ let apply_op op left right =
   | Div, v, v' -> Val_float (value_to_float v /. value_to_float v')
   | Mod, Val_int v, Val_int v' -> Val_int (v % v')
   | _ ->
-    Printf.failwithf
+    errorf
       "binop not implemented: %s %s %s"
       (type_as_string left)
       (sexp_of_operator op |> Sexp.to_string_mach)
       (type_as_string right)
-      ()
 
 let apply_comp op left right =
   match op with
@@ -157,19 +151,18 @@ let apply_comp op left right =
   | Gt -> Caml.( > ) left right
   | GtE -> Caml.( >= ) left right
   | _ ->
-    Printf.failwithf
+    errorf
       "comparison not implemented: %s %s %s"
       (type_as_string left)
       (sexp_of_cmpop op |> Sexp.to_string_mach)
       (type_as_string right)
-      ()
 
 exception Return_exn of value
 exception Break
 exception Continue
 exception Assert of value
 
-type builtins = (string, value list -> value, String.comparator_witness) Map.t
+type builtins = (string, builtin_fn, String.comparator_witness) Map.t
 
 module Env : sig
   type t
@@ -353,30 +346,22 @@ and eval_expr env = function
     let left = eval_expr env left in
     let right = eval_expr env comparators in
     Val_bool (apply_comp ops left right)
-  | Call { func; args; keywords = _ } ->
+  | Call { func; args; keywords } ->
     let func = eval_expr env func in
     let arg_values = List.map args ~f:(eval_expr env) in
+    let keyword_values =
+      List.map keywords ~f:(fun (name, expr) -> name, eval_expr env expr)
+      |> Hashtbl.of_alist_exn (module String)
+    in
     (match func with
-    | Val_builtin_fn fn -> fn arg_values
+    | Val_builtin_fn fn -> fn arg_values keyword_values
     | Val_function { args; body } ->
-      let env = Env.nest ~prev_env:env ~body in
-      let res =
-        (* TODO: handle args, keyword arguments and kwargs *)
-        List.iter2 args.args arg_values ~f:(fun name value -> Env.set env ~name ~value)
-      in
-      (match res with
-      | Ok () ->
-        (try
-           eval_stmts env body;
-           Val_none
-         with
-        | Return_exn value -> value)
-      | Unequal_lengths ->
-        Printf.failwithf
-          "expected %d arguments, got %d"
-          (List.length args.args)
-          (List.length arg_values)
-          ())
+      let env = call_env ~prev_env:env ~body ~args ~arg_values ~keyword_values in
+      (try
+         eval_stmts env body;
+         Val_none
+       with
+      | Return_exn value -> value)
     | v -> cannot_be_interpreted_as v "function")
   | Attribute { value = _; attr = _ } -> failwith "TODO attribute"
   | Subscript { value; slice } ->
@@ -401,11 +386,10 @@ and eval_assign env ~target ~value =
     | Val_tuple rvalues | Val_list rvalues ->
       if Array.length rvalues <> Array.length lvalues
       then
-        Printf.failwithf
+        errorf
           "different sizes on both sides of the assignment %d <> %d"
           (Array.length lvalues)
-          (Array.length rvalues)
-          ();
+          (Array.length rvalues);
       Array.iter2_exn lvalues rvalues ~f:(fun target value ->
           eval_assign env ~target ~value)
     | v -> cannot_be_interpreted_as v "cannot unpack for assignment")
@@ -425,12 +409,63 @@ and eval_list_comp env ~elt ~generators =
   in
   Val_list (loop env generators)
 
+and call_env ~prev_env ~body ~args ~arg_values ~keyword_values =
+  (* The semantic below is different from Python's implementation. *)
+  let env = Env.nest ~prev_env ~body in
+  let rec loop arg_and_expr =
+    match arg_and_expr with
+    | [], [] | _ :: _, [] | [], _ :: _ -> arg_and_expr
+    | name :: args, value :: arg_values ->
+      Env.set env ~name ~value;
+      loop (args, arg_values)
+  in
+  let pos_args, pos_exprs = loop (args.args, arg_values) in
+  List.iter pos_args ~f:(fun name ->
+      match Hashtbl.find_and_remove keyword_values name with
+      | None ->
+        errorf
+          "function takes %d positional arguments but %d were given"
+          (List.length args.args)
+          (List.length arg_values)
+      | Some value -> Env.set env ~name ~value);
+  (match args.vararg with
+  | Some name -> Env.set env ~name ~value:(Val_list (Array.of_list pos_exprs))
+  | None ->
+    if not (List.is_empty pos_exprs)
+    then
+      errorf
+        "function takes %d positional arguments but %d were given"
+        (List.length args.args)
+        (List.length arg_values));
+  List.iter args.kwonlyargs ~f:(fun (name, default_value) ->
+      let value =
+        match Hashtbl.find_and_remove keyword_values name with
+        | None -> eval_expr env default_value
+        | Some value -> value
+      in
+      Env.set env ~name ~value);
+  (match args.kwarg with
+  | Some name ->
+    let dict =
+      Hashtbl.to_alist keyword_values
+      |> List.map ~f:(fun (name, value) -> Val_str name, value)
+      |> Hashtbl.Poly.of_alist_exn
+    in
+    Env.set env ~name ~value:(Val_dict dict)
+  | None ->
+    if not (Hashtbl.is_empty keyword_values)
+    then
+      errorf
+        "function received too many keyword arguments %s"
+        (Hashtbl.keys keyword_values |> String.concat ~sep:","));
+  env
+
 let default_builtins : builtins =
-  let print args =
+  let print args _kwargs =
     [%sexp_of: value list] args |> Sexp.to_string_mach |> Stdio.printf "%s\n";
     Val_none
   in
-  let range args =
+  let range args _kwargs =
     let l =
       match args with
       | [ v ] -> List.range 0 (value_to_int v)
@@ -441,7 +476,7 @@ let default_builtins : builtins =
     in
     Val_list (Array.of_list_map l ~f:(fun i -> Val_int i))
   in
-  let len args =
+  let len args _kwargs =
     let l =
       match args with
       | [ Val_tuple l ] | [ Val_list l ] -> Array.length l

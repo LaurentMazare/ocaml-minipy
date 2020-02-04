@@ -24,16 +24,17 @@ type value =
   | Val_list of value array
   | Val_dict of (value, value) Hashtbl.Poly.t
   | Val_str of string
-  | Val_builtin_fn of (value list -> value)
+  | Val_builtin_fn of builtin_fn
   | Val_function of
       { args : Ast.arguments
       ; body : Ast.stmt list
       }
-[@@deriving sexp]
+
+and builtin_fn = value list -> (string, value) Hashtbl.t -> value [@@deriving sexp]
 
 val type_of : value -> Type_.t
 
-type builtins = (string, value list -> value, String.comparator_witness) Map.t
+type builtins = (string, builtin_fn, String.comparator_witness) Map.t
 
 val default_builtins : builtins
 val simple_eval : ?builtins:builtins -> Ast.t -> unit

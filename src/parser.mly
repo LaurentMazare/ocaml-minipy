@@ -50,6 +50,18 @@ let merge_parameters parameters =
   Option.iter (List.find_a_dup all_ids ~compare:String.compare) ~f:(fun dup_id ->
     errorf "duplicate argument name %s" dup_id);
   { a with Ast.args = List.rev a.args; kwonlyargs = List.rev a.kwonlyargs }
+
+let merge_args args =
+  let args, keywords =
+    List.fold args ~init:([], [])  ~f:(fun (acc_a, acc_kw) arg ->
+      match arg with
+      | `Arg arg ->
+          if not (List.is_empty acc_kw)
+          then errorf "positional argument follows keyword argument";
+          arg :: acc_a, acc_kw
+      | `Keyword kwarg -> acc_a, kwarg :: acc_kw)
+  in
+  List.rev args, List.rev keywords
 %}
 
 %token <string> INTEGER
@@ -223,7 +235,7 @@ expr:
   | OPADD operand=expr { UnaryOp { op = UAdd; operand } }
   | body=expr IF test=expr ELSE orelse=expr { IfExp { body; test; orelse } }
   | func=expr LPAREN args=separated_list(COMMA, argument) RPAREN {
-    let args, keywords = List.partition_map args ~f:Base.Fn.id in
+    let args, keywords = merge_args args in
     Call { func; args; keywords } }
   | value=expr DOT attr=IDENTIFIER { Attribute { value; attr } }
   | LPAREN e=expr_or_tuple RPAREN { e }
@@ -236,8 +248,8 @@ expr:
 ;
 
 argument:
-  | e=expr { `Fst e }
-  | id=IDENTIFIER EQUAL e=expr { `Snd (id, e) }
+  | e=expr { `Arg e }
+  | id=IDENTIFIER EQUAL e=expr { `Keyword (id, e) }
 ;
 
 key_value:

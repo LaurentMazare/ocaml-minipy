@@ -54,7 +54,8 @@ let%expect_test "builtins" =
   let ast = parse_str {|
 print(fact(10))
 |} in
-  let print_fn = function
+  let print_fn args _ =
+    match args with
     | [ Interpreter.Val_int i ] ->
       Stdio.printf "%d\n" i;
       Interpreter.Val_none
@@ -66,7 +67,8 @@ print(fact(10))
     | 0 -> 1
     | n -> n * fact (n - 1)
   in
-  let fact_fn = function
+  let fact_fn args _ =
+    match args with
     | [ Interpreter.Val_int i ] -> Interpreter.Val_int (fact i)
     | _ -> Val_none
   in
@@ -110,7 +112,8 @@ print(f(991, 337))
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect {|
+  [%expect
+    {|
         ((Val_int 1))
         ((Val_int 1)(Val_int 2))
         ((Val_int 1)(Val_int 3))
