@@ -11,7 +11,7 @@ This is a work in progress, most of the supported features are only partially im
     - Float.
     - String.
     - List/Tuple.
-- Function definitions (only with positional arguments for now), nested function definition.
+- Function definitions (with keyword arguments, ...), nested function definition.
 - Variable assignments with tuple/list destructuring and assignements to a list element.
 - Augmented assignments `+=`, `-=`, etc.
 - Control flow:
@@ -33,7 +33,6 @@ This is a work in progress, most of the supported features are only partially im
 - Fix the handling of captured variables in nested functions and lambdas.
 - Delete operator, `del`.
 - Slices, e.g. `x[12:15]`.
-- Keyword arguments for functions.
 
 ## Out of Scope (for now)
 

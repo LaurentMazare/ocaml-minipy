@@ -128,6 +128,7 @@ let apply_op op left right =
   match op, left, right with
   | Add, Val_int v, Val_int v' -> Val_int (v + v')
   | Add, Val_float v, v' | Add, v', Val_float v -> Val_float (v +. value_to_float v')
+  | Add, Val_str s, Val_str s' -> Val_str (s ^ s')
   | Sub, Val_int v, Val_int v' -> Val_int (v - v')
   | Sub, Val_float v, v' -> Val_float (v -. value_to_float v')
   | Sub, v, Val_float v' -> Val_float (value_to_float v -. v')
