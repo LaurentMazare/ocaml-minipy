@@ -70,6 +70,13 @@ let token_to_string (token : Parser.token) =
   | MODEQ -> "MODEQ"
   | ASSERT -> "ASSERT"
   | LAMBDA -> "LAMBDA"
+  | CLASS -> "CLASS"
+  | RAISE -> "RAISE"
+  | FROM -> "FROM "
+  | TRY -> "TRY"
+  | EXCEPT -> "EXCEPT"
+  | AS -> "AS"
+  | FINALLY -> "FINALLY"
 
 let tokens ?(filename = "unk") in_channel =
   let lexbuf = Lexing.from_channel in_channel in

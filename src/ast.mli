@@ -47,6 +47,11 @@ type stmt =
       ; args : arguments
       ; body : stmt list
       }
+  | ClassDef of
+      { name : string
+      ; args : arguments
+      ; body : stmt list
+      }
   | If of
       { test : expr
       ; body : stmt list
@@ -62,6 +67,16 @@ type stmt =
       { test : expr
       ; body : stmt list
       ; orelse : stmt list
+      }
+  | Raise of
+      { exc : expr option
+      ; cause : expr option
+      }
+  | Try of
+      { body : stmt list
+      ; handlers : excepthandler list
+      ; orelse : stmt list
+      ; finalbody : stmt list
       }
   | Assert of
       { test : expr
@@ -148,6 +163,12 @@ and arguments =
   ; vararg : string option
   ; kwonlyargs : (string * expr) list
   ; kwarg : string option
+  }
+
+and excepthandler =
+  { type_ : expr option
+  ; name : string option
+  ; body : stmt list
   }
 [@@deriving sexp]
 

@@ -16,10 +16,12 @@ let combine_if ~test ~body ~elif ~orelse =
   in
   Ast.If { test; body; orelse }
 
+let empty_args = { Ast.args = []; vararg = None; kwonlyargs = []; kwarg = None }
+
 let merge_parameters parameters =
   let a =
     List.fold parameters
-      ~init:{ Ast.args = []; vararg = None; kwonlyargs = []; kwarg = None }
+      ~init:empty_args
       ~f:(fun acc arg ->
         match arg with
         | `arg id ->
@@ -76,7 +78,7 @@ let merge_args args =
 %token DOT COMMA EQUAL
 %token DEF RETURN DELETE ASSERT IF ELIF ELSE WHILE FOR IN BREAK CONTINUE PASS
 %token LPAREN RPAREN LBRACE RBRACE LBRACK RBRACK
-%token LAMBDA
+%token LAMBDA CLASS RAISE FROM TRY EXCEPT AS FINALLY
 %token INDENT DEDENT
 %token NEWLINE
 %token ENDMARKER
@@ -166,6 +168,8 @@ flow_stmt:
   | CONTINUE { Continue }
   | RETURN { Return { value = None } }
   | RETURN v=expr_or_tuple { Return { value = Some v } }
+  | RAISE exc=expr? { Raise { exc; cause = None } }
+  | RAISE exc=expr? FROM cause=expr { Raise { exc; cause = Some cause } }
 ;
 
 suite:
@@ -177,7 +181,14 @@ compound_stmt:
   | IF test=expr COLON body=suite elif=elif* orelse=orelse { combine_if ~test ~body ~elif ~orelse }
   | WHILE test=expr COLON body=suite orelse=orelse { While { test; body; orelse } }
   | FOR target=expr_or_tuple IN iter=expr COLON body=suite orelse=orelse { For { target; iter; body; orelse } }
-  | DEF name=IDENTIFIER LPAREN args=parameters RPAREN COLON body=suite { FunctionDef { name; args; body }}
+  | TRY COLON body=suite { Try { body; handlers = []; orelse = []; finalbody = [] } }
+  | DEF name=IDENTIFIER LPAREN args=parameters RPAREN COLON body=suite { FunctionDef { name; args; body } }
+  | CLASS name=IDENTIFIER args=class_parameters COLON body=suite { ClassDef { name; args; body } }
+;
+
+class_parameters:
+    | { empty_args }
+    | LPAREN args=parameters RPAREN { args }
 ;
 
 parameters:

@@ -75,6 +75,12 @@ rule read env = parse
   | "in" { [IN] }
   | "lambda" { [LAMBDA] }
   | "assert" { [ASSERT] }
+  | "class" { [CLASS] }
+  | "raise" { [RAISE] }
+  | "from" { [FROM] }
+  | "try" { [TRY] }
+  | "except" { [EXCEPT] }
+  | "finally" { [FINALLY] }
   (* TODO: other string delimiters... *)
   | '"' { [string_double_quote (Buffer.create 1024) lexbuf] }
   | '\'' { [string_single_quote (Buffer.create 1024) lexbuf] }

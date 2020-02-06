@@ -202,8 +202,17 @@ end = struct
       | Assign { targets; value = _ } -> List.iter targets ~f:loop_expr
       | AugAssign { target = _; op = _; value = _ } -> ()
       (* Augmented assign does not create a new bindings but replaces an existing one. *)
-      | Assert _ | Return _ | Delete _ | Expr _ | FunctionDef _ | Break | Continue | Pass
-        -> ()
+      | Assert _
+      | Return _
+      | Delete _
+      | Expr _
+      | FunctionDef _
+      | ClassDef _
+      | Raise _
+      | Try _
+      | Break
+      | Continue
+      | Pass -> ()
     and loop_expr = function
       | Name name -> Hash_set.add local_variables name
       | List l | Tuple l -> Array.iter l ~f:loop_expr
@@ -237,7 +246,7 @@ end = struct
 
   let find_exn t ~name =
     if Hash_set.mem t.local_variables name && not (Hashtbl.mem t.scope name)
-    then Printf.failwithf "Variable %s accessed before being initialized" name ();
+    then errorf "Variable %s accessed before being initialized" name ();
     let rec loop t =
       match Hashtbl.find t.scope name with
       | Some value -> value
@@ -247,7 +256,7 @@ end = struct
         | None ->
           (match Map.find t.builtins name with
           | Some value -> Val_builtin_fn value
-          | None -> Printf.failwithf "cannot find variable %s in scopes" name ()))
+          | None -> errorf "cannot find variable %s in scopes" name ()))
     in
     loop t
 end
@@ -257,6 +266,9 @@ let rec eval_stmt env = function
   | Expr { value } -> ignore (eval_expr env value : value)
   | FunctionDef { name; args; body } ->
     Env.set env ~name ~value:(Val_function { args; body })
+  | ClassDef _ -> errorf "TODO: support ClassDef"
+  | Try _ -> errorf "TODO: support Try"
+  | Raise _ -> errorf "TODO: support Raise"
   | While { test; body; orelse } ->
     let rec loop () =
       if eval_expr env test |> value_to_bool
@@ -324,7 +336,7 @@ and eval_expr env = function
     (match dict with
     | `Ok dict -> Val_dict dict
     | `Duplicate_key key ->
-      Printf.failwithf "duplicate key %s" (sexp_of_value key |> Sexp.to_string_mach) ())
+      errorf "duplicate key %s" (sexp_of_value key |> Sexp.to_string_mach) ())
   | ListComp { elt; generators } -> eval_list_comp env ~elt ~generators
   | Tuple l -> Val_tuple (Array.map l ~f:(eval_expr env))
   | Name name -> Env.find_exn env ~name
