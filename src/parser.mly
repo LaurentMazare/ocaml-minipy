@@ -181,9 +181,26 @@ compound_stmt:
   | IF test=expr COLON body=suite elif=elif* orelse=orelse { combine_if ~test ~body ~elif ~orelse }
   | WHILE test=expr COLON body=suite orelse=orelse { While { test; body; orelse } }
   | FOR target=expr_or_tuple IN iter=expr COLON body=suite orelse=orelse { For { target; iter; body; orelse } }
-  | TRY COLON body=suite { Try { body; handlers = []; orelse = []; finalbody = [] } }
+  | TRY COLON body=suite finalbody=try_finally { Try { body; handlers = []; orelse = []; finalbody } }
+  | TRY COLON body=suite handlers=try_except+ orelse=try_orelse f=try_finally?
+    { Try { body; handlers; orelse; finalbody = Option.value f ~default:[] } }
   | DEF name=IDENTIFIER LPAREN args=parameters RPAREN COLON body=suite { FunctionDef { name; args; body } }
   | CLASS name=IDENTIFIER args=class_parameters COLON body=suite { ClassDef { name; args; body } }
+;
+
+try_except:
+    | EXCEPT COLON body=suite { { Ast.type_ = None; name = None; body } }
+    | EXCEPT e=expr COLON body=suite { { Ast.type_ = Some e; name = None; body } }
+    | EXCEPT e=expr AS name=IDENTIFIER COLON body=suite { { Ast.type_ = Some e; name = Some name; body } }
+;
+
+try_orelse:
+    | { [] }
+    | ELSE COLON f=suite { f }
+;
+
+try_finally:
+    | FINALLY COLON f=suite { f }
 ;
 
 class_parameters:
