@@ -64,28 +64,3 @@ print(fn0(), fn_add(3.14159265358979, 2.71828182846))
         ((Val_int 1)(Val_int 2))
         ((Val_int 42)(Val_float 5.85987448204979))
       |}]
-
-let%expect_test "dict" =
-  let ast =
-    Basic_tests.parse_str
-      {|
-# Dictionary tests
-d = { "key": (1, 2), "c": 299792458, 42: 1337 }
-d["foo"] = (1, "bar")
-print(d["c"], d["foo"])
-
-def set(dd, key, value): dd[key] = value
-
-set(d, (1, 2), "foobar")
-print(d[(1, 2)])
-set(d, (1, 2), "barfoo")
-print(d[1, 2])
-|}
-  in
-  Interpreter.simple_eval ast;
-  [%expect
-    {|
-        ((Val_int 299792458)(Val_tuple((Val_int 1)(Val_str bar))))
-        ((Val_str foobar))
-        ((Val_str barfoo))
-      |}]

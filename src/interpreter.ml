@@ -174,6 +174,7 @@ module Env : sig
   val nest : prev_env:t -> body:stmt list -> t
   val find_exn : t -> name:string -> value
   val set : t -> name:string -> value:value -> unit
+  val remove : t -> name:string -> unit
 end = struct
   type t =
     { scope : (string, value) Hashtbl.t
@@ -244,6 +245,11 @@ end = struct
 
   let set t ~name ~value = Hashtbl.set t.scope ~key:name ~data:value
 
+  let remove t ~name =
+    match Hashtbl.find_and_remove t.scope name with
+    | None -> errorf "Variable %s is not defined" name
+    | Some _ -> ()
+
   let find_exn t ~name =
     if Hash_set.mem t.local_variables name && not (Hashtbl.mem t.scope name)
     then errorf "Variable %s accessed before being initialized" name ();
@@ -311,7 +317,7 @@ let rec eval_stmt env = function
     eval_assign env ~target ~value
   | Return { value } ->
     raise (Return_exn (Option.value_map value ~f:(eval_expr env) ~default:Val_none))
-  | Delete _ -> failwith "TODO Delete"
+  | Delete { targets } -> List.iter targets ~f:(delete env)
   | Break -> raise Break
   | Continue -> raise Continue
   | Pass -> ()
@@ -421,6 +427,16 @@ and eval_list_comp env ~elt ~generators =
           if ifs then loop env generators else [||])
   in
   Val_list (loop env generators)
+
+and delete env expr =
+  match expr with
+  | Name name -> Env.remove env ~name
+  | Subscript { value; slice } ->
+    (match eval_expr env value, eval_expr env slice with
+    | Val_list _array, Val_int _i -> errorf "TODO: implement list deletion"
+    | Val_dict dict, v -> Hashtbl.remove dict v
+    | v, _ -> cannot_be_interpreted_as v "cannot delete")
+  | _ -> errorf "only names and subscripts can be deleted"
 
 and call_env ~prev_env ~body ~args ~arg_values ~keyword_values =
   (* The semantic below is different from Python's implementation. *)
