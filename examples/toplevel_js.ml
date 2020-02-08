@@ -25,8 +25,7 @@ end = struct
   let eval_stmts t ~pp stmts = protect ~pp ~f:(fun () -> I.eval_stmts t stmts)
 
   let execute t ~pp_code ~pp content =
-    Format.fprintf pp_code "%s\n" content;
-    Stdio.printf "# %s\n" content;
+    Format.fprintf pp_code "%s\n%!" content;
     let stmts = Parse.parse_string (content ^ "\n") in
     match stmts with
     | Error { message; context } ->
