@@ -26,14 +26,14 @@ This is a work in progress, most of the supported features are only partially im
     - List comprehensions (only for lists, no support for dict/set).
 - Built-ins `print`, `range`.
 - Dictionaries.
+- Delete operator, `del`.
+- REPL example, javascript version with js-of-ocaml.
 
 ## Todo
 
 - Sets.
 - Fix the handling of captured variables in nested functions and lambdas.
-- Delete operator, `del`.
 - Slices, e.g. `x[12:15]`.
-- REPL example, javascript version with js-of-ocaml.
 
 ## Out of Scope (for now)
 

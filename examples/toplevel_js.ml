@@ -18,9 +18,9 @@ end = struct
 
   let create () = I.Env.empty ~builtins:I.default_builtins
 
-  let protect ~pp:_ ~f =
+  let protect ~pp ~f =
     try f () with
-    | I.RuntimeError message -> Stdio.printf "RuntimeError: %s\n%!" message
+    | I.RuntimeError message -> Format.fprintf pp "RuntimeError: %s\n%!" message
 
   let eval_stmts t ~pp stmts = protect ~pp ~f:(fun () -> I.eval_stmts t stmts)
 
@@ -29,8 +29,8 @@ end = struct
     let stmts = Parse.parse_string (content ^ "\n") in
     match stmts with
     | Error { message; context } ->
-      Stdio.printf "ParseError: %s\n%!" message;
-      Option.iter context ~f:(fun c -> Stdio.printf "%s\n%!" c)
+      Format.fprintf pp "ParseError: %s\n%!" message;
+      Option.iter context ~f:(fun c -> Format.fprintf pp "%s\n%!" c)
     | Ok stmts ->
       (match List.last stmts with
       | None -> ()
@@ -42,7 +42,8 @@ end = struct
             match value with
             | Val_none -> ()
             | value ->
-              I.Value.to_string value ~escape_special_chars:false |> Stdio.print_endline)
+              I.Value.to_string value ~escape_special_chars:false
+              |> Format.fprintf pp "%s\n%!")
       | Some _ -> eval_stmts t ~pp stmts)
 end
 
