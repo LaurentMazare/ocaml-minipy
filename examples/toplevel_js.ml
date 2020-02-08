@@ -12,39 +12,41 @@ module Toploop : sig
   type t
 
   val create : unit -> t
+  val reset : t -> unit
   val execute : t -> pp_code:Format.formatter -> pp:Format.formatter -> string -> unit
 end = struct
-  type t = I.Env.t
+  type t = { mutable env : I.Env.t }
 
-  let create () = I.Env.empty ~builtins:I.default_builtins
+  let create () = { env = I.Env.empty ~builtins:I.default_builtins }
+  let reset t = t.env <- I.Env.empty ~builtins:I.default_builtins
 
-  let protect ~pp ~f =
+  let protect ~f =
     try f () with
-    | I.RuntimeError message -> Format.fprintf pp "RuntimeError: %s\n%!" message
+    | I.RuntimeError message -> Stdio.eprintf "RuntimeError: %s\n%!" message
 
-  let eval_stmts t ~pp stmts = protect ~pp ~f:(fun () -> I.eval_stmts t stmts)
+  let eval_stmts t stmts = protect ~f:(fun () -> I.eval_stmts t.env stmts)
 
   let execute t ~pp_code ~pp content =
     Format.fprintf pp_code "%s\n%!" content;
     let stmts = Parse.parse_string (content ^ "\n") in
     match stmts with
     | Error { message; context } ->
-      Format.fprintf pp "ParseError: %s\n%!" message;
-      Option.iter context ~f:(fun c -> Format.fprintf pp "%s\n%!" c)
+      Stdio.eprintf "ParseError: %s\n%!" message;
+      Option.iter context ~f:(fun c -> Stdio.eprintf "%s\n%!" c)
     | Ok stmts ->
       (match List.last stmts with
       | None -> ()
       | Some (Expr { value }) ->
         let stmts = List.drop_last_exn stmts in
-        eval_stmts t ~pp stmts;
-        protect ~pp ~f:(fun () ->
-            let value = I.eval_expr t value in
+        eval_stmts t stmts;
+        protect ~f:(fun () ->
+            let value = I.eval_expr t.env value in
             match value with
             | Val_none -> ()
             | value ->
               I.Value.to_string value ~escape_special_chars:false
               |> Format.fprintf pp "%s\n%!")
-      | Some _ -> eval_stmts t ~pp stmts)
+      | Some _ -> eval_stmts t stmts)
 end
 
 let by_id s = Dom_html.getElementById s
@@ -184,6 +186,9 @@ let run () =
            | 76 when meta e ->
              output##.innerHTML := Js.string "";
              Js._true
+           | 75 when meta e ->
+             Toploop.reset toploop;
+             Js._false
            | 38 -> history_up e
            | 40 -> history_down e
            | _ -> Js._true);
