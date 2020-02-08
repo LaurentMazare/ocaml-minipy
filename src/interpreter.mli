@@ -37,6 +37,7 @@ module Value : sig
   and builtin_fn = t list -> (string, t) Hashtbl.t -> t [@@deriving sexp]
 
   val type_ : t -> Type_.t
+  val to_string : ?escape_special_chars:bool -> t -> string
 end
 
 type builtins = (string, Value.builtin_fn, String.comparator_witness) Map.t
@@ -44,3 +45,12 @@ type builtins = (string, Value.builtin_fn, String.comparator_witness) Map.t
 val default_builtins : builtins
 val simple_eval : ?builtins:builtins -> Ast.t -> unit
 val simple_eval_expr : ?builtins:builtins -> Ast.expr -> Value.t
+
+module Env : sig
+  type t
+
+  val empty : builtins:builtins -> t
+end
+
+val eval_stmts : Env.t -> Ast.t -> unit
+val eval_expr : Env.t -> Ast.expr -> Value.t
