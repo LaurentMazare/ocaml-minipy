@@ -33,14 +33,14 @@ print(x)
   Interpreter.simple_eval ast;
   [%expect
     {|
-        ((Val_int 42))
-        ((Val_int 42))
-        ((Val_int 42))
-        ((Val_int 42))
-        ((Val_int 42))
-        ((Val_int -90))
-        ((Val_float 19.5))
-        ((Val_float 3.1249999999999991))
+        42
+        42
+        42
+        42
+        42
+        -90
+        19.5
+        3.1249999999999991
       |}]
 
 let%expect_test "lambdas" =
@@ -61,6 +61,6 @@ print(fn0(), fn_add(3.14159265358979, 2.71828182846))
   Interpreter.simple_eval ast;
   [%expect
     {|
-        ((Val_int 1)(Val_int 2))
-        ((Val_int 42)(Val_float 5.85987448204979))
+        1 2
+        42 5.85987448204979
       |}]

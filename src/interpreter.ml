@@ -41,6 +41,35 @@ module Value = struct
 
   and builtin_fn = t list -> (string, t) Hashtbl.t -> t [@@deriving sexp]
 
+  let to_string ?(escape_special_chars = true) t =
+    let rec loop ~e = function
+      | Val_none -> "None"
+      | Val_bool true -> "True"
+      | Val_bool false -> "False"
+      | Val_int i -> Int.to_string i
+      | Val_float f -> Float.to_string f
+      | Val_tuple [| t |] -> "(" ^ loop ~e:true t ^ ",)"
+      | Val_tuple ts ->
+        Array.to_list ts
+        |> List.map ~f:(loop ~e:true)
+        |> String.concat ~sep:", "
+        |> fun s -> "(" ^ s ^ ")"
+      | Val_list ts ->
+        Array.to_list ts
+        |> List.map ~f:(loop ~e:true)
+        |> String.concat ~sep:", "
+        |> fun s -> "[" ^ s ^ "]"
+      | Val_dict dict ->
+        Hashtbl.to_alist dict
+        |> List.map ~f:(fun (key, value) -> loop ~e:true key ^ ": " ^ loop ~e:true value)
+        |> String.concat ~sep:","
+        |> fun s -> "{" ^ s ^ "}"
+      | Val_str s -> if e then String.escaped s else s
+      | Val_builtin_fn _ -> "<builtin>"
+      | Val_function _ -> "<function>"
+    in
+    loop t ~e:escape_special_chars
+
   let type_ = function
     | Val_none -> Type_.None_t
     | Val_bool _ -> Bool
@@ -100,7 +129,7 @@ module Value = struct
     | Val_dict dict, i ->
       (match Hashtbl.find dict i with
       | Some v -> v
-      | None -> errorf "KeyError: %s" (sexp_of_t i |> Sexp.to_string_mach))
+      | None -> errorf "KeyError: %s" (to_string i))
     | _ -> errorf "not implemented: %s[%s]" (type_as_string value) (type_as_string index)
 
   let apply_subscript_assign ~lvalue ~slice ~rvalue =
@@ -359,8 +388,7 @@ and eval_expr env = function
     in
     (match dict with
     | `Ok dict -> Value.dict dict
-    | `Duplicate_key key ->
-      errorf "duplicate key %s" (Value.sexp_of_t key |> Sexp.to_string_mach) ())
+    | `Duplicate_key key -> errorf "duplicate key %s" (Value.to_string key) ())
   | ListComp { elt; generators } -> eval_list_comp env ~elt ~generators
   | Tuple l -> Value.tuple (Array.map l ~f:(eval_expr env))
   | Name name -> Env.find_exn env ~name
@@ -509,7 +537,9 @@ and call_env ~prev_env ~body ~args ~arg_values ~keyword_values =
 
 let default_builtins : builtins =
   let print args _kwargs =
-    [%sexp_of: Value.t list] args |> Sexp.to_string_mach |> Stdio.printf "%s\n";
+    List.map args ~f:(Value.to_string ~escape_special_chars:false)
+    |> String.concat ~sep:" "
+    |> Stdio.printf "%s\n";
     Value.none
   in
   let range args _kwargs =

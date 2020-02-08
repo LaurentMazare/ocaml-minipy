@@ -21,9 +21,9 @@ print(d[1, 2])
   Interpreter.simple_eval ast;
   [%expect
     {|
-        ((Val_int 299792458)(Val_tuple((Val_int 1)(Val_str bar))))
-        ((Val_str foobar))
-        ((Val_str barfoo))
+        299792458 (1, bar)
+        foobar
+        barfoo
       |}]
 
 let%expect_test "dict-del" =
@@ -43,7 +43,7 @@ print(d)
   Interpreter.simple_eval ast;
   [%expect
     {|
-        ((Val_int 2))
-        ((Val_dict(((Val_int 42)(Val_int 1337)))))
-        ((Val_dict()))
+        2
+        {42: 1337}
+        {}
       |}]

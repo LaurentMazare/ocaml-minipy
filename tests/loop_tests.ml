@@ -53,9 +53,9 @@ print(double_loop(100))
   Interpreter.simple_eval ast;
   [%expect
     {|
-        ((Val_int 3628800)(Val_int 3628800))
-        ((Val_int 30))
-        ((Val_int 605))
+        3628800 3628800
+        30
+        605
       |}]
 
 let%expect_test "for" =
@@ -83,6 +83,6 @@ print(fact(5))
   in
   Interpreter.simple_eval ast;
   [%expect {|
-        ((Val_int 3628800)(Val_int 12)(Val_int 13)(Val_int 25))
-        ((Val_int 120))
+        3628800 12 13 25
+        120
       |}]

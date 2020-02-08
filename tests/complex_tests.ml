@@ -56,25 +56,25 @@ fff(2, 3)
   Interpreter.simple_eval ast;
   [%expect
     {|
-        ((Val_float 3.14))
-        ((Val_float 2.14))
-        ((Val_float 5.28))
-        ((Val_int 41))
-        ((Val_int 42))
-        ((Val_int 43))
-        ((Val_int 44))
-        ((Val_int 45))
-        ((Val_int 46))
-        ((Val_int 47))
-        ((Val_int 48))
-        ((Val_int 49))
-        ((Val_int 50))
-        ((Val_int 52))
-        ((Val_float 9.8636014000893688))
-        ((Val_float 9.8695444007894544))
-        ((Val_int 6))
-        ((Val_str yay1))
-        ((Val_str yay3))
-        ((Val_int 2))
-        ((Val_str nay1))
+        3.14
+        2.14
+        5.28
+        41
+        42
+        43
+        44
+        45
+        46
+        47
+        48
+        49
+        50
+        52
+        9.8636014000893688
+        9.8695444007894544
+        6
+        yay1
+        yay3
+        2
+        nay1
       |}]

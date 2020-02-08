@@ -78,15 +78,15 @@ elif x == 2:
   Interpreter.simple_eval ast;
   [%expect
     {|
-        ((Val_str bar1))
-        ((Val_str bar2))
-        ((Val_str bar3))
-        ((Val_str bar4))
-        ((Val_str bar))
-        ((Val_str foobar))
-        ((Val_str bar))
-        ((Val_str barbar))
-        ((Val_str barX))
-        ((Val_str bar))
-        ((Val_str Bar))
+        bar1
+        bar2
+        bar3
+        bar4
+        bar
+        foobar
+        bar
+        barbar
+        barX
+        bar
+        Bar
       |}]

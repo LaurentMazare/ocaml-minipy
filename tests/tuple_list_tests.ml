@@ -41,18 +41,18 @@ print((x, y, z), (a, b, c))
   Interpreter.simple_eval ast;
   [%expect
     {|
-        ((Val_tuple((Val_int 1))))
-        ((Val_tuple((Val_tuple((Val_int 1)))(Val_int 2))))
-        ((Val_tuple((Val_int 1)(Val_int 2)(Val_str foobar)(Val_str barfoo)(Val_int 3))))
-        ((Val_tuple((Val_list((Val_int 1)(Val_int 2)(Val_int 3))))))
-        ((Val_int 3)(Val_int 3)(Val_int 2))
-        ((Val_list((Val_int 1)(Val_int 4)(Val_int 3))))
-        ((Val_list((Val_int 1)(Val_int 4)(Val_list((Val_int 1)(Val_int 2))))))
-        ((Val_list((Val_int 1)(Val_int 4)(Val_list((Val_int 1)(Val_list((Val_int 1)(Val_int 2))))))))
-        ((Val_tuple((Val_int 1)(Val_int 2)(Val_int 3)))(Val_str foo)(Val_str bar))
-        ((Val_tuple((Val_int 3)(Val_int 2)(Val_int 1)))(Val_str bar)(Val_str foo))
-        ((Val_tuple((Val_int 42)(Val_float 3.141592)))(Val_tuple((Val_int 42)(Val_float 3.141592)))(Val_int 42)(Val_float 3.141592))
-        ((Val_tuple((Val_tuple((Val_int 4)(Val_int 5)))(Val_str foo)(Val_str bar)))(Val_tuple((Val_int 4)(Val_int 5)(Val_list((Val_str foo)(Val_str bar))))))
+        (1,)
+        ((1,), 2)
+        (1, 2, foobar, barfoo, 3)
+        ([1, 2, 3],)
+        3 3 2
+        [1, 4, 3]
+        [1, 4, [1, 2]]
+        [1, 4, [1, [1, 2]]]
+        (1, 2, 3) foo bar
+        (3, 2, 1) bar foo
+        (42, 3.141592) (42, 3.141592) 42 3.141592
+        ((4, 5), foo, bar) (4, 5, [foo, bar])
       |}]
 
 let%expect_test "list comp" =
@@ -72,8 +72,8 @@ print(l)
   Interpreter.simple_eval ast;
   [%expect
     {|
-        ((Val_list((Val_int 0)(Val_int 1)(Val_int 4)(Val_int 9)(Val_int 16))))
-        ((Val_list((Val_tuple((Val_int 1)(Val_int 0)))(Val_tuple((Val_int 2)(Val_int 0)))(Val_tuple((Val_int 2)(Val_int 1))))))
-        ((Val_list((Val_int 2)(Val_int 6))))
-        ((Val_list((Val_tuple((Val_int 0)(Val_int 0)))(Val_tuple((Val_int 1)(Val_int 1)))(Val_tuple((Val_int 2)(Val_int 2))))))
+        [0, 1, 4, 9, 16]
+        [(1, 0), (2, 0), (2, 1)]
+        [2, 6]
+        [(0, 0), (1, 1), (2, 2)]
       |}]

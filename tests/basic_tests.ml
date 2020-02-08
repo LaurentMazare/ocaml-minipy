@@ -30,12 +30,12 @@ let%expect_test "hello" =
   let ast = parse_str "print(\"Hello World!\")\n" in
   Interpreter.simple_eval ast;
   [%expect {|
-        ((Val_str"Hello World!"))
+        Hello World!
       |}];
   let ast = parse_str "print(41+1)" in
   Interpreter.simple_eval ast;
   [%expect {|
-        ((Val_int 42))
+        42
       |}]
 
 let%expect_test "fn" =
@@ -47,7 +47,7 @@ print(f(1000, 337))
 |} in
   Interpreter.simple_eval ast;
   [%expect {|
-        ((Val_int 1337))
+        1337
       |}]
 
 let%expect_test "builtins" =
@@ -89,7 +89,7 @@ print(f(1000, 337))
 |} in
   Interpreter.simple_eval ast;
   [%expect {|
-        ((Val_list((Val_int 1000)(Val_int 337)(Val_int 1337))))
+        [1000, 337, 1337]
       |}]
 
 let%expect_test "semicolon" =
@@ -114,8 +114,8 @@ print(f(991, 337))
   Interpreter.simple_eval ast;
   [%expect
     {|
-        ((Val_int 1))
-        ((Val_int 1)(Val_int 2))
-        ((Val_int 1)(Val_int 3))
-        ((Val_list((Val_int 1000)(Val_int 337)(Val_int 1337))))
+        1
+        1 2
+        1 3
+        [1000, 337, 1337]
       |}]

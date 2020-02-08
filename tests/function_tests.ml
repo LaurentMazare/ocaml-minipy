@@ -38,13 +38,13 @@ print(all_args("a", "b", "c", a43="bar", b="43", a42="foo"))
   Interpreter.simple_eval ast;
   [%expect
     {|
-        ((Val_int 1)(Val_int -1)(Val_int 1)(Val_int -1)(Val_int -1)(Val_int 1)(Val_int 42))
-        ((Val_int 6)(Val_int 0))
-        ((Val_int 6)(Val_int 1))
-        ((Val_int 6)(Val_int 2))
-        ((Val_int 42)(Val_int 42)(Val_int 42))
-        ((Val_int 42)(Val_str barfoo)(Val_str foobar))
-        ((Val_tuple((Val_str foo)(Val_list()))))
-        ((Val_tuple((Val_str foo)(Val_list((Val_str b)(Val_str c))))))
-        ((Val_tuple((Val_str bar)(Val_list((Val_str b)(Val_str c))))))
+        1 -1 1 -1 -1 1 42
+        6 0
+        6 1
+        6 2
+        42 42 42
+        42 barfoo foobar
+        (foo, [])
+        (foo, [b, c])
+        (bar, [b, c])
       |}]
