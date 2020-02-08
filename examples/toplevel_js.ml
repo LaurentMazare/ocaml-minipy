@@ -177,10 +177,10 @@ let run () =
            match e##.keyCode with
            | 13 when not (meta e || shift e) ->
              resize ~container ~textbox;
-             Js._false
+             Js._true
            | 13 ->
              execute ();
-             Js._true
+             Js._false
            | 76 when meta e ->
              output##.innerHTML := Js.string "";
              Js._true
@@ -189,8 +189,6 @@ let run () =
            | _ -> Js._true);
   resize ~container ~textbox;
   textbox##focus;
-  (* Graphics_support.init (by_id_coerce "test-canvas" Dom_html.CoerceTo.canvas);
-  *)
   Sys_js.set_channel_flusher caml_chan (append output "caml");
   Sys_js.set_channel_flusher sharp_chan (append output "sharp");
   Sys_js.set_channel_flusher Stdio.stdout (append output "stdout");
