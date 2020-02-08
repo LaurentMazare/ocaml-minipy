@@ -171,6 +171,8 @@ module Value = struct
     | Sub, v, Val_float v' -> Val_float (to_float v -. v')
     | Mult, Val_int v, Val_int v' -> Val_int (v * v')
     | Mult, Val_float v, v' | Mult, v', Val_float v -> Val_float (v *. to_float v')
+    | Mult, Val_list a, Val_int n ->
+      List.init n ~f:(fun _ -> a) |> Array.concat |> fun a -> Val_list a
     | Div, v, v' -> Val_float (to_float v /. to_float v')
     | Mod, Val_int v, Val_int v' -> Val_int (v % v')
     | _ ->

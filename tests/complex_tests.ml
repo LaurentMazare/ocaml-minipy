@@ -78,3 +78,26 @@ fff(2, 3)
         2
         nay1
       |}]
+
+let%expect_test "sieve" =
+  let ast =
+    Basic_tests.parse_str
+      {|
+# A simple prime sieve.
+def sieve(maxp):
+  is_prime = [True] * (1+maxp)
+  primes = []
+  for p in range(2, 1+maxp):
+    if is_prime[p]:
+      primes = primes + [p] # Append would be better...
+      for q in range(p, 1+maxp, p): is_prime[q] = False
+  return primes
+
+print(sieve(40))
+|}
+  in
+  Interpreter.simple_eval ast;
+  [%expect
+    {|
+        [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37]
+      |}]
