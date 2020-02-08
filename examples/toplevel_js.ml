@@ -176,10 +176,10 @@ let run () =
     := Dom_html.handler (fun e ->
            match e##.keyCode with
            | 13 when not (meta e || shift e) ->
-             execute ();
+             resize ~container ~textbox;
              Js._false
            | 13 ->
-             resize ~container ~textbox;
+             execute ();
              Js._true
            | 76 when meta e ->
              output##.innerHTML := Js.string "";
