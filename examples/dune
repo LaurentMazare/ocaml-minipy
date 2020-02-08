@@ -17,3 +17,11 @@
   (libraries base stdio minipy)
   (preprocess (pps ppx_let ppx_sexp_conv))
 )
+
+(executables
+  (names toplevel_js)
+  (modules toplevel_js)
+  (modes js)
+  (libraries base stdio js_of_ocaml js_of_ocaml-tyxml minipy)
+  (preprocess (pps js_of_ocaml-ppx))
+)
