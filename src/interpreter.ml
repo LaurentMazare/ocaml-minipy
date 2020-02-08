@@ -64,7 +64,7 @@ module Value = struct
         |> List.map ~f:(fun (key, value) -> loop ~e:true key ^ ": " ^ loop ~e:true value)
         |> String.concat ~sep:","
         |> fun s -> "{" ^ s ^ "}"
-      | Val_str s -> if e then String.escaped s else s
+      | Val_str s -> if e then "\'" ^ String.escaped s ^ "\'" else s
       | Val_builtin_fn _ -> "<builtin>"
       | Val_function _ -> "<function>"
     in

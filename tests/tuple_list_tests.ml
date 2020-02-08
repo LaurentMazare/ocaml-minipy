@@ -43,7 +43,7 @@ print((x, y, z), (a, b, c))
     {|
         (1,)
         ((1,), 2)
-        (1, 2, foobar, barfoo, 3)
+        (1, 2, 'foobar', 'barfoo', 3)
         ([1, 2, 3],)
         3 3 2
         [1, 4, 3]
@@ -52,7 +52,7 @@ print((x, y, z), (a, b, c))
         (1, 2, 3) foo bar
         (3, 2, 1) bar foo
         (42, 3.141592) (42, 3.141592) 42 3.141592
-        ((4, 5), foo, bar) (4, 5, [foo, bar])
+        ((4, 5), 'foo', 'bar') (4, 5, ['foo', 'bar'])
       |}]
 
 let%expect_test "list comp" =
