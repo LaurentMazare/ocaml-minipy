@@ -10,3 +10,10 @@
   (libraries base stdio minipy yojson)
   (preprocess (pps ppx_let ppx_sexp_conv ppx_yojson_conv))
 )
+
+(executables
+  (names toplevel)
+  (modules toplevel)
+  (libraries base stdio minipy)
+  (preprocess (pps ppx_let ppx_sexp_conv))
+)

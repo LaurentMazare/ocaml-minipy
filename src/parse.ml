@@ -78,8 +78,7 @@ let token_to_string (token : Parser.token) =
   | AS -> "AS"
   | FINALLY -> "FINALLY"
 
-let tokens ?(filename = "unk") in_channel =
-  let lexbuf = Lexing.from_channel in_channel in
+let tokens ?(filename = "unk") lexbuf =
   lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
   let env = Lexer.Env.create () in
   let rec loop acc =
@@ -91,7 +90,14 @@ let tokens ?(filename = "unk") in_channel =
   in
   loop []
 
-let tokens_file filename = Stdio.In_channel.with_file filename ~f:(tokens ~filename)
+let tokens_string str =
+  let lexbuf = Lexing.from_string str ~with_positions:true in
+  tokens lexbuf
+
+let tokens_file filename =
+  Stdio.In_channel.with_file filename ~f:(fun in_channel ->
+      let lexbuf = Lexing.from_channel in_channel in
+      tokens lexbuf ~filename)
 
 let get_line filename lineno =
   try
@@ -155,6 +161,11 @@ let parse parse_fun lexbuf =
     let message = Printf.sprintf "%s: SyntaxError %s" position msg in
     let context = get_line pos.pos_fname pos.pos_lnum in
     Error { Error.message; context }
+
+let parse_string ?(filename = "unk") str =
+  let lexbuf = Lexing.from_string str ~with_positions:true in
+  lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
+  parse Parser.Incremental.mod_ lexbuf
 
 let parse ?(filename = "unk") in_channel =
   let lexbuf = Lexing.from_channel in_channel in

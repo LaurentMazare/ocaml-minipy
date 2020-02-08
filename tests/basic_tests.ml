@@ -3,19 +3,15 @@ open Minipy
 
 let debug = false
 
-let parse_str data =
-  let tmp_file = Caml.Filename.temp_file "minitest" ".py" in
-  Exn.protect
-    ~f:(fun () ->
-      Stdio.Out_channel.write_all tmp_file ~data:(data ^ "\n");
-      if debug
-      then (
-        let tokens = Parse.tokens_file tmp_file in
-        Stdio.printf
-          "token: %s\n%!"
-          (List.map tokens ~f:Parse.token_to_string |> String.concat ~sep:"\n"));
-      Parse.parse_file tmp_file |> Parse.ok_exn)
-    ~finally:(fun () -> Caml.Sys.remove tmp_file)
+let parse_str str =
+  let str = str ^ "\n" in
+  if debug
+  then (
+    let tokens = Parse.tokens_string str in
+    Stdio.printf
+      "token: %s\n%!"
+      (List.map tokens ~f:Parse.token_to_string |> String.concat ~sep:"\n"));
+  Parse.parse_string str |> Parse.ok_exn
 
 let%expect_test "parse" =
   let ast = parse_str "x=1\nprint(42)\n" in
@@ -112,8 +108,7 @@ print(f(991, 337))
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect
-    {|
+  [%expect {|
         1
         1 2
         1 3
