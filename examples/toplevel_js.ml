@@ -114,7 +114,7 @@ let resize ~container ~textbox =
 let setup_examples ~container ~textbox =
   let examples =
     try
-      Stdio.In_channel.read_lines "./examples.py"
+      Stdio.In_channel.read_lines "/static/examples.py"
       |> List.group ~break:(fun _ -> String.is_prefix ~prefix:"##")
       |> List.filter_map ~f:(function
              | [] -> None
