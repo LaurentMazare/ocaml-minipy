@@ -44,7 +44,7 @@ print(all_args("a", "b", "c", a43="bar", b="43", a42="foo"))
         6 2
         42 42 42
         42 barfoo foobar
-        (foo, [])
-        (foo, [b, c])
-        (bar, [b, c])
+        ('foo', [])
+        ('foo', ['b', 'c'])
+        ('bar', ['b', 'c'])
       |}]

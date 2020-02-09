@@ -21,7 +21,7 @@ print(d[1, 2])
   Interpreter.simple_eval ast;
   [%expect
     {|
-        299792458 (1, bar)
+        299792458 (1, 'bar')
         foobar
         barfoo
       |}]
