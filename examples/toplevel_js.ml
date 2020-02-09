@@ -304,14 +304,8 @@ let run () =
   match List.Assoc.find (parse_hash ()) "code" ~equal:String.equal with
   | None -> ()
   | Some code ->
-    B64.decode code
-    |> String.split ~on:'\n'
-    |> List.group ~break:(fun _ l ->
-           (not (String.is_empty l)) && not (Char.is_whitespace l.[0]))
-    |> List.iter ~f:(fun lines ->
-           let code = String.concat lines ~sep:"\n" in
-           textbox##.value := Js.string code;
-           execute ())
+    textbox##.value := Js.string (B64.decode code);
+    execute ()
 
 let () =
   Dom_html.window##.onload
