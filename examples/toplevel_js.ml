@@ -197,6 +197,14 @@ let setup_share_button ~output =
                Dom.appendChild output (Tyxml_js.To_dom.of_element dom);
                Js._false))
 
+let setup_exec_button ~execute =
+  do_by_id "btn-exec" (fun e ->
+      e##.style##.display := Js.string "block";
+      e##.onclick
+        := Dom_html.handler (fun _ ->
+               execute ();
+               Js._false))
+
 let run () =
   let toploop = Toploop.create () in
   let container = by_id "toplevel-container" in
@@ -288,6 +296,7 @@ let run () =
   Sys_js.set_channel_filler Stdio.stdin readline;
   setup_examples ~container ~textbox;
   setup_share_button ~output;
+  setup_exec_button ~execute;
   History.setup ();
   textbox##.value := Js.string "";
   match List.Assoc.find (parse_hash ()) "code" ~equal:String.equal with
