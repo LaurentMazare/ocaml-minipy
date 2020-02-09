@@ -96,12 +96,18 @@ xs = [
   "foo"
 +      "BAR"]
 print(xs)
+
+x = x + \
+1
+x = x \
+    + 1
+print(x)
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect
-    {|
+  [%expect {|
         1 2
         [2116, 2209]
         [(1, 2), 'fooBAR']
+        3
       |}]

@@ -57,6 +57,7 @@ end
 
 rule read env = parse
   | ' ' { read env lexbuf }
+  | "\\\n" { read env lexbuf }
   | "def" { [DEF] }
   | "if" { [IF] }
   | "elif" { [ELIF] }
