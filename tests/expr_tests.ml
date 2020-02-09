@@ -59,8 +59,49 @@ print(fn0(), fn_add(3.14159265358979, 2.71828182846))
 |}
   in
   Interpreter.simple_eval ast;
+  [%expect {|
+        1 2
+        42 5.85987448204979
+      |}]
+
+let%expect_test "parenthesis" =
+  let ast =
+    Basic_tests.parse_str
+      {|
+x = (
+1)
+y = (
+  1)
+y = (
+
+  1
++ 2
+        -y)
+print(x, y)
+
+xs = [
+  i * i
+  for i in range(100)
+  if i > 45
+and i < 48
+]
+print(xs)
+
+xs = [
+
+  (1,
+2
+
+       ),
+  "foo"
++      "BAR"]
+print(xs)
+|}
+  in
+  Interpreter.simple_eval ast;
   [%expect
     {|
         1 2
-        42 5.85987448204979
+        [2116, 2209]
+        [(1, 2), 'fooBAR']
       |}]

@@ -129,7 +129,7 @@ rule read env = parse
     done;
     let indent = String.length str - String.rindex_exn str '\n' - 1 in
     if env.nestings <> 0
-    then [NEWLINE]
+    then read env lexbuf
     else
       let last_indent = Env.last_indent env in
       if last_indent = indent
