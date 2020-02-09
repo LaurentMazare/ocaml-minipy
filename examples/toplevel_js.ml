@@ -180,29 +180,23 @@ let setup_share_button ~output =
                         := Js.Opt.case e##.textContent (fun () -> "") Js.to_string
                            :: !code));
                let code_encoded = List.rev !code |> String.concat ~sep:"" |> B64.encode in
-               let url, _is_file =
+               let url =
                  match Url.Current.get () with
-                 | Some (Url.Http url) ->
-                   Url.Http { url with Url.hu_fragment = "" }, false
-                 | Some (Url.Https url) ->
-                   Url.Https { url with Url.hu_fragment = "" }, false
-                 | Some (Url.File url) -> Url.File { url with Url.fu_fragment = "" }, true
+                 | Some (Http url) -> Url.Http { url with hu_fragment = "" }
+                 | Some (Https url) -> Https { url with hu_fragment = "" }
+                 | Some (File url) -> File { url with fu_fragment = "" }
                  | _ -> assert false
                in
                let frag =
-                 let frags = parse_hash () in
-                 let frags =
-                   List.Assoc.remove frags "code" ~equal:String.equal
-                   @ [ "code", code_encoded ]
-                 in
-                 Url.encode_arguments frags
+                 Url.encode_arguments
+                   (("code", code_encoded)
+                   :: List.Assoc.remove (parse_hash ()) "code" ~equal:String.equal)
                in
                let uri = Url.string_of_url url ^ "#" ^ frag in
-               let dom =
-                 Tyxml_js.Html.(
-                   p [ txt "Share this url : "; a ~a:[ a_href uri ] [ txt uri ] ])
-               in
-               Dom.appendChild output (Tyxml_js.To_dom.of_element dom);
+               Tyxml_js.Html.(
+                 p [ txt "Share this url: "; a ~a:[ a_href uri ] [ txt uri ] ])
+               |> Tyxml_js.To_dom.of_element
+               |> Dom.appendChild output;
                Js._false))
 
 let setup_exec_button ~execute =
@@ -310,8 +304,14 @@ let run () =
   match List.Assoc.find (parse_hash ()) "code" ~equal:String.equal with
   | None -> ()
   | Some code ->
-    textbox##.value := Js.string (B64.decode code);
-    execute ()
+    B64.decode code
+    |> String.split ~on:'\n'
+    |> List.group ~break:(fun _ l ->
+           (not (String.is_empty l)) && not (Char.is_whitespace l.[0]))
+    |> List.iter ~f:(fun lines ->
+           let code = String.concat lines ~sep:"\n" in
+           textbox##.value := Js.string code;
+           execute ())
 
 let () =
   Dom_html.window##.onload
