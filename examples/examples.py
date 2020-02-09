@@ -9,4 +9,4 @@ def sieve(maxp):
       for q in range(p, 1+maxp, p): is_prime[q] = False
   return primes
 
-print(sieve(40))
+sieve(40)

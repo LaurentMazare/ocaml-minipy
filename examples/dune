@@ -21,7 +21,21 @@
 (executables
   (names toplevel_js)
   (modules toplevel_js)
-  (modes js)
+  (modes byte)
   (libraries base stdio js_of_ocaml js_of_ocaml-tyxml minipy)
   (preprocess (pps js_of_ocaml-ppx))
 )
+
+(rule
+ (targets toplevel.js)
+ (action
+  (run %{bin:js_of_ocaml}
+   -I .
+   --file %{dep:examples.py}
+   --disable shortvar
+   --noruntime
+   +base/runtime.js
+   %{lib:js_of_ocaml-compiler:runtime.js}
+   %{dep:toplevel_js.bc}
+   -o %{targets}
+  )))
