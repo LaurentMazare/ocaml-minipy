@@ -111,6 +111,34 @@ let resize ~container ~textbox =
   := Js.string (Printf.sprintf "%dpx" (max 18 textbox##.scrollHeight));
   container##.scrollTop := container##.scrollHeight
 
+let setup_examples ~container ~textbox =
+  let examples =
+    try
+      Stdio.In_channel.read_lines "./examples.py"
+      |> List.group ~break:(fun _ -> String.is_prefix ~prefix:"##")
+      |> List.filter_map ~f:(function
+             | [] -> None
+             | title :: _ as block -> Some (title, String.concat block ~sep:"\n"))
+    with
+    | _ -> []
+  in
+  let example_container = by_id "toplevel-examples" in
+  List.iter examples ~f:(fun (name, content) ->
+      let a =
+        Tyxml_js.Html.(
+          a
+            ~a:
+              [ a_class [ "list-group-item" ]
+              ; a_onclick (fun _ ->
+                    textbox##.value := (Js.string content)##trim;
+                    resize ~container ~textbox;
+                    textbox##focus;
+                    true)
+              ]
+            [ txt name ])
+      in
+      Dom.appendChild example_container (Tyxml_js.To_dom.of_a a))
+
 let text ~a_class:cl s = Tyxml_js.Html.(span ~a:[ a_class [ cl ] ] [ txt s ])
 
 let append output cl s =
@@ -205,6 +233,7 @@ let run () =
       (fun s -> Js.to_string s ^ "\n")
   in
   Sys_js.set_channel_filler Stdio.stdin readline;
+  setup_examples ~container ~textbox;
   History.setup ();
   textbox##.value := Js.string ""
 
