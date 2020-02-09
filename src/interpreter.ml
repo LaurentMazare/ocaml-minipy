@@ -21,12 +21,6 @@ module Type_ = struct
 end
 
 module Value = struct
-  type fn =
-    { args : arguments
-    ; body : stmt list
-    }
-  [@@deriving sexp]
-
   type t =
     | Val_none
     | Val_bool of bool
@@ -39,7 +33,23 @@ module Value = struct
     | Val_builtin_fn of builtin_fn
     | Val_function of fn
 
-  and builtin_fn = t list -> (string, t) Hashtbl.t -> t [@@deriving sexp]
+  and builtin_fn = t list -> (string, t) Hashtbl.t -> t
+
+  and builtins = ((string, builtin_fn, String.comparator_witness) Map.t[@sexp.opaque])
+
+  and env =
+    { scope : ((string, t) Hashtbl.t[@sexp.opaque])
+    ; prev_env : env option
+    ; local_variables : (string Hash_set.t[@sexp.opaque])
+    ; builtins : builtins
+    }
+
+  and fn =
+    { args : arguments
+    ; env : env
+    ; body : stmt list
+    }
+  [@@deriving sexp]
 
   let to_string ?(escape_special_chars = true) t =
     let rec loop ~e = function
@@ -174,6 +184,7 @@ module Value = struct
     | Mult, Val_list a, Val_int n ->
       List.init n ~f:(fun _ -> a) |> Array.concat |> fun a -> Val_list a
     | Div, v, v' -> Val_float (to_float v /. to_float v')
+    | FloorDiv, Val_int v, Val_int v' -> Val_int (v / v')
     | Mod, Val_int v, Val_int v' -> Val_int (v % v')
     | _ ->
       errorf
@@ -213,10 +224,10 @@ exception Break
 exception Continue
 exception Assert of Value.t
 
-type builtins = (string, Value.builtin_fn, String.comparator_witness) Map.t
+type builtins = Value.builtins
 
 module Env : sig
-  type t
+  type t = Value.env
 
   val empty : builtins:builtins -> t
 
@@ -226,7 +237,7 @@ module Env : sig
   val set : t -> name:string -> value:Value.t -> unit
   val remove : t -> name:string -> unit
 end = struct
-  type t =
+  type t = Value.env =
     { scope : (string, Value.t) Hashtbl.t
     ; prev_env : t option
     ; local_variables : string Hash_set.t
@@ -321,7 +332,7 @@ end
 let rec eval_stmt env = function
   | Expr { value } -> ignore (eval_expr env value : Value.t)
   | FunctionDef { name; args; body } ->
-    Env.set env ~name ~value:(Val_function { args; body })
+    Env.set env ~name ~value:(Val_function { args; env; body })
   | ClassDef _ -> errorf "TODO: support ClassDef"
   | Try _ -> errorf "TODO: support Try"
   | Raise _ -> errorf "TODO: support Raise"
@@ -423,7 +434,7 @@ and eval_expr env = function
     in
     (match func with
     | Val_builtin_fn fn -> fn arg_values keyword_values
-    | Val_function { args; body } ->
+    | Val_function { args; env; body } ->
       let env = call_env ~prev_env:env ~body ~args ~arg_values ~keyword_values in
       (try
          eval_stmts env body;
@@ -437,8 +448,7 @@ and eval_expr env = function
     let index = eval_expr env slice in
     Value.apply_subscript ~value ~index
   | Lambda { args; body } ->
-    (* TODO: capture the variables properly. *)
-    Value.fn { args; body = [ Return { value = Some body } ] }
+    Value.fn { args; env; body = [ Return { value = Some body } ] }
 
 and eval_stmts env stmts = List.iter stmts ~f:(eval_stmt env)
 

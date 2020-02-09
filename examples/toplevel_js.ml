@@ -111,14 +111,22 @@ let resize ~container ~textbox =
   := Js.string (Printf.sprintf "%dpx" (max 18 textbox##.scrollHeight));
   container##.scrollTop := container##.scrollHeight
 
+let title_prefix = "## "
+
 let setup_examples ~container ~textbox =
   let examples =
     try
       Stdio.In_channel.read_lines "/static/examples.py"
-      |> List.group ~break:(fun _ -> String.is_prefix ~prefix:"##")
+      |> List.group ~break:(fun _ -> String.is_prefix ~prefix:title_prefix)
       |> List.filter_map ~f:(function
              | [] -> None
-             | title :: _ as block -> Some (title, String.concat block ~sep:"\n"))
+             | title :: _ as block ->
+               let title =
+                 String.chop_prefix title ~prefix:title_prefix
+                 |> Option.value ~default:""
+                 |> String.strip
+               in
+               Some (title, String.concat block ~sep:"\n"))
     with
     | _ -> []
   in

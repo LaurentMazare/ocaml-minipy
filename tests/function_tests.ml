@@ -48,3 +48,33 @@ print(all_args("a", "b", "c", a43="bar", b="43", a42="foo"))
         ('foo', ['b', 'c'])
         ('bar', ['b', 'c'])
       |}]
+
+let%expect_test "nested-fn" =
+  let ast =
+    Basic_tests.parse_str
+      {|
+def prime_dec(n):
+  factors = [i for i in range(n+1)]
+  for p in range(2, 1+n):
+    if factors[p] == p:
+      for q in range(p, 1+n, p): factors[q] = p
+  def pd(m):
+    pqs = []
+    while m != 1:
+      p, q = factors[m], 0
+      while m % p == 0:
+        m //= p
+        q += 1
+      pqs += [(p, q)] # An append would be more efficient
+    return pqs
+  return pd
+
+pd = prime_dec(2000)
+print(pd(100), pd(1337), pd(314))
+|}
+  in
+  Interpreter.simple_eval ast;
+  [%expect
+    {|
+        [(5, 2), (2, 2)] [(191, 1), (7, 1)] [(157, 1), (2, 1)]
+      |}]
