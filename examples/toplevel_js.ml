@@ -144,6 +144,59 @@ let text ~a_class:cl s = Tyxml_js.Html.(span ~a:[ a_class [ cl ] ] [ txt s ])
 let append output cl s =
   Dom.appendChild output (Tyxml_js.To_dom.of_element (text ~a_class:cl s))
 
+let parse_hash () =
+  let frag = Url.Current.get_fragment () in
+  Url.decode_arguments frag
+
+let rec iter_on_sharp ~f x =
+  Js.Opt.iter (Dom_html.CoerceTo.element x) (fun e ->
+      if Js.to_bool (e##.classList##contains (Js.string "sharp")) then f e);
+  match Js.Opt.to_option x##.nextSibling with
+  | None -> ()
+  | Some n -> iter_on_sharp ~f n
+
+let do_by_id s f =
+  try f (Dom_html.getElementById s) with
+  | Caml.Not_found -> ()
+
+let setup_share_button ~output =
+  do_by_id "btn-share" (fun e ->
+      e##.style##.display := Js.string "block";
+      e##.onclick
+        := Dom_html.handler (fun _ ->
+               let code = ref [] in
+               Js.Opt.iter
+                 output##.firstChild
+                 (iter_on_sharp ~f:(fun e ->
+                      code
+                        := Js.Opt.case e##.textContent (fun () -> "") Js.to_string
+                           :: !code));
+               let code_encoded = List.rev !code |> String.concat ~sep:"" |> B64.encode in
+               let url, _is_file =
+                 match Url.Current.get () with
+                 | Some (Url.Http url) ->
+                   Url.Http { url with Url.hu_fragment = "" }, false
+                 | Some (Url.Https url) ->
+                   Url.Https { url with Url.hu_fragment = "" }, false
+                 | Some (Url.File url) -> Url.File { url with Url.fu_fragment = "" }, true
+                 | _ -> assert false
+               in
+               let frag =
+                 let frags = parse_hash () in
+                 let frags =
+                   List.Assoc.remove frags "code" ~equal:String.equal
+                   @ [ "code", code_encoded ]
+                 in
+                 Url.encode_arguments frags
+               in
+               let uri = Url.string_of_url url ^ "#" ^ frag in
+               let dom =
+                 Tyxml_js.Html.(
+                   p [ txt "Share this url : "; a ~a:[ a_href uri ] [ txt uri ] ])
+               in
+               Dom.appendChild output (Tyxml_js.To_dom.of_element dom);
+               Js._false))
+
 let run () =
   let toploop = Toploop.create () in
   let container = by_id "toplevel-container" in
@@ -234,8 +287,14 @@ let run () =
   in
   Sys_js.set_channel_filler Stdio.stdin readline;
   setup_examples ~container ~textbox;
+  setup_share_button ~output;
   History.setup ();
-  textbox##.value := Js.string ""
+  textbox##.value := Js.string "";
+  match List.Assoc.find (parse_hash ()) "code" ~equal:String.equal with
+  | None -> ()
+  | Some code ->
+    textbox##.value := Js.string (B64.decode code);
+    execute ()
 
 let () =
   Dom_html.window##.onload

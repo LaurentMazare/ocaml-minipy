@@ -20,7 +20,7 @@
 
 (executables
   (names toplevel_js)
-  (modules toplevel_js)
+  (modules toplevel_js b64)
   (modes byte)
   (libraries base stdio js_of_ocaml js_of_ocaml-tyxml minipy)
   (preprocess (pps js_of_ocaml-ppx))
