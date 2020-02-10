@@ -71,10 +71,11 @@ def prime_dec(n):
 
 pd = prime_dec(2000)
 print(pd(100), pd(1337), pd(314))
+pd = prime_dec(5000)
+print(pd(2500))
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect
-    {|
+  [%expect {|
         [(5, 2), (2, 2)] [(191, 1), (7, 1)] [(157, 1), (2, 1)]
       |}]
