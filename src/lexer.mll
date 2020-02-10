@@ -67,6 +67,7 @@ rule read env = parse
   | "while" { [WHILE] }
   | "True" { [BOOL true] }
   | "False" { [BOOL false] }
+  | "None" { [NONE] }
   | "and" { [OPAND] }
   | "or" { [OPOR] }
   | "break" { [BREAK] }

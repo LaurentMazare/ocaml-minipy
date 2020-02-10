@@ -99,6 +99,7 @@ type stmt =
   | Continue
 
 and expr =
+  | None_
   | Bool of bool
   | Num of int
   | Float of float

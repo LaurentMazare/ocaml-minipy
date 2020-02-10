@@ -70,6 +70,7 @@ let merge_args args =
 %token <string> FLOAT
 %token <string> IDENTIFIER STRING
 %token <bool> BOOL
+%token NONE
 %token COLON SEMICOLON
 %token OPAND OPOR
 %token OPADD OPSUB OPMUL OPDIV OPEDIV OPMOD
@@ -245,6 +246,7 @@ expr:
   | INTEGER { Num (int_of_string $1) }
   | FLOAT { Float (float_of_string $1) }
   | BOOL { Bool $1 }
+  | NONE { None_ }
   | left=expr OPAND right=expr { BoolOp { values = [left; right]; op = And } }
   | left=expr OPOR right=expr { BoolOp { values = [left; right]; op = Or } }
   | left=expr OPEQ right=expr { Compare { left; ops = Eq; comparators = right } }

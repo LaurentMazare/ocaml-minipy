@@ -288,6 +288,7 @@ end = struct
     and loop_expr = function
       | Name name -> Hash_set.add local_variables name
       | List l | Tuple l -> Array.iter l ~f:loop_expr
+      | None_
       | ListComp _
       | Dict _
       | Lambda _
@@ -425,6 +426,7 @@ let rec eval_stmt env = function
       raise (Assert msg))
 
 and eval_expr env = function
+  | None_ -> Value.none
   | Bool b -> Value.bool b
   | Num n -> Value.int n
   | Float f -> Value.float f

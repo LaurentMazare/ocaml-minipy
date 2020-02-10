@@ -54,6 +54,7 @@ let token_to_string (token : Parser.token) =
   | COLON -> "COLON"
   | BREAK -> "BREAK"
   | BOOL b -> Printf.sprintf "BOOL<%b>" b
+  | NONE -> "NONE"
   | OPAND -> "OPAND"
   | OPOR -> "OPOR"
   | CONTINUE -> "CONTINUE"
