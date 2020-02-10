@@ -224,6 +224,12 @@ exception Break
 exception Continue
 exception Assert of Value.t
 
+exception
+  Raise of
+    { exc : Value.t option
+    ; cause : Value.t option
+    }
+
 type builtins = Value.builtins
 
 module Env : sig
@@ -261,6 +267,11 @@ end = struct
         loop_expr target;
         List.iter body ~f:loop;
         List.iter orelse ~f:loop
+      | Try { body; orelse; finalbody; handlers } ->
+        List.iter body ~f:loop;
+        List.iter orelse ~f:loop;
+        List.iter finalbody ~f:loop;
+        List.iter handlers ~f:(fun handler -> List.iter handler.body ~f:loop)
       | Assign { targets; value = _ } -> List.iter targets ~f:loop_expr
       | AugAssign { target = _; op = _; value = _ } -> ()
       (* Augmented assign does not create a new bindings but replaces an existing one. *)
@@ -271,7 +282,6 @@ end = struct
       | FunctionDef _
       | ClassDef _
       | Raise _
-      | Try _
       | Break
       | Continue
       | Pass -> ()
@@ -334,8 +344,34 @@ let rec eval_stmt env = function
   | FunctionDef { name; args; body } ->
     Env.set env ~name ~value:(Val_function { args; env; body })
   | ClassDef _ -> errorf "TODO: support ClassDef"
-  | Try _ -> errorf "TODO: support Try"
-  | Raise _ -> errorf "TODO: support Raise"
+  | Try { body; handlers; orelse; finalbody } ->
+    let raised =
+      try
+        eval_stmts env body;
+        false
+      with
+      | _exn ->
+        List.fold_until
+          handlers
+          ~init:()
+          ~f:(fun () handler ->
+            let { Ast.type_; name = _; body } = handler in
+            match type_ with
+            | None ->
+              eval_stmts env body;
+              Stop ()
+            | Some _expr ->
+              (* TODO *)
+              Continue ())
+          ~finish:Fn.id;
+        true
+    in
+    if not raised then eval_stmts env orelse;
+    eval_stmts env finalbody
+  | Raise { exc; cause } ->
+    let exc = Option.map exc ~f:(eval_expr env) in
+    let cause = Option.map cause ~f:(eval_expr env) in
+    raise (Raise { exc; cause })
   | While { test; body; orelse } ->
     let rec loop () =
       if eval_expr env test |> Value.to_bool
