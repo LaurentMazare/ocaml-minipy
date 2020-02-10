@@ -17,10 +17,16 @@ module Type_ = struct
     | Str
     | Builtin_fn
     | Function
+    | Object
+    | Class
   [@@deriving sexp]
+
+  let to_string t = sexp_of_t t |> Sexp.to_string_mach
 end
 
 module Value = struct
+  type 'a dict = ('a, 'a) Hashtbl.Poly.t [@@deriving sexp]
+
   type t =
     | Val_none
     | Val_bool of bool
@@ -28,8 +34,13 @@ module Value = struct
     | Val_float of float
     | Val_tuple of t array
     | Val_list of t array
-    | Val_dict of (t, t) Hashtbl.Poly.t
+    | Val_dict of t dict
     | Val_str of string
+    | Val_class of cls
+    | Val_object of
+        { cls : cls
+        ; attrs : ((string, t) Hashtbl.t[@sexp.opaque])
+        }
     | Val_builtin_fn of builtin_fn
     | Val_function of fn
 
@@ -48,6 +59,11 @@ module Value = struct
     { args : arguments
     ; env : env
     ; body : stmt list
+    }
+
+  and cls =
+    { name : string
+    ; attrs : ((string, t) Hashtbl.t[@sexp.opaque])
     }
   [@@deriving sexp]
 
@@ -77,6 +93,8 @@ module Value = struct
       | Val_str s -> if e then "\'" ^ String.escaped s ^ "\'" else s
       | Val_builtin_fn _ -> "<builtin>"
       | Val_function _ -> "<function>"
+      | Val_class { name; _ } -> Printf.sprintf "<class %s>" name
+      | Val_object { cls = { name; _ }; _ } -> Printf.sprintf "<object %s>" name
     in
     loop t ~e:escape_special_chars
 
@@ -91,8 +109,10 @@ module Value = struct
     | Val_str _ -> Str
     | Val_builtin_fn _ -> Builtin_fn
     | Val_function _ -> Function
+    | Val_object _ -> Object
+    | Val_class _ -> Class
 
-  let type_as_string t = type_ t |> Type_.sexp_of_t |> Sexp.to_string_mach
+  let type_as_string t = type_ t |> Type_.to_string
 
   let cannot_be_interpreted_as v str =
     errorf "%s cannot be interpreted as %s" (type_as_string v) str
@@ -242,6 +262,7 @@ module Env : sig
   val find_exn : t -> name:string -> Value.t
   val set : t -> name:string -> value:Value.t -> unit
   val remove : t -> name:string -> unit
+  val last_scope : t -> (string, Value.t) Hashtbl.t
 end = struct
   type t = Value.env =
     { scope : (string, Value.t) Hashtbl.t
@@ -256,6 +277,8 @@ end = struct
     ; local_variables = Hash_set.create (module String)
     ; builtins
     }
+
+  let last_scope t = t.scope
 
   let local_variables body =
     let local_variables = Hash_set.create (module String) in
@@ -275,16 +298,9 @@ end = struct
       | Assign { targets; value = _ } -> List.iter targets ~f:loop_expr
       | AugAssign { target = _; op = _; value = _ } -> ()
       (* Augmented assign does not create a new bindings but replaces an existing one. *)
-      | Assert _
-      | Return _
-      | Delete _
-      | Expr _
-      | FunctionDef _
-      | ClassDef _
-      | Raise _
-      | Break
-      | Continue
-      | Pass -> ()
+      | ClassDef { name; _ } | FunctionDef { name; _ } ->
+        Hash_set.add local_variables name
+      | Assert _ | Return _ | Delete _ | Expr _ | Raise _ | Break | Continue | Pass -> ()
     and loop_expr = function
       | Name name -> Hash_set.add local_variables name
       | List l | Tuple l -> Array.iter l ~f:loop_expr
@@ -344,7 +360,13 @@ let rec eval_stmt env = function
   | Expr { value } -> ignore (eval_expr env value : Value.t)
   | FunctionDef { name; args; body } ->
     Env.set env ~name ~value:(Val_function { args; env; body })
-  | ClassDef _ -> errorf "TODO: support ClassDef"
+  | ClassDef { name; args = _; body } ->
+    (* TODO: inheritance *)
+    (* TODO: capture variables from above scopes *)
+    let cls_env = Env.nest ~prev_env:env ~body in
+    eval_stmts cls_env body;
+    let attrs = Env.last_scope cls_env in
+    Env.set env ~name ~value:(Val_class { name; attrs })
   | Try { body; handlers; orelse; finalbody } ->
     let raised =
       try
@@ -362,7 +384,7 @@ let rec eval_stmt env = function
               eval_stmts env body;
               Stop ()
             | Some _expr ->
-              (* TODO *)
+              (* TODO: exception handlers *)
               Continue ())
           ~finish:Fn.id;
         true
@@ -479,8 +501,19 @@ and eval_expr env = function
          Value.none
        with
       | Return_exn value -> value)
-    | v -> Value.cannot_be_interpreted_as v "function")
-  | Attribute { value = _; attr = _ } -> failwith "TODO attribute"
+    | Val_class ({ name = _; attrs } as cls) ->
+      (* TODO: call the __init__ method. *)
+      Val_object { cls; attrs }
+    | v -> Value.cannot_be_interpreted_as v "callable")
+  | Attribute { value; attr } ->
+    let value = eval_expr env value in
+    (match value with
+    | Val_object { attrs; _ } | Val_class { attrs; _ } ->
+      (match Hashtbl.find attrs attr with
+      | Some v -> v
+      | None ->
+        errorf "'%s' object has no attribute '%s'" (Value.type_as_string value) attr)
+    | v -> errorf "'%s' object has no attribute '%s'" (Value.type_as_string v) attr)
   | Subscript { value; slice } ->
     let value = eval_expr env value in
     let index = eval_expr env slice in
@@ -509,6 +542,11 @@ and eval_assign env ~target ~value =
       Array.iter2_exn lvalues rvalues ~f:(fun target value ->
           eval_assign env ~target ~value)
     | v -> Value.cannot_be_interpreted_as v "cannot unpack for assignment")
+  | Attribute { value = target; attr } ->
+    (match eval_expr env target with
+    | Val_object { attrs; _ } | Val_class { attrs; _ } ->
+      Hashtbl.set attrs ~key:attr ~data:value
+    | v -> errorf "'%s' object has no attribute '%s'" (Value.type_as_string v) attr)
   | _ -> failwith "TODO Generic Assign"
 
 and eval_list_comp env ~elt ~generators =

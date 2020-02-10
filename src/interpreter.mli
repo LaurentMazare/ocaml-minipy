@@ -12,10 +12,14 @@ module Type_ : sig
     | Str
     | Builtin_fn
     | Function
+    | Object
+    | Class
   [@@deriving sexp]
 end
 
 module Value : sig
+  type 'a dict = ('a, 'a) Hashtbl.Poly.t
+
   type t =
     | Val_none
     | Val_bool of bool
@@ -23,8 +27,13 @@ module Value : sig
     | Val_float of float
     | Val_tuple of t array
     | Val_list of t array
-    | Val_dict of (t, t) Hashtbl.Poly.t
+    | Val_dict of t dict
     | Val_str of string
+    | Val_class of cls
+    | Val_object of
+        { cls : cls
+        ; attrs : ((string, t) Hashtbl.t[@sexp.opaque])
+        }
     | Val_builtin_fn of builtin_fn
     | Val_function of fn
 
@@ -43,6 +52,11 @@ module Value : sig
     { args : Ast.arguments
     ; env : env
     ; body : Ast.stmt list
+    }
+
+  and cls =
+    { name : string
+    ; attrs : ((string, t) Hashtbl.t[@sexp.opaque])
     }
   [@@deriving sexp]
 
