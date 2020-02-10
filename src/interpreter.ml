@@ -502,8 +502,12 @@ and eval_expr env = function
        with
       | Return_exn value -> value)
     | Val_class ({ name = _; attrs } as cls) ->
-      (* TODO: call the __init__ method. *)
-      Val_object { cls; attrs }
+      let self = Value.Val_object { cls; attrs } in
+      (match Hashtbl.find attrs "__init__" with
+      | None -> ()
+      | Some (Val_function _) -> failwith "TODO: __init__"
+      | Some v -> Value.cannot_be_interpreted_as v "callable");
+      self
     | v -> Value.cannot_be_interpreted_as v "callable")
   | Attribute { value; attr } ->
     let value = eval_expr env value in

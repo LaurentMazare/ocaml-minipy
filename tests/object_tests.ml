@@ -17,6 +17,6 @@ print(a, a.foo)
   Interpreter.simple_eval ast;
   [%expect
     {|
-        [(5, 2), (2, 2)] [(191, 1), (7, 1)] [(157, 1), (2, 1)]
-        [(5, 4), (2, 2)]
+        <object A> 1
+        <object A> 42
       |}]
