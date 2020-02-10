@@ -517,9 +517,13 @@ and eval_expr env = function
             | data -> data
           in
           Hashtbl.set self_attrs ~key ~data);
-      (match Hashtbl.find self_attrs "__init__" with
+      (match Hashtbl.find attrs "__init__" with
       | None -> ()
-      | Some (Val_function _) -> failwith "TODO: __init__"
+      | Some (Val_function { args; env; body; method_self = _ }) ->
+        let arg_values = self :: arg_values in
+        let env = call_env ~prev_env:env ~body ~args ~arg_values ~keyword_values in
+        (try eval_stmts env body with
+        | Return_exn _ -> ())
       | Some v -> Value.cannot_be_interpreted_as v "callable");
       self
     | v -> Value.cannot_be_interpreted_as v "callable")
