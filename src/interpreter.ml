@@ -59,6 +59,7 @@ module Value = struct
     { args : arguments
     ; env : env
     ; body : stmt list
+    ; method_self : t option
     }
 
   and cls =
@@ -359,7 +360,7 @@ end
 let rec eval_stmt env = function
   | Expr { value } -> ignore (eval_expr env value : Value.t)
   | FunctionDef { name; args; body } ->
-    Env.set env ~name ~value:(Val_function { args; env; body })
+    Env.set env ~name ~value:(Val_function { args; env; body; method_self = None })
   | ClassDef { name; args = _; body } ->
     (* TODO: inheritance *)
     (* TODO: capture variables from above scopes *)
@@ -494,7 +495,12 @@ and eval_expr env = function
     in
     (match func with
     | Val_builtin_fn fn -> fn arg_values keyword_values
-    | Val_function { args; env; body } ->
+    | Val_function { args; env; body; method_self } ->
+      let arg_values =
+        match method_self with
+        | None -> arg_values
+        | Some self -> self :: arg_values
+      in
       let env = call_env ~prev_env:env ~body ~args ~arg_values ~keyword_values in
       (try
          eval_stmts env body;
@@ -502,8 +508,16 @@ and eval_expr env = function
        with
       | Return_exn value -> value)
     | Val_class ({ name = _; attrs } as cls) ->
-      let self = Value.Val_object { cls; attrs } in
-      (match Hashtbl.find attrs "__init__" with
+      let self_attrs = Hashtbl.create (module String) in
+      let self = Value.Val_object { cls; attrs = self_attrs } in
+      Hashtbl.iteri attrs ~f:(fun ~key ~data ->
+          let data =
+            match data with
+            | Val_function fn -> Value.Val_function { fn with method_self = Some self }
+            | data -> data
+          in
+          Hashtbl.set self_attrs ~key ~data);
+      (match Hashtbl.find self_attrs "__init__" with
       | None -> ()
       | Some (Val_function _) -> failwith "TODO: __init__"
       | Some v -> Value.cannot_be_interpreted_as v "callable");
@@ -523,7 +537,7 @@ and eval_expr env = function
     let index = eval_expr env slice in
     Value.apply_subscript ~value ~index
   | Lambda { args; body } ->
-    Value.fn { args; env; body = [ Return { value = Some body } ] }
+    Value.fn { args; env; body = [ Return { value = Some body } ]; method_self = None }
 
 and eval_stmts env stmts = List.iter stmts ~f:(eval_stmt env)
 

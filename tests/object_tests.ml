@@ -8,15 +8,19 @@ let%expect_test "fn" =
 class A():
   foo = 1
 
+  def add_foo(self, x):
+    return self.foo + x
+
 a = A()
 print(a, a.foo)
 a.foo += 41
 print(a, a.foo)
+print(a.add_foo(1337 - 42))
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect
-    {|
+  [%expect {|
         <object A> 1
         <object A> 42
+        1337
       |}]

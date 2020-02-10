@@ -52,6 +52,7 @@ module Value : sig
     { args : Ast.arguments
     ; env : env
     ; body : Ast.stmt list
+    ; method_self : t option
     }
 
   and cls =
