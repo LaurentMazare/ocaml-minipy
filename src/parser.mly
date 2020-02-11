@@ -75,7 +75,7 @@ let merge_args args =
 %token OPAND OPOR
 %token OPADD OPSUB OPMUL OPDIV OPEDIV OPMOD
 %token ADDEQ SUBEQ MULEQ DIVEQ EDIVEQ MODEQ
-%token OPNEQ OPEQ OPLT OPLTEQ OPGT OPGTEQ
+%token OPNEQ OPEQ OPLT OPLTEQ OPGT OPGTEQ OPNOT OPIS OPIN
 %token DOT COMMA EQUAL
 %token DEF RETURN DELETE ASSERT IF ELIF ELSE WHILE FOR IN BREAK CONTINUE PASS
 %token LPAREN RPAREN LBRACE RBRACE LBRACK RBRACK
@@ -88,6 +88,7 @@ let merge_args args =
 %left IF ELSE
 %left OPOR
 %left OPAND
+%nonassoc OPNOT
 %left OPNEQ
 %left OPEQ
 %left OPLT
@@ -100,6 +101,8 @@ let merge_args args =
 %left OPDIV
 %left OPEDIV
 %left OPMOD
+%left OPIS
+%left OPIN
 %left DOT
 %nonassoc LPAREN
 %nonassoc LBRACK
@@ -261,8 +264,11 @@ expr:
   | left=expr OPMOD right=expr { BinOp { left; op = Mod; right } }
   | left=expr OPADD right=expr { BinOp { left; op = Add; right } }
   | left=expr OPSUB right=expr { BinOp { left; op = Sub; right } }
+  | left=expr OPIS right=expr { Compare { left; ops = Is; comparators = right } }
+  | left=expr OPIN right=expr { Compare { left; ops = In; comparators = right } }
   | OPSUB operand=expr { UnaryOp { op = USub; operand } }
   | OPADD operand=expr { UnaryOp { op = UAdd; operand } }
+  | OPNOT operand=expr { UnaryOp { op = Not; operand } }
   | body=expr IF test=expr ELSE orelse=expr { IfExp { body; test; orelse } }
   | func=expr LPAREN args=separated_list(COMMA, argument) RPAREN {
     let args, keywords = merge_args args in

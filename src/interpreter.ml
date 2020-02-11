@@ -185,6 +185,7 @@ module Value = struct
     | UAdd, (Val_float _ as v) -> v
     | USub, Val_int v -> Val_int (-v)
     | USub, Val_float v -> Val_float (-.v)
+    | Not, v -> Val_bool (not (to_bool v))
     | _ ->
       errorf
         "unary op not implemented: %s %s"

@@ -78,6 +78,9 @@ let token_to_string (token : Parser.token) =
   | EXCEPT -> "EXCEPT"
   | AS -> "AS"
   | FINALLY -> "FINALLY"
+  | OPIS -> "IS"
+  | OPNOT -> "NOT"
+  | OPIN -> "IN"
 
 let tokens ?(filename = "unk") lexbuf =
   lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };

@@ -105,9 +105,32 @@ print(x)
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect {|
+  [%expect
+    {|
         1 2
         [2116, 2209]
         [(1, 2), 'fooBAR']
         3
+      |}]
+
+let%expect_test "bool-expr" =
+  let ast =
+    Basic_tests.parse_str
+      {|
+b1 = True
+b2 = False
+b3 = not True
+b4 = not False
+b5 = not not b4
+b6 = not (0 == 0)
+b7 = not (True and False)
+b8 = True and False or True
+b9 = True and (False or True)
+print(b1, b2, b3, b4, b5, b6, b7, b8, b9)
+|}
+  in
+  Interpreter.simple_eval ast;
+  [%expect {|
+        1 2
+        42 5.85987448204979
       |}]

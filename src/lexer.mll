@@ -83,6 +83,9 @@ rule read env = parse
   | "try" { [TRY] }
   | "except" { [EXCEPT] }
   | "finally" { [FINALLY] }
+  | "not" { [OPNOT] }
+  | "is" { [OPIS] }
+  | "in" { [OPIN] }
   (* TODO: other string delimiters... *)
   | '"' { [string_double_quote (Buffer.create 1024) lexbuf] }
   | '\'' { [string_single_quote (Buffer.create 1024) lexbuf] }
