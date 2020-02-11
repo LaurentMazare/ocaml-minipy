@@ -133,6 +133,5 @@ print(b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11)
   in
   Interpreter.simple_eval ast;
   [%expect {|
-        1 2
-        42 5.85987448204979
+        True False False True True False True True True True False
       |}]
