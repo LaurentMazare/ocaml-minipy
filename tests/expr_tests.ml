@@ -126,7 +126,9 @@ b6 = not (0 == 0)
 b7 = not (True and False)
 b8 = True and False or True
 b9 = True and (False or True)
-print(b1, b2, b3, b4, b5, b6, b7, b8, b9)
+b10 = not False or True
+b11 = not (False or True)
+print(b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11)
 |}
   in
   Interpreter.simple_eval ast;
