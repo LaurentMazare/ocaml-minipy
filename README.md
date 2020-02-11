@@ -30,6 +30,9 @@ This is a work in progress, most of the supported features are only partially im
 - Dictionaries.
 - Delete operator, `del`.
 - REPL example, javascript version with js-of-ocaml.
+- Starred expressions.
+- Basic object system.
+- Exceptions, try/with blocks, `raise`.
 
 ## Todo
 
@@ -40,9 +43,7 @@ This is a work in progress, most of the supported features are only partially im
 ## Out of Scope (for now)
 
 - Generators, `yield`.
-- Objects, `class`, `self`, etc.
-- Exceptions, try/with blocks, `raise`.
+- Inheritance.
 - With blocks.
 - Module system, `import`.
-- Starred expressions.
 - Type annotations.
