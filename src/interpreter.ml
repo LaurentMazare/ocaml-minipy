@@ -146,6 +146,7 @@ module Value = struct
     match v with
     | Val_list l | Val_tuple l -> l
     | Val_str s -> String.to_array s |> Array.map ~f:(fun c -> Val_str (Char.to_string c))
+    | Val_dict s -> Hashtbl.keys s |> Array.of_list
     | o -> cannot_be_interpreted_as o "iterable"
 
   let apply_subscript ~value ~index =
@@ -223,6 +224,8 @@ module Value = struct
     | LtE -> Caml.( <= ) left right
     | Gt -> Caml.( > ) left right
     | GtE -> Caml.( >= ) left right
+    | In -> Array.mem (to_iterable right) left ~equal:Caml.( = )
+    | NotIn -> not (Array.mem (to_iterable right) left ~equal:Caml.( = ))
     | _ ->
       errorf
         "comparison not implemented: %s %s %s"

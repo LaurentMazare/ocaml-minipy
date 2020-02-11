@@ -19,8 +19,7 @@ print(d[1, 2])
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect
-    {|
+  [%expect {|
         299792458 (1, 'bar')
         foobar
         barfoo
@@ -41,8 +40,7 @@ print(d)
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect
-    {|
+  [%expect {|
         2
         {42: 1337}
         {}

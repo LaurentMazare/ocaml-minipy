@@ -265,6 +265,7 @@ expr:
   | left=expr OPADD right=expr { BinOp { left; op = Add; right } }
   | left=expr OPSUB right=expr { BinOp { left; op = Sub; right } }
   | left=expr OPIS right=expr { Compare { left; ops = Is; comparators = right } }
+  | left=expr OPNOT OPIN right=expr { Compare { left; ops = NotIn; comparators = right } }
   | left=expr OPIN right=expr { Compare { left; ops = In; comparators = right } }
   | OPSUB operand=expr { UnaryOp { op = USub; operand } }
   | OPADD operand=expr { UnaryOp { op = UAdd; operand } }
