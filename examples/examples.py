@@ -31,3 +31,23 @@ def prime_dec(n):
 pd = prime_dec(2000)
 print(pd(100), pd(1337), pd(314))
 
+## Class and Objects
+class MyClass():
+  def __init__(self, value):
+    self._foo = 42
+    self._bar = value
+
+  def foobar(self): return self._foo + self._bar
+
+  def set_foo(self, v):
+    self._foo = v
+
+  def set_bar(self, v):
+    self._bar = v
+
+myobj = MyClass(3.14159265358979)
+print(myobj.foobar())
+myobj.set_foo("foo")
+myobj.set_bar("bar")
+print(myobj.foobar())
+
