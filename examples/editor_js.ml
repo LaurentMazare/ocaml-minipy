@@ -48,6 +48,38 @@ let setup_exec_button ~execute =
 let append output cl s =
   Dom.appendChild output (Tyxml_js.To_dom.of_element (text ~a_class:cl s))
 
+let setup_examples ~editor =
+  let select : 'a Js.t = by_id_coerce "examplelist" Dom_html.CoerceTo.select in
+  let examples =
+    try
+      Stdio.In_channel.read_lines "/static/examples.py"
+      |> List.group ~break:(fun _ -> String.is_prefix ~prefix:title_prefix)
+      |> List.filter_map ~f:(function
+             | [] -> None
+             | title :: _ as block ->
+               let title =
+                 String.chop_prefix title ~prefix:title_prefix
+                 |> Option.value ~default:""
+                 |> String.strip
+               in
+               Some (title, String.concat block ~sep:"\n"))
+    with
+    | _ -> []
+  in
+  List.iter examples ~f:(fun (name, _) ->
+      Dom.appendChild select Tyxml_js.(Html.(option (txt name)) |> To_dom.of_element));
+  let set_editor code = ignore (editor##setValue (Js.string code) (Js.float 1.)) in
+  (match examples with
+  | [] -> ()
+  | (_name, example) :: _ -> set_editor example);
+  select##.onchange
+    := Dom_html.handler (fun _ ->
+           let i = select##.selectedIndex in
+           if i >= 0 && i < List.length examples
+           then set_editor (snd (List.nth_exn examples i));
+           ignore editor##focus;
+           Js._false)
+
 let run () =
   let editor_id = by_id "editor" in
   let editor = (Js.Unsafe.js_expr "ace")##edit (Js.string "editor") in
@@ -62,7 +94,19 @@ let run () =
     | Error { message; context } ->
       Stdio.eprintf "ParseError: %s\n%!" message;
       Option.iter context ~f:(fun c -> Stdio.eprintf "%s\n%!" c)
-    | Ok stmts -> eval_stmts env stmts);
+    | Ok stmts ->
+      (match List.last stmts with
+      | None -> ()
+      | Some (Expr { value }) ->
+        let stmts = List.drop_last_exn stmts in
+        eval_stmts env stmts;
+        protect ~f:(fun () ->
+            let value = I.eval_expr env value in
+            match value with
+            | Val_none -> ()
+            | value ->
+              I.Value.to_string value ~escape_special_chars:false |> Stdio.printf "%s\n%!")
+      | Some _ -> eval_stmts env stmts));
     editor_id##focus
   in
   let meta e =
@@ -83,9 +127,10 @@ let run () =
              output##.innerHTML := Js.string "";
              Js._false
            | _ -> Js._true);
-  editor_id##focus;
+  setup_examples ~editor;
   setup_clear_button ~output;
-  setup_exec_button ~execute
+  setup_exec_button ~execute;
+  ignore (editor##focus ())
 
 let () =
   Dom_html.window##.onload
