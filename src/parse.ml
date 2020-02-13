@@ -80,7 +80,13 @@ let token_to_string (token : Parser.token) =
   | FINALLY -> "FINALLY"
   | OPIS -> "IS"
   | OPNOT -> "NOT"
-  | OPIN -> "IN"
+  | OPRSHIFT -> "OPRSHIFT"
+  | OPLSHIFT -> "OPLSHIFT"
+  | OPPOWER -> "OPPOWER"
+  | OPINVERT -> "OPINVERT"
+  | OPBXOR -> "OPBXOR"
+  | OPBOR -> "OPBOR"
+  | OPBAND -> "OPBAND"
 
 let tokens ?(filename = "unk") lexbuf =
   lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };

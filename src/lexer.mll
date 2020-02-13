@@ -104,6 +104,7 @@ rule read env = parse
   | ']' { Env.exit env; [RBRACK] }
   | '.' { [DOT] }
   | ',' { [COMMA] }
+  | "**" { [OPPOWER] }
   | '+' { [OPADD] }
   | '-' { [OPSUB] }
   | '*' { [OPMUL] }
@@ -112,6 +113,8 @@ rule read env = parse
   | '%' { [OPMOD] }
   | ':' { [COLON] }
   | ';' { [SEMICOLON] }
+  | "<<" { [OPLSHIFT] }
+  | ">>" { [OPRSHIFT] }
   | "==" { [OPEQ] }
   | "!=" { [OPNEQ] }
   | '<' { [OPLT] }
@@ -125,6 +128,10 @@ rule read env = parse
   | "/=" { [DIVEQ] }
   | "//=" { [EDIVEQ] }
   | "%=" { [MODEQ] }
+  | '~' { [OPINVERT] }
+  | '^' { [OPBXOR] }
+  | '&' { [OPBAND] }
+  | '|' { [OPBOR] }
   (* TODO: handle tabs *)
   (* This discards lines with only spaces in them. *)
   | ('#' [^'\n']*)? '\n' [' ' '\n']* as str {
