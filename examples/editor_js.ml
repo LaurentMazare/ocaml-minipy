@@ -51,6 +51,7 @@ let append output cl s =
 let run () =
   let editor_id = by_id "editor" in
   let editor = (Js.Unsafe.js_expr "ace")##edit (Js.string "editor") in
+  ignore (editor##.commands##removeCommand (Js.string "gotoline"));
   ignore (editor##.session##setMode (Js.string "ace/mode/python"));
   let output = by_id "output" in
   let execute () =
@@ -80,7 +81,7 @@ let run () =
              Js._false
            | 76 when meta e ->
              output##.innerHTML := Js.string "";
-             Js._true
+             Js._false
            | _ -> Js._true);
   editor_id##focus;
   setup_clear_button ~output;
