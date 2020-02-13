@@ -39,3 +39,25 @@
    %{dep:toplevel_js.bc}
    -o %{targets}
   )))
+
+(executables
+  (names editor_js)
+  (modules editor_js)
+  (modes byte)
+  (libraries base stdio js_of_ocaml js_of_ocaml-tyxml minipy)
+  (preprocess (pps js_of_ocaml-ppx))
+)
+
+(rule
+ (targets editor.js)
+ (action
+  (run %{bin:js_of_ocaml}
+   -I .
+   --file %{dep:examples.py}
+   --disable shortvar
+   --noruntime
+   +base/runtime.js
+   %{lib:js_of_ocaml-compiler:runtime.js}
+   %{dep:editor_js.bc}
+   -o %{targets}
+  )))
