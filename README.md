@@ -1,7 +1,9 @@
 # minipy
 Minimalist Python-like language interpreter in OCaml.
 
-Try the interpreter [online](http://laurentmazare.github.io/minipy/) (using [js_of_ocaml](https://ocsigen.org/js_of_ocaml/3.5.1/manual/overview)).
+Try the interpreter [online](http://laurentmazare.github.io/minipy/) or
+use the [editor](http://laurentmazare.github.io/minipy/editor.html)
+(these rely on [js_of_ocaml](https://ocsigen.org/js_of_ocaml/3.5.1/manual/overview)).
 
 This is a work in progress, most of the supported features are only partially implemented.
 
@@ -37,7 +39,6 @@ This is a work in progress, most of the supported features are only partially im
 ## Todo
 
 - Sets.
-- Fix the handling of captured variables in nested functions and lambdas.
 - Slices, e.g. `x[12:15]`.
 
 ## Out of Scope (for now)
