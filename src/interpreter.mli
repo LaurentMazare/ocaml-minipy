@@ -26,7 +26,7 @@ module Value : sig
     | Val_int of Z.t
     | Val_float of float
     | Val_tuple of t array
-    | Val_list of t array
+    | Val_list of t Queue.t
     | Val_dict of t dict
     | Val_str of string
     | Val_class of cls

@@ -15,12 +15,14 @@ module Env = struct
     { indents: int Stack.t
     ; mutable nestings : int
     ; mutable tokens : Parser.token Queue.t
+    ; mutable last_token : Parser.token option
     }
 
   let create () =
     { indents = Stack.create ()
     ; nestings = 0
     ; tokens = Queue.create ()
+    ; last_token = None
     }
 
   let enter t =
@@ -49,7 +51,8 @@ module Env = struct
     in
     loop 0
 
-  let token t = Queue.dequeue t.tokens
+  let token t =
+    Queue.dequeue t.tokens
 
   let add_tokens t tokens = Queue.enqueue_all t.tokens tokens
 end
@@ -181,11 +184,14 @@ and string_single_quote buf = parse
 {
   let read env lexbuf =
     match Env.token env with
-    | Some token -> token
+    | Some token ->
+        env.last_token <- Some token;
+        token
     | None ->
         match read env lexbuf with
         | [] -> assert false
         | token :: tokens ->
+          env.last_token <- Some token;
           Env.add_tokens env tokens;
           token
 }

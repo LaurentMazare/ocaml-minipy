@@ -120,24 +120,23 @@ let get_line filename lineno =
   with
   | _ -> None
 
-let parse parse_fun lexbuf =
+let parse ?string_arg parse_fun lexbuf =
   let open MenhirLib.General in
   let module I = Parser.MenhirInterpreter in
   let handle_result result = Ok result in
   let env = Lexer.Env.create () in
   let input = I.lexer_lexbuf_to_supplier (Lexer.read env) lexbuf in
   let handle_error error_state =
-    let env =
+    let env' =
       match error_state with
       | I.HandlingError env -> env
       | _ -> assert false
     in
-    match I.stack env |> Lazy.force with
+    match I.stack env' |> Lazy.force with
     | Nil -> assert false
-    | Cons (I.Element (state, _, start_pos, end_pos), _) ->
+    | Cons (I.Element (_state, _, start_pos, end_pos), _) ->
       let message =
-        try Parser_messages.message (I.number state) with
-        | Caml.Not_found -> "unknown"
+        Option.value_map env.Lexer.Env.last_token ~f:token_to_string ~default:"unknown"
       in
       let line_pos, col_pos =
         if start_pos.pos_lnum = end_pos.pos_lnum
@@ -153,13 +152,18 @@ let parse parse_fun lexbuf =
       in
       let message =
         Printf.sprintf
-          "%s:%s:%s: ParseError %s"
+          "%s:%s:%s: ParseError when processing %s"
           start_pos.pos_fname
           line_pos
           col_pos
           message
       in
-      let context = get_line start_pos.pos_fname end_pos.pos_lnum in
+      let context =
+        match string_arg with
+        | None -> get_line start_pos.pos_fname end_pos.pos_lnum
+        | Some string_arg ->
+          List.nth (String.split string_arg ~on:'\n') (end_pos.pos_lnum - 1)
+      in
       Error { Error.message; context }
   in
   try I.loop_handle handle_result handle_error input (parse_fun lexbuf.lex_curr_p) with
@@ -175,7 +179,7 @@ let parse parse_fun lexbuf =
 let parse_string ?(filename = "unk") str =
   let lexbuf = Lexing.from_string str ~with_positions:true in
   lexbuf.lex_curr_p <- { lexbuf.lex_curr_p with pos_fname = filename };
-  parse Parser.Incremental.mod_ lexbuf
+  parse ~string_arg:str Parser.Incremental.mod_ lexbuf
 
 let parse ?(filename = "unk") in_channel =
   let lexbuf = Lexing.from_channel in_channel in

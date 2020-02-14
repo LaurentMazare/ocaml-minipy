@@ -5,10 +5,5 @@
   (preprocess (pps ppx_let ppx_sexp_conv ppx_yojson_conv))
 )
 
-(rule
- (targets parser_messages.ml)
- (deps parser.messages parser.mly)
- (action  (with-stdout-to %{targets} (run menhir --compile-errors %{deps}))))
-
 (ocamllex lexer)
 (menhir (modules parser) (flags ("--table" "--explain" "--dump")))

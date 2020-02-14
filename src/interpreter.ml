@@ -33,7 +33,7 @@ module Value = struct
     | Val_int of Z.t
     | Val_float of float
     | Val_tuple of t array
-    | Val_list of t array
+    | Val_list of t Queue.t
     | Val_dict of t dict
     | Val_str of string
     | Val_class of cls
@@ -81,7 +81,7 @@ module Value = struct
         |> String.concat ~sep:", "
         |> fun s -> "(" ^ s ^ ")"
       | Val_list ts ->
-        Array.to_list ts
+        Queue.to_list ts
         |> List.map ~f:(loop ~e:true)
         |> String.concat ~sep:", "
         |> fun s -> "[" ^ s ^ "]"
@@ -122,7 +122,8 @@ module Value = struct
     | Val_bool b -> b
     | Val_int i -> not Z.(equal i zero)
     | Val_float f -> Float.( <> ) f 0.
-    | Val_list l | Val_tuple l -> not (Array.is_empty l)
+    | Val_tuple l -> not (Array.is_empty l)
+    | Val_list l -> not (Queue.is_empty l)
     | Val_str s -> not (String.is_empty s)
     | v -> cannot_be_interpreted_as v "bool"
 
@@ -143,20 +144,29 @@ module Value = struct
 
   let to_iterable v =
     match v with
-    | Val_list l | Val_tuple l -> l
+    | Val_list l -> Queue.to_array l
+    | Val_tuple l -> l
     | Val_str s -> String.to_array s |> Array.map ~f:(fun c -> Val_str (Char.to_string c))
     | Val_dict s -> Hashtbl.keys s |> Array.of_list
     | o -> cannot_be_interpreted_as o "iterable"
 
   let apply_subscript ~value ~index =
     match value, index with
-    | Val_tuple v, Val_int i | Val_list v, Val_int i ->
+    | Val_tuple v, Val_int i ->
       let i = Z.to_int i in
       let v_len = Array.length v in
       if 0 <= i && i < v_len
       then v.(i)
       else if i < 0 && -v_len <= i
       then v.(v_len + i)
+      else errorf "unexpected index %d for an array of length %d" i v_len
+    | Val_list v, Val_int i ->
+      let i = Z.to_int i in
+      let v_len = Queue.length v in
+      if 0 <= i && i < v_len
+      then Queue.get v i
+      else if i < 0 && -v_len <= i
+      then Queue.get v (v_len + i)
       else errorf "unexpected index %d for an array of length %d" i v_len
     | Val_dict dict, i ->
       (match Hashtbl.find dict i with
@@ -168,11 +178,11 @@ module Value = struct
     match lvalue, slice with
     | Val_list v, Val_int i ->
       let i = Z.to_int i in
-      let v_len = Array.length v in
+      let v_len = Queue.length v in
       if 0 <= i && i < v_len
-      then v.(i) <- rvalue
+      then Queue.set v i rvalue
       else if i < 0 && -v_len <= i
-      then v.(v_len + i) <- rvalue
+      then Queue.set v (v_len + i) rvalue
       else errorf "unexpected index %d for an array of length %d" i v_len
     | Val_dict dict, key -> Hashtbl.set dict ~key ~data:rvalue
     | _ ->
@@ -199,7 +209,8 @@ module Value = struct
     | Add, Val_int v, Val_int v' -> Val_int (Z.add v v')
     | Add, Val_float v, v' | Add, v', Val_float v -> Val_float (v +. to_float v')
     | Add, Val_str s, Val_str s' -> Val_str (s ^ s')
-    | Add, Val_list a, Val_list a' -> Val_list (Array.append a a')
+    | Add, Val_list a, Val_list a' ->
+      Val_list (Array.append (Queue.to_array a) (Queue.to_array a') |> Queue.of_array)
     | Sub, Val_int v, Val_int v' -> Val_int (Z.sub v v')
     | Sub, Val_float v, v' -> Val_float (v -. to_float v')
     | Sub, v, Val_float v' -> Val_float (to_float v -. v')
@@ -207,7 +218,8 @@ module Value = struct
     | Mult, Val_float v, v' | Mult, v', Val_float v -> Val_float (v *. to_float v')
     | Mult, Val_list a, Val_int n ->
       let n = Z.to_int n in
-      List.init n ~f:(fun _ -> a) |> Array.concat |> fun a -> Val_list a
+      let a = Queue.to_array a in
+      List.init n ~f:(fun _ -> a) |> Array.concat |> fun a -> Val_list (Queue.of_array a)
     | Div, v, v' -> Val_float (to_float v /. to_float v')
     | FloorDiv, Val_int v, Val_int v' -> Val_int (Z.div v v')
     | Mod, Val_int v, Val_int v' -> Val_int (Z.( mod ) v v')
@@ -460,7 +472,7 @@ and eval_expr env = function
   | Num n -> Value.int n
   | Float f -> Value.float f
   | Str s -> Value.str s
-  | List l -> Value.list (Array.map l ~f:(eval_expr env))
+  | List l -> Value.list (Array.map l ~f:(eval_expr env) |> Queue.of_array)
   | Dict { key_values } ->
     let dict =
       List.map key_values ~f:(fun (key, value) -> eval_expr env key, eval_expr env value)
@@ -559,17 +571,20 @@ and eval_assign env ~target ~value =
     let slice = eval_expr env slice in
     Value.apply_subscript_assign ~lvalue ~slice ~rvalue:value
   | Tuple lvalues | List lvalues ->
-    (match value with
-    | Val_tuple rvalues | Val_list rvalues ->
-      if Array.length rvalues <> Array.length lvalues
-      then
-        errorf
-          "different sizes on both sides of the assignment %d <> %d"
-          (Array.length lvalues)
-          (Array.length rvalues);
-      Array.iter2_exn lvalues rvalues ~f:(fun target value ->
-          eval_assign env ~target ~value)
-    | v -> Value.cannot_be_interpreted_as v "cannot unpack for assignment")
+    let rvalues =
+      match value with
+      | Val_tuple rvalues -> rvalues
+      | Val_list rvalues -> Queue.to_array rvalues
+      | v -> Value.cannot_be_interpreted_as v "cannot unpack for assignment"
+    in
+    if Array.length rvalues <> Array.length lvalues
+    then
+      errorf
+        "different sizes on both sides of the assignment %d <> %d"
+        (Array.length lvalues)
+        (Array.length rvalues);
+    Array.iter2_exn lvalues rvalues ~f:(fun target value ->
+        eval_assign env ~target ~value)
   | Attribute { value = target; attr } ->
     (match eval_expr env target with
     | Val_object { attrs; _ } | Val_class { attrs; _ } ->
@@ -589,7 +604,7 @@ and eval_list_comp env ~elt ~generators =
           let ifs = List.for_all ifs ~f:(fun if_ -> eval_expr env if_ |> Value.to_bool) in
           if ifs then loop env generators else [||])
   in
-  Value.list (loop env generators)
+  Value.list (loop env generators |> Queue.of_array)
 
 and delete env expr =
   match expr with
@@ -621,7 +636,7 @@ and call_env ~prev_env ~body ~args ~arg_values ~keyword_values =
           (List.length arg_values)
       | Some value -> Env.set env ~name ~value);
   (match args.vararg with
-  | Some name -> Env.set env ~name ~value:(Val_list (Array.of_list pos_exprs))
+  | Some name -> Env.set env ~name ~value:(Val_list (Queue.of_list pos_exprs))
   | None ->
     if not (List.is_empty pos_exprs)
     then
@@ -669,12 +684,13 @@ let default_builtins : builtins =
       | [ v1; v2; s ] -> List.range (to_int v1) (to_int v2) ~stride:(to_int s)
       | _ -> failwith "range expects one, two, or three arguments"
     in
-    Value.list (Array.of_list_map l ~f:of_int)
+    Value.list (List.map l ~f:of_int |> Queue.of_list)
   in
   let len args _kwargs =
     let l =
       match (args : Value.t list) with
-      | [ Val_tuple l ] | [ Val_list l ] -> Array.length l
+      | [ Val_tuple l ] -> Array.length l
+      | [ Val_list l ] -> Queue.length l
       | [ Val_str s ] -> String.length s
       | [ Val_dict d ] -> Hashtbl.length d
       | [ v ] -> Value.cannot_be_interpreted_as v "type with len"
