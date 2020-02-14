@@ -101,7 +101,7 @@ type stmt =
 and expr =
   | None_
   | Bool of bool
-  | Num of int
+  | Num of Z.t
   | Float of float
   | Str of string
   | Name of string

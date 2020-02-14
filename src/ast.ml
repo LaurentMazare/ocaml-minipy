@@ -1,5 +1,10 @@
 open Base
 
+type zarith = Z.t
+
+let sexp_of_zarith z = Z.to_string z |> sexp_of_string
+let zarith_of_sexp s = string_of_sexp s |> Z.of_string
+
 type boolop =
   | And
   | Or
@@ -101,7 +106,7 @@ type stmt =
 and expr =
   | None_
   | Bool of bool
-  | Num of int
+  | Num of zarith
   | Float of float
   | Str of string
   | Name of string

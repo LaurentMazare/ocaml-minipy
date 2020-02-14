@@ -30,7 +30,7 @@ module Value = struct
   type t =
     | Val_none
     | Val_bool of bool
-    | Val_int of int
+    | Val_int of Z.t
     | Val_float of float
     | Val_tuple of t array
     | Val_list of t array
@@ -66,14 +66,13 @@ module Value = struct
     { name : string
     ; attrs : ((string, t) Hashtbl.t[@sexp.opaque])
     }
-  [@@deriving sexp]
 
   let to_string ?(escape_special_chars = true) t =
     let rec loop ~e = function
       | Val_none -> "None"
       | Val_bool true -> "True"
       | Val_bool false -> "False"
-      | Val_int i -> Int.to_string i
+      | Val_int i -> Z.to_string i
       | Val_float f -> Float.to_string f
       | Val_tuple [| t |] -> "(" ^ loop ~e:true t ^ ",)"
       | Val_tuple ts ->
@@ -121,7 +120,7 @@ module Value = struct
   let to_bool v =
     match v with
     | Val_bool b -> b
-    | Val_int i -> i <> 0
+    | Val_int i -> not Z.(equal i zero)
     | Val_float f -> Float.( <> ) f 0.
     | Val_list l | Val_tuple l -> not (Array.is_empty l)
     | Val_str s -> not (String.is_empty s)
@@ -132,13 +131,13 @@ module Value = struct
     | Val_bool true -> 1.
     | Val_bool false -> 0.
     | Val_float f -> f
-    | Val_int i -> Float.of_int i
+    | Val_int i -> Z.to_float i
     | v -> cannot_be_interpreted_as v "float"
 
   let to_int v =
     match v with
-    | Val_bool true -> 1
-    | Val_bool false -> 0
+    | Val_bool true -> Z.one
+    | Val_bool false -> Z.zero
     | Val_int i -> i
     | v -> cannot_be_interpreted_as v "int"
 
@@ -152,6 +151,7 @@ module Value = struct
   let apply_subscript ~value ~index =
     match value, index with
     | Val_tuple v, Val_int i | Val_list v, Val_int i ->
+      let i = Z.to_int i in
       let v_len = Array.length v in
       if 0 <= i && i < v_len
       then v.(i)
@@ -167,6 +167,7 @@ module Value = struct
   let apply_subscript_assign ~lvalue ~slice ~rvalue =
     match lvalue, slice with
     | Val_list v, Val_int i ->
+      let i = Z.to_int i in
       let v_len = Array.length v in
       if 0 <= i && i < v_len
       then v.(i) <- rvalue
@@ -184,7 +185,7 @@ module Value = struct
     match op, operand with
     | UAdd, (Val_int _ as v) -> v
     | UAdd, (Val_float _ as v) -> v
-    | USub, Val_int v -> Val_int (-v)
+    | USub, Val_int v -> Val_int (Z.neg v)
     | USub, Val_float v -> Val_float (-.v)
     | Not, v -> Val_bool (not (to_bool v))
     | _ ->
@@ -195,20 +196,21 @@ module Value = struct
 
   let apply_op op left right =
     match op, left, right with
-    | Add, Val_int v, Val_int v' -> Val_int (v + v')
+    | Add, Val_int v, Val_int v' -> Val_int (Z.add v v')
     | Add, Val_float v, v' | Add, v', Val_float v -> Val_float (v +. to_float v')
     | Add, Val_str s, Val_str s' -> Val_str (s ^ s')
     | Add, Val_list a, Val_list a' -> Val_list (Array.append a a')
-    | Sub, Val_int v, Val_int v' -> Val_int (v - v')
+    | Sub, Val_int v, Val_int v' -> Val_int (Z.sub v v')
     | Sub, Val_float v, v' -> Val_float (v -. to_float v')
     | Sub, v, Val_float v' -> Val_float (to_float v -. v')
-    | Mult, Val_int v, Val_int v' -> Val_int (v * v')
+    | Mult, Val_int v, Val_int v' -> Val_int (Z.mul v v')
     | Mult, Val_float v, v' | Mult, v', Val_float v -> Val_float (v *. to_float v')
     | Mult, Val_list a, Val_int n ->
+      let n = Z.to_int n in
       List.init n ~f:(fun _ -> a) |> Array.concat |> fun a -> Val_list a
     | Div, v, v' -> Val_float (to_float v /. to_float v')
-    | FloorDiv, Val_int v, Val_int v' -> Val_int (v / v')
-    | Mod, Val_int v, Val_int v' -> Val_int (v % v')
+    | FloorDiv, Val_int v, Val_int v' -> Val_int (Z.div v v')
+    | Mod, Val_int v, Val_int v' -> Val_int (Z.( mod ) v v')
     | _ ->
       errorf
         "binop not implemented: %s %s %s"
@@ -657,16 +659,17 @@ let default_builtins : builtins =
     |> Stdio.printf "%s\n";
     Value.none
   in
+  let to_int v = Value.to_int v |> Z.to_int in
+  let of_int i = Z.of_int i |> Value.int in
   let range args _kwargs =
     let l =
       match args with
-      | [ v ] -> List.range 0 (Value.to_int v)
-      | [ v1; v2 ] -> List.range (Value.to_int v1) (Value.to_int v2)
-      | [ v1; v2; s ] ->
-        List.range (Value.to_int v1) (Value.to_int v2) ~stride:(Value.to_int s)
+      | [ v ] -> List.range 0 (to_int v)
+      | [ v1; v2 ] -> List.range (to_int v1) (to_int v2)
+      | [ v1; v2; s ] -> List.range (to_int v1) (to_int v2) ~stride:(to_int s)
       | _ -> failwith "range expects one, two, or three arguments"
     in
-    Value.list (Array.of_list_map l ~f:Value.int)
+    Value.list (Array.of_list_map l ~f:of_int)
   in
   let len args _kwargs =
     let l =
@@ -677,7 +680,7 @@ let default_builtins : builtins =
       | [ v ] -> Value.cannot_be_interpreted_as v "type with len"
       | _ -> failwith "len takes exactly one argument"
     in
-    Value.int l
+    of_int l
   in
   Map.of_alist_exn (module String) [ "print", print; "range", range; "len", len ]
 

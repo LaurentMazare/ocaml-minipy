@@ -1,7 +1,7 @@
 (library
   (name minipy)
   (public_name minipy)
-  (libraries base menhirLib stdio unix yojson)
+  (libraries base menhirLib stdio unix yojson zarith)
   (preprocess (pps ppx_let ppx_sexp_conv ppx_yojson_conv))
 )
 

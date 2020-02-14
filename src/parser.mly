@@ -358,7 +358,7 @@ atom:
   | LBRACE key_values=separated_list(COMMA, key_value) RBRACE { Dict { key_values } }
   | IDENTIFIER { Name $1 }
   | STRING { Str $1 }
-  | INTEGER { Num (int_of_string $1) }
+  | INTEGER { Num (Z.of_string $1) }
   | FLOAT { Float (float_of_string $1) }
   | BOOL { Bool $1 }
   | NONE { None_ }

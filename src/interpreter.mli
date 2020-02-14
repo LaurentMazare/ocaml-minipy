@@ -23,7 +23,7 @@ module Value : sig
   type t =
     | Val_none
     | Val_bool of bool
-    | Val_int of int
+    | Val_int of Z.t
     | Val_float of float
     | Val_tuple of t array
     | Val_list of t array
@@ -59,7 +59,6 @@ module Value : sig
     { name : string
     ; attrs : ((string, t) Hashtbl.t[@sexp.opaque])
     }
-  [@@deriving sexp]
 
   val type_ : t -> Type_.t
   val to_string : ?escape_special_chars:bool -> t -> string

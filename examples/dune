@@ -35,6 +35,8 @@
    --disable shortvar
    --noruntime
    +base/runtime.js
+   +zarith_stubs_js/biginteger.js
+   +zarith_stubs_js/runtime.js
    %{lib:js_of_ocaml-compiler:runtime.js}
    %{dep:toplevel_js.bc}
    -o %{targets}
@@ -57,6 +59,8 @@
    --disable shortvar
    --noruntime
    +base/runtime.js
+   +zarith_stubs_js/biginteger.js
+   +zarith_stubs_js/runtime.js
    %{lib:js_of_ocaml-compiler:runtime.js}
    %{dep:editor_js.bc}
    -o %{targets}
