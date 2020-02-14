@@ -8,6 +8,8 @@ open Js_of_ocaml_tyxml
 let protect ~f =
   try f () with
   | I.RuntimeError message -> Stdio.eprintf "RuntimeError: %s\n%!" message
+  | I.Assert value -> Stdio.eprintf "AssertError: %s\n%!" (I.Value.to_string value)
+  | exn -> Stdio.printf "uncaught exception:\n%s\n%!" (Exn.to_string exn)
 
 let eval_stmts env stmts = protect ~f:(fun () -> I.eval_stmts env stmts)
 let by_id s = Dom_html.getElementById s

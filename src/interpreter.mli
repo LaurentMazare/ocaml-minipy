@@ -81,3 +81,4 @@ val eval_stmts : Env.t -> Ast.t -> unit
 val eval_expr : Env.t -> Ast.expr -> Value.t
 
 exception RuntimeError of string
+exception Assert of Value.t
