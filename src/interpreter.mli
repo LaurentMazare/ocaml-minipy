@@ -32,19 +32,19 @@ module Value : sig
     | Val_class of cls
     | Val_object of
         { cls : cls
-        ; attrs : ((string, t) Hashtbl.t[@sexp.opaque])
+        ; attrs : (string, t) Hashtbl.t
         }
     | Val_builtin_fn of builtin_fn
     | Val_function of fn
 
   and builtin_fn = t list -> (string, t) Hashtbl.t -> t
 
-  and builtins = ((string, builtin_fn, String.comparator_witness) Map.t[@sexp.opaque])
+  and builtins = (string, builtin_fn, String.comparator_witness) Map.t
 
   and env =
-    { scope : ((string, t) Hashtbl.t[@sexp.opaque])
+    { scope : (string, t) Hashtbl.t
     ; prev_env : env option
-    ; local_variables : (string Hash_set.t[@sexp.opaque])
+    ; local_variables : string Hash_set.t
     ; builtins : builtins
     }
 
@@ -57,7 +57,7 @@ module Value : sig
 
   and cls =
     { name : string
-    ; attrs : ((string, t) Hashtbl.t[@sexp.opaque])
+    ; attrs : (string, t) Hashtbl.t
     }
 
   val type_ : t -> Type_.t

@@ -27,9 +27,9 @@ let () =
           let stmts = List.drop_last_exn stmts in
           eval_stmts stmts;
           protect ~f:(fun () ->
-              I.eval_expr env value
-              |> I.Value.to_string ~escape_special_chars:false
-              |> print_endline)
+              match I.eval_expr env value with
+              | Val_none -> ()
+              | v -> I.Value.to_string v ~escape_special_chars:false |> print_endline)
         | Some _ -> eval_stmts stmts));
       repl ()
   in

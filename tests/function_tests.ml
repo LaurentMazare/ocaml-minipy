@@ -65,7 +65,7 @@ def prime_dec(n):
       while m % p == 0:
         m //= p
         q += 1
-      pqs += [(p, q)] # An append would be more efficient
+      pqs.append((p, q)) # Use append!!!
     return pqs
   return pd
 
@@ -76,7 +76,8 @@ print(pd(2500))
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect {|
+  [%expect
+    {|
         [(5, 2), (2, 2)] [(191, 1), (7, 1)] [(157, 1), (2, 1)]
         [(5, 4), (2, 2)]
       |}]

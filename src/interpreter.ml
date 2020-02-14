@@ -39,19 +39,19 @@ module Value = struct
     | Val_class of cls
     | Val_object of
         { cls : cls
-        ; attrs : ((string, t) Hashtbl.t[@sexp.opaque])
+        ; attrs : (string, t) Hashtbl.t
         }
     | Val_builtin_fn of builtin_fn
     | Val_function of fn
 
   and builtin_fn = t list -> (string, t) Hashtbl.t -> t
 
-  and builtins = ((string, builtin_fn, String.comparator_witness) Map.t[@sexp.opaque])
+  and builtins = (string, builtin_fn, String.comparator_witness) Map.t
 
   and env =
-    { scope : ((string, t) Hashtbl.t[@sexp.opaque])
+    { scope : (string, t) Hashtbl.t
     ; prev_env : env option
-    ; local_variables : (string Hash_set.t[@sexp.opaque])
+    ; local_variables : string Hash_set.t
     ; builtins : builtins
     }
 
@@ -64,7 +64,7 @@ module Value = struct
 
   and cls =
     { name : string
-    ; attrs : ((string, t) Hashtbl.t[@sexp.opaque])
+    ; attrs : (string, t) Hashtbl.t
     }
 
   let to_string ?(escape_special_chars = true) t =
@@ -374,6 +374,64 @@ end = struct
     loop t
 end
 
+let list_attrs queue ~attr =
+  match attr with
+  | "append" ->
+    let append args kwargs =
+      if not (Hashtbl.is_empty kwargs) then errorf "reverse expects no keyword argument";
+      match args with
+      | [ a ] ->
+        Queue.enqueue queue a;
+        Value.none
+      | _ -> errorf "append expects a single argument, got %d" (List.length args)
+    in
+    Value.Val_builtin_fn append
+  | "clear" ->
+    let clear args kwargs =
+      if not (List.is_empty args) then errorf "clear expects no argument";
+      if not (Hashtbl.is_empty kwargs) then errorf "reverse expects no keyword argument";
+      Queue.clear queue;
+      Value.none
+    in
+    Value.Val_builtin_fn clear
+  | "pop" ->
+    let pop args kwargs =
+      if not (List.is_empty args) then errorf "pop expects no argument";
+      if not (Hashtbl.is_empty kwargs) then errorf "reverse expects no keyword argument";
+      match Queue.dequeue queue with
+      | None -> errorf "pop from empty list"
+      | Some v -> v
+    in
+    Value.Val_builtin_fn pop
+  | "reverse" ->
+    let reverse args kwargs =
+      if not (List.is_empty args) then errorf "reverse expects no argument";
+      if not (Hashtbl.is_empty kwargs) then errorf "reverse expects no keyword argument";
+      let result = Queue.create () in
+      let nelems = Queue.length queue in
+      for i = 0 to nelems - 1 do
+        Queue.enqueue result (Queue.get queue (nelems - i - 1))
+      done;
+      Queue.clear queue;
+      Queue.blit_transfer ~src:result ~dst:queue ();
+      Value.none
+    in
+    Value.Val_builtin_fn reverse
+  | "sort" ->
+    let sort args kwargs =
+      if not (List.is_empty args) then errorf "reverse expects no argument";
+      if not (Hashtbl.is_empty kwargs) then errorf "reverse expects no keyword argument";
+      let sorted = Queue.to_array queue in
+      Array.sort sorted ~compare:Poly.compare;
+      Queue.clear queue;
+      for i = 0 to Array.length sorted - 1 do
+        Queue.enqueue queue sorted.(i)
+      done;
+      Value.none
+    in
+    Value.Val_builtin_fn sort
+  | attr -> errorf "'sort' object has no attribute '%s'" attr
+
 (* Very naive evaluation. *)
 let rec eval_stmt env = function
   | Expr { value } -> ignore (eval_expr env value : Value.t)
@@ -553,6 +611,7 @@ and eval_expr env = function
       | Some v -> v
       | None ->
         errorf "'%s' object has no attribute '%s'" (Value.type_as_string value) attr)
+    | Val_list q -> list_attrs q ~attr
     | v -> errorf "'%s' object has no attribute '%s'" (Value.type_as_string v) attr)
   | Subscript { value; slice } ->
     let value = eval_expr env value in
