@@ -135,3 +135,22 @@ print(b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11)
   [%expect {|
         True False False True True False True True True True False
       |}]
+
+let%expect_test "bigint-expr" =
+  let ast =
+    Basic_tests.parse_str
+      {|
+x = 12345678901234567890123456
+print(x*x*x)
+
+def fact(x): return x * fact(x-1) if x else 1
+def choose(n, p): return fact(n) // fact(p) // fact(n-p)
+
+print(choose(100, 50))
+|}
+  in
+  Interpreter.simple_eval ast;
+  [%expect {|
+        1881676372353657772546715679821472637094211345624460997308994323885415202816
+        100891344545564193334812497256
+      |}]

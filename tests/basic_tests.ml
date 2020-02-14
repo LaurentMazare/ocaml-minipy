@@ -53,7 +53,7 @@ print(fact(10))
   let print_fn args _ =
     match (args : Interpreter.Value.t list) with
     | [ Val_int i ] ->
-      Stdio.printf "%d\n" i;
+      Stdio.printf "%s\n" (Z.to_string i);
       Interpreter.Value.Val_none
     | _ ->
       Stdio.printf "unsupported\n";
@@ -65,7 +65,7 @@ print(fact(10))
   in
   let fact_fn args _ =
     match (args : Interpreter.Value.t list) with
-    | [ Val_int i ] -> Interpreter.Value.Val_int (fact i)
+    | [ Val_int i ] -> Interpreter.Value.Val_int (Z.to_int i |> fact |> Z.of_int)
     | _ -> Val_none
   in
   let builtins =
