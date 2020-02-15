@@ -5,7 +5,7 @@ module Parse = Minipy.Parse
 
 let protect ~f =
   try f () with
-  | I.RuntimeError message -> printf "RuntimeError: %s\n%!" message
+  | Minipy.RuntimeError message -> printf "RuntimeError: %s\n%!" message
 
 let toplevel () =
   let env = I.Env.empty ~builtins:I.default_builtins in
@@ -29,7 +29,7 @@ let toplevel () =
           protect ~f:(fun () ->
               match I.eval_expr env value with
               | Val_none -> ()
-              | v -> I.Value.to_string v ~escape_special_chars:false |> print_endline)
+              | v -> Minipy.Value.to_string v ~escape_special_chars:false |> print_endline)
         | Some _ -> eval_stmts stmts));
       repl ()
   in

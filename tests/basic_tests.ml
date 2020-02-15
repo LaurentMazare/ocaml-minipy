@@ -51,10 +51,10 @@ let%expect_test "builtins" =
 print(fact(10))
 |} in
   let print_fn args _ =
-    match (args : Interpreter.Value.t list) with
+    match (args : Value.t list) with
     | [ Val_int i ] ->
       Stdio.printf "%s\n" (Z.to_string i);
-      Interpreter.Value.Val_none
+      Value.none
     | _ ->
       Stdio.printf "unsupported\n";
       Val_none
@@ -64,8 +64,8 @@ print(fact(10))
     | n -> n * fact (n - 1)
   in
   let fact_fn args _ =
-    match (args : Interpreter.Value.t list) with
-    | [ Val_int i ] -> Interpreter.Value.Val_int (Z.to_int i |> fact |> Z.of_int)
+    match (args : Value.t list) with
+    | [ Val_int i ] -> Value.Val_int (Z.to_int i |> fact |> Z.of_int)
     | _ -> Val_none
   in
   let builtins =
