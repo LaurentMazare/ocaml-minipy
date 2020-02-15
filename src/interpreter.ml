@@ -684,7 +684,21 @@ and delete env expr =
   | Name name -> Env.remove env ~name
   | Subscript { value; slice } ->
     (match eval_expr env value, eval_expr env slice with
-    | Val_list _array, Val_int _i -> errorf "TODO: implement list deletion"
+    | Val_list q, Val_int i ->
+      let array = Queue.to_array q in
+      Queue.clear q;
+      let i = Z.to_int i in
+      let i =
+        let len = Array.length array in
+        if 0 <= i && i < len
+        then i
+        else if i < 0 && -len <= i
+        then len + i
+        else errorf "unexpected index %d for a list of length %d" i len
+      in
+      for idx = 0 to Array.length array - 1 do
+        if idx <> i then Queue.enqueue q array.(idx)
+      done
     | Val_dict dict, v -> Hashtbl.remove dict v
     | v, _ -> Value.cannot_be_interpreted_as v "cannot delete")
   | _ -> errorf "only names and subscripts can be deleted"

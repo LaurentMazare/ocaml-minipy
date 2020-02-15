@@ -77,3 +77,23 @@ print(l)
         [2, 6]
         [(0, 0), (1, 1), (2, 2)]
       |}]
+
+let%expect_test "list del" =
+  let ast =
+    Basic_tests.parse_str
+      {|
+l = [x*x for x in range(5)]
+print(l)
+del l[2]
+print(l)
+del l[-1]
+print(l)
+|}
+  in
+  Interpreter.simple_eval ast;
+  [%expect
+    {|
+        [0, 1, 4, 9, 16]
+        [0, 1, 9, 16]
+        [0, 1, 9]
+      |}]

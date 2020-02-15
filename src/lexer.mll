@@ -170,12 +170,16 @@ rule read env = parse
   }
 and string_double_quote buf = parse
  | "\\\"" { Buffer.add_char buf '\"'; string_double_quote buf lexbuf }
+ | "\\\'" { Buffer.add_char buf '\''; string_double_quote buf lexbuf }
+ | "\\\\" { Buffer.add_char buf '\\'; string_double_quote buf lexbuf }
  | "\\n" { Buffer.add_char buf '\n'; string_double_quote buf lexbuf }
  | "\\t" { Buffer.add_char buf '\t'; string_double_quote buf lexbuf }
  | '"' { STRING (Buffer.contents buf) }
  | _ as c { Buffer.add_char buf c; string_double_quote buf lexbuf }
 and string_single_quote buf = parse
- | "\\\'" { Buffer.add_char buf '\''; string_single_quote buf lexbuf }
+ | "\\\"" { Buffer.add_char buf '\"'; string_double_quote buf lexbuf }
+ | "\\\'" { Buffer.add_char buf '\''; string_double_quote buf lexbuf }
+ | "\\\\" { Buffer.add_char buf '\\'; string_double_quote buf lexbuf }
  | "\\n" { Buffer.add_char buf '\n'; string_single_quote buf lexbuf }
  | "\\t" { Buffer.add_char buf '\t'; string_single_quote buf lexbuf }
  | '\'' { STRING (Buffer.contents buf) }
