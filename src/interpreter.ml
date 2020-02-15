@@ -181,13 +181,32 @@ let rec eval_stmt env = function
   | Expr { value } -> ignore (eval_expr env value : Value.t)
   | FunctionDef { name; args; body } ->
     Env.set env ~name ~value:(Val_function { args; env; body; method_self = None })
-  | ClassDef { name; args = _; body } ->
-    (* TODO: inheritance *)
+  | ClassDef { name; args; body } ->
+    let parent_class =
+      match args.args with
+      | [] -> None
+      | [ name ] ->
+        (match Env.find_exn env ~name with
+        | Val_class cls -> Some cls
+        | v -> Value.cannot_be_interpreted_as v "class")
+      | _ :: _ :: _ -> errorf "multiple inheritance is not supported"
+    in
     (* TODO: capture variables from above scopes *)
     let cls_env = Env.nest ~prev_env:env ~body in
     eval_stmts cls_env body;
     let attrs = Env.last_scope cls_env in
-    Env.set env ~name ~value:(Val_class { name; attrs })
+    let attrs =
+      match parent_class with
+      | None -> attrs
+      | Some parent_class ->
+        Hashtbl.merge parent_class.attrs attrs ~f:(fun ~key:_ ->
+          function
+          | `Both (_, a) | `Left a | `Right a -> Some a)
+    in
+    let value =
+      Value.Val_class { name; attrs; parent_class; id = Value.Class_id.create () }
+    in
+    Env.set env ~name ~value
   | Try { body; handlers; orelse; finalbody } ->
     let raised =
       try
@@ -339,7 +358,7 @@ and eval_expr env = function
          Value.none
        with
       | Return_exn value -> value)
-    | Val_class ({ name = _; attrs } as cls) ->
+    | Val_class ({ attrs; _ } as cls) ->
       let self_attrs = Hashtbl.create (module String) in
       let self = Value.Val_object { cls; attrs = self_attrs } in
       Hashtbl.iteri attrs ~f:(fun ~key ~data ->

@@ -1,6 +1,13 @@
 open! Base
 open! Ast
 
+module Class_id : sig
+  type t
+
+  val create : unit -> t
+  val equal : t -> t -> bool
+end
+
 module Type_ : sig
   type t =
     | None_t
@@ -58,6 +65,8 @@ and fn =
 and cls =
   { name : string
   ; attrs : (string, t) Hashtbl.t
+  ; parent_class : cls option
+  ; id : Class_id.t
   }
 
 val type_ : t -> Type_.t

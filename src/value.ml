@@ -2,6 +2,23 @@ open Base
 open Ast
 open Import
 
+module Class_id : sig
+  type t
+
+  val create : unit -> t
+  val equal : t -> t -> bool
+end = struct
+  type t = int
+
+  let create =
+    let counter = ref 0 in
+    fun () ->
+      Int.incr counter;
+      !counter
+
+  let equal = Int.equal
+end
+
 module Type_ = struct
   type t =
     | None_t
@@ -61,6 +78,8 @@ and fn =
 and cls =
   { name : string
   ; attrs : (string, t) Hashtbl.t
+  ; parent_class : cls option
+  ; id : Class_id.t
   }
 
 let to_string ?(escape_special_chars = true) t =

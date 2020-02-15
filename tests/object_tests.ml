@@ -54,3 +54,30 @@ print(myobj.foobar())
         45.14159265358979
         foobar
       |}]
+
+let%expect_test "fn" =
+  let ast =
+    Basic_tests.parse_str
+      {|
+class A():
+  def add(self, x):
+    return x + 1
+
+  def print_add(self, x):
+    print(self.add(x))
+
+class B(A):
+  def add(self, x):
+    return x + 2
+
+a = A()
+b = B()
+a.print_add(42)
+b.print_add(42)
+|}
+  in
+  Interpreter.simple_eval ast;
+  [%expect {|
+        43
+        44
+      |}]
