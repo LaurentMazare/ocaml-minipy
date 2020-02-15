@@ -129,11 +129,14 @@ b9 = True and (False or True)
 b10 = not False or True
 b11 = not (False or True)
 print(b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11)
+
+print(1 <= 2 >= 3, 1 <= 2 >= 2, 1. < 1.1 < 1.05, 1. < 1.05 < 1.1 < 1.15)
 |}
   in
   Interpreter.simple_eval ast;
   [%expect {|
         True False False True True False True True True True False
+        False True False True
       |}]
 
 let%expect_test "bigint-expr" =
@@ -147,10 +150,16 @@ def fact(x): return x * fact(x-1) if x else 1
 def choose(n, p): return fact(n) // fact(p) // fact(n-p)
 
 print(choose(100, 50))
+
+print(314 ** 31)
+print(314 ** 31.)
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect {|
+  [%expect
+    {|
         1881676372353657772546715679821472637094211345624460997308994323885415202816
         100891344545564193334812497256
+        253991445826354756304530176160876509837152573254556419876909080432674827403264
+        2.5399144582635474e+77
       |}]

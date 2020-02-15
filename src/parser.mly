@@ -266,7 +266,14 @@ not_test:
 
 comparison:
   | e=expr { e }
-  | left=expr ops=comp_op comparators=comparison { Compare { left; ops; comparators } }
+  | l=expr o=comp_op c=comparison {
+    let ops_and_exprs =
+      match c with
+      | Compare { left; ops_and_exprs } -> (o, left) :: ops_and_exprs
+      | e -> [ o, e ]
+    in
+    Compare { left = l; ops_and_exprs }
+  }
 ;
 
 comp_op:

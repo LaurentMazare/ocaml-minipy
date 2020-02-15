@@ -136,8 +136,7 @@ and expr =
       }
   | Compare of
       { left : expr
-      ; ops : cmpop (* TODO: cmpop list *)
-      ; comparators : expr (* TODO: expr list *)
+      ; ops_and_exprs : (cmpop * expr) list
       }
   | Call of
       { func : expr

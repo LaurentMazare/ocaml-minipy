@@ -223,6 +223,8 @@ module Value = struct
     | Div, v, v' -> Val_float (to_float v /. to_float v')
     | FloorDiv, Val_int v, Val_int v' -> Val_int (Z.div v v')
     | Mod, Val_int v, Val_int v' -> Val_int (Z.( mod ) v v')
+    | Pow, Val_int v, Val_int v' -> Val_int (Z.pow v (Z.to_int v'))
+    | Pow, v, v' -> Val_float (Float.( ** ) (to_float v) (to_float v'))
     | _ ->
       errorf
         "binop not implemented: %s %s %s"
@@ -558,10 +560,22 @@ and eval_expr env = function
     if eval_expr env test |> Value.to_bool
     then eval_expr env body
     else eval_expr env orelse
-  | Compare { left; ops; comparators } ->
+  | Compare { left; ops_and_exprs = [ (op, right) ] } ->
     let left = eval_expr env left in
-    let right = eval_expr env comparators in
-    Value.bool (Value.apply_comp ops left right)
+    let right = eval_expr env right in
+    Value.bool (Value.apply_comp op left right)
+  | Compare { left; ops_and_exprs } ->
+    let left = eval_expr env left in
+    let res =
+      List.fold_until
+        ops_and_exprs
+        ~init:left
+        ~finish:(fun _ -> true)
+        ~f:(fun prev_v (op, e) ->
+          let v = eval_expr env e in
+          if Value.apply_comp op prev_v v then Continue v else Stop false)
+    in
+    Value.bool res
   | Call { func; args; keywords } ->
     let func = eval_expr env func in
     let arg_values = List.map args ~f:(eval_expr env) in
