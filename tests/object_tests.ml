@@ -74,10 +74,14 @@ a = A()
 b = B()
 a.print_add(42)
 b.print_add(42)
+print(isinstance(a, A), isinstance(a, B), isinstance(b, A), isinstance(b, B))
+print(issubclass(A, B), issubclass(B, A), issubclass(A, A), issubclass(B, B))
 |}
   in
   Interpreter.simple_eval ast;
   [%expect {|
         43
         44
+        True False True True
+        False True True True
       |}]
