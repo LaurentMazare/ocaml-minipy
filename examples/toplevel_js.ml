@@ -17,8 +17,8 @@ module Toploop : sig
 end = struct
   type t = { mutable env : I.Env.t }
 
-  let create () = { env = I.Env.empty ~builtins:I.default_builtins }
-  let reset t = t.env <- I.Env.empty ~builtins:I.default_builtins
+  let create () = { env = I.Env.empty () }
+  let reset t = t.env <- I.Env.empty ()
 
   let protect ~f =
     try f () with

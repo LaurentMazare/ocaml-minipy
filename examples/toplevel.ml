@@ -8,7 +8,7 @@ let protect ~f =
   | Minipy.RuntimeError message -> printf "RuntimeError: %s\n%!" message
 
 let toplevel () =
-  let env = I.Env.empty ~builtins:I.default_builtins in
+  let env = I.Env.empty () in
   let eval_stmts stmts = protect ~f:(fun () -> I.eval_stmts env stmts) in
   let rec repl () =
     Stdio.printf ">>> %!";
@@ -42,7 +42,7 @@ let () =
   else
     protect ~f:(fun () ->
         match Parse.parse_file argv.(1) with
-        | Ok stmts -> I.simple_eval ~builtins:I.default_builtins stmts
+        | Ok stmts -> I.simple_eval stmts
         | Error { message; context } ->
           printf "ParseError: %s\n%!" message;
           Option.iter context ~f:(fun c -> printf "%s\n%!" c))

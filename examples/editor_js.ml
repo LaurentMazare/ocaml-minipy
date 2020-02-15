@@ -90,7 +90,7 @@ let run () =
   let output = by_id "output" in
   let execute () =
     let content = Js.to_string (Js.Unsafe.meth_call editor "getValue" [||])##trim in
-    let env = I.Env.empty ~builtins:I.default_builtins in
+    let env = I.Env.empty () in
     let stmts = Parse.parse_string (content ^ "\n") in
     (match stmts with
     | Error { message; context } ->
