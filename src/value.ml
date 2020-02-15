@@ -261,6 +261,19 @@ let apply_comp op left right =
       (sexp_of_cmpop op |> Sexp.to_string_mach)
       (type_as_string right)
 
+let rec is_subclass cls ~target_class =
+  if Class_id.equal cls.id target_class.id
+  then true
+  else (
+    match cls.parent_class with
+    | None -> false
+    | Some parent_cls -> is_subclass parent_cls ~target_class)
+
+let is_instance t ~target_class =
+  match t with
+  | Val_object { cls; _ } -> is_subclass cls ~target_class
+  | _ -> false
+
 let none = Val_none
 let list l = Val_list l
 let str s = Val_str s

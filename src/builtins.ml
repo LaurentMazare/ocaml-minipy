@@ -78,17 +78,9 @@ let isinstance args kwargs =
   empty_kwargs kwargs ~name:"isinstance";
   match (args : Value.t list) with
   | [ Val_object { cls; _ }; v ] ->
-    let rec loop_class cls ~target_class =
-      if Value.(Class_id.equal cls.id target_class.id)
-      then true
-      else (
-        match cls.parent_class with
-        | None -> false
-        | Some parent_cls -> loop_class parent_cls ~target_class)
-    in
     let rec loop : Value.t -> bool = function
       | Val_tuple vs -> Array.exists vs ~f:loop
-      | Val_class target_class -> loop_class cls ~target_class
+      | Val_class target_class -> Value.is_subclass cls ~target_class
       | _ -> errorf "isinstance only accepts tuples or classes for its second argument"
     in
     Value.bool (loop v)
@@ -98,17 +90,9 @@ let issubclass args kwargs =
   empty_kwargs kwargs ~name:"issubclass";
   match (args : Value.t list) with
   | [ Val_class cls; v ] ->
-    let rec loop_class cls ~target_class =
-      if Value.(Class_id.equal cls.id target_class.id)
-      then true
-      else (
-        match cls.parent_class with
-        | None -> false
-        | Some parent_cls -> loop_class parent_cls ~target_class)
-    in
     let rec loop : Value.t -> bool = function
       | Val_tuple vs -> Array.exists vs ~f:loop
-      | Val_class target_class -> loop_class cls ~target_class
+      | Val_class target_class -> Value.is_subclass cls ~target_class
       | _ -> errorf "issubclass only accepts tuples or classes for its second argument"
     in
     Value.bool (loop v)

@@ -28,7 +28,8 @@ go(123)
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect {|
+  [%expect
+    {|
         before error
         raised
         before error foo
@@ -38,4 +39,40 @@ go(123)
         after error 124
         else 124
         finally 124
+      |}]
+
+let%expect_test "exception-cls" =
+  let ast =
+    Basic_tests.parse_str
+      {|
+class A(BaseException):
+  pass
+
+class B(A):
+  pass
+
+class C(BaseException):
+  pass
+
+def f(e):
+  try:
+    raise e
+  except A: print('raised A')
+  except: print('raised something else')
+  print('done')
+
+f(A())
+f(B())
+f(C())
+|}
+  in
+  Interpreter.simple_eval ast;
+  [%expect
+    {|
+        raised A
+        done
+        raised A
+        done
+        raised something else
+        done
       |}]

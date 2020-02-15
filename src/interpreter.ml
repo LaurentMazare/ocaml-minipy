@@ -2,6 +2,15 @@ open Base
 open Ast
 open Import
 
+let base_exception_cls =
+  { Value.name = "BaseException"
+  ; attrs = Hashtbl.create (module String)
+  ; parent_class = None
+  ; id = Value.Class_id.create ()
+  }
+
+let base_exception = Value.Val_class base_exception_cls
+
 exception Return_exn of Value.t
 exception Break
 exception Continue
@@ -35,7 +44,10 @@ end = struct
     }
 
   let empty ?(builtins = Builtins.default) () =
-    { scope = Hashtbl.create (module String)
+    let scope =
+      Hashtbl.of_alist_exn (module String) [ "BaseException", base_exception ]
+    in
+    { scope
     ; prev_env = None
     ; local_variables = Hash_set.create (module String)
     ; builtins
@@ -195,14 +207,11 @@ let rec eval_stmt env = function
     let cls_env = Env.nest ~prev_env:env ~body in
     eval_stmts cls_env body;
     let attrs = Env.last_scope cls_env in
-    let attrs =
-      match parent_class with
-      | None -> attrs
-      | Some parent_class ->
-        Hashtbl.merge parent_class.attrs attrs ~f:(fun ~key:_ ->
-          function
-          | `Both (_, a) | `Left a | `Right a -> Some a)
-    in
+    (match parent_class with
+    | None -> ()
+    | Some parent_class ->
+      Hashtbl.iteri parent_class.attrs ~f:(fun ~key ~data ->
+          if not (Hashtbl.mem attrs key) then Hashtbl.set attrs ~key ~data));
     let value =
       Value.Val_class { name; attrs; parent_class; id = Value.Class_id.create () }
     in
@@ -213,7 +222,12 @@ let rec eval_stmt env = function
         eval_stmts env body;
         false
       with
-      | _exn ->
+      | exn ->
+        let exn =
+          match exn with
+          | Raise { exc = Some exc; _ } -> Some exc
+          | _ -> None
+        in
         List.fold_until
           handlers
           ~init:()
@@ -223,16 +237,34 @@ let rec eval_stmt env = function
             | None ->
               eval_stmts env body;
               Stop ()
-            | Some _expr ->
-              (* TODO: exception handlers *)
-              Continue ())
+            | Some type_ ->
+              (match eval_expr env type_ with
+              | Val_class target_class ->
+                if Option.value_map
+                     exn
+                     ~f:(Value.is_instance ~target_class)
+                     ~default:false
+                then (
+                  eval_stmts env body;
+                  Stop ())
+                else Continue ()
+              | _ -> Continue ()))
           ~finish:Fn.id;
         true
     in
     if not raised then eval_stmts env orelse;
     eval_stmts env finalbody
   | Raise { exc; cause } ->
-    let exc = Option.map exc ~f:(eval_expr env) in
+    let exc =
+      Option.map exc ~f:(fun exc ->
+          let exc = eval_expr env exc in
+          (match exc with
+          | Val_class cls | Val_object { cls; _ } ->
+            if not (Value.is_subclass cls ~target_class:base_exception_cls)
+            then errorf "exceptions must derive from BaseException"
+          | v -> Value.cannot_be_interpreted_as v "exception");
+          exc)
+    in
     let cause = Option.map cause ~f:(eval_expr env) in
     raise (Raise { exc; cause })
   | While { test; body; orelse } ->
