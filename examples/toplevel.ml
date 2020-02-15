@@ -1,14 +1,14 @@
-open! Base
+open Base
 open Stdio
 module I = Minipy.Interpreter
 module Parse = Minipy.Parse
 
-let () =
+let protect ~f =
+  try f () with
+  | I.RuntimeError message -> printf "RuntimeError: %s\n%!" message
+
+let toplevel () =
   let env = I.Env.empty ~builtins:I.default_builtins in
-  let protect ~f =
-    try f () with
-    | I.RuntimeError message -> printf "RuntimeError: %s\n%!" message
-  in
   let eval_stmts stmts = protect ~f:(fun () -> I.eval_stmts env stmts) in
   let rec repl () =
     Stdio.printf ">>> %!";
@@ -34,3 +34,15 @@ let () =
       repl ()
   in
   repl ()
+
+let () =
+  let argv = Sys.get_argv () in
+  if Array.length argv <= 1
+  then toplevel ()
+  else
+    protect ~f:(fun () ->
+        match Parse.parse_file argv.(1) with
+        | Ok stmts -> I.simple_eval ~builtins:I.default_builtins stmts
+        | Error { message; context } ->
+          printf "ParseError: %s\n%!" message;
+          Option.iter context ~f:(fun c -> printf "%s\n%!" c))
