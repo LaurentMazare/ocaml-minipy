@@ -21,47 +21,19 @@
 (executables
   (names toplevel_js)
   (modules toplevel_js b64)
-  (modes byte)
-  (libraries base stdio js_of_ocaml js_of_ocaml-tyxml minipy)
+  (modes js)
+  (libraries base stdio js_of_ocaml js_of_ocaml-tyxml minipy zarith_stubs_js)
+  (js_of_ocaml (flags -I . --file examples.py))
+  (preprocessor_deps examples.py)
   (preprocess (pps js_of_ocaml-ppx))
 )
-
-(rule
- (targets toplevel.js)
- (action
-  (run %{bin:js_of_ocaml}
-   -I .
-   --file %{dep:examples.py}
-   --disable shortvar
-   --noruntime
-   +base/runtime.js
-   +zarith_stubs_js/biginteger.js
-   +zarith_stubs_js/runtime.js
-   %{lib:js_of_ocaml-compiler:runtime.js}
-   %{dep:toplevel_js.bc}
-   -o %{targets}
-  )))
 
 (executables
   (names editor_js)
   (modules editor_js)
-  (modes byte)
-  (libraries base stdio js_of_ocaml js_of_ocaml-tyxml minipy)
+  (modes js)
+  (libraries base stdio js_of_ocaml js_of_ocaml-tyxml minipy zarith_stubs_js)
+  (js_of_ocaml (flags -I . --file examples.py))
+  (preprocessor_deps examples.py)
   (preprocess (pps js_of_ocaml-ppx))
 )
-
-(rule
- (targets editor.js)
- (action
-  (run %{bin:js_of_ocaml}
-   -I .
-   --file %{dep:examples.py}
-   --disable shortvar
-   --noruntime
-   +base/runtime.js
-   +zarith_stubs_js/biginteger.js
-   +zarith_stubs_js/runtime.js
-   %{lib:js_of_ocaml-compiler:runtime.js}
-   %{dep:editor_js.bc}
-   -o %{targets}
-  )))
