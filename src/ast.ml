@@ -83,6 +83,11 @@ type stmt =
       ; orelse : stmt list
       ; finalbody : stmt list
       }
+  | With of
+      { body : stmt list
+      ; context : expr
+      ; vars : expr option
+      }
   | Assert of
       { test : expr
       ; msg : expr option

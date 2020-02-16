@@ -86,6 +86,7 @@ rule read env = parse
   | "try" { [TRY] }
   | "except" { [EXCEPT] }
   | "finally" { [FINALLY] }
+  | "with" { [WITH] }
   | "not" { [OPNOT] }
   | "is" { [OPIS] }
   (* TODO: other string delimiters... *)

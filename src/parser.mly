@@ -82,7 +82,7 @@ let merge_args args =
 %token DOT COMMA EQUAL
 %token DEF RETURN DELETE ASSERT IF ELIF ELSE WHILE FOR IN BREAK CONTINUE PASS
 %token LPAREN RPAREN LBRACE RBRACE LBRACK RBRACK
-%token LAMBDA CLASS RAISE FROM TRY EXCEPT AS FINALLY
+%token LAMBDA CLASS RAISE FROM TRY EXCEPT WITH AS FINALLY
 %token INDENT DEDENT
 %token NEWLINE
 %token ENDMARKER
@@ -170,6 +170,8 @@ compound_stmt:
   | TRY COLON body=suite finalbody=try_finally { Try { body; handlers = []; orelse = []; finalbody } }
   | TRY COLON body=suite handlers=try_except+ orelse=try_orelse f=try_finally?
     { Try { body; handlers; orelse; finalbody = Option.value f ~default:[] } }
+  | WITH context=test COLON body=suite { With { context; body; vars = None } }
+  | WITH context=test AS vars=expr COLON body=suite { With { context; body; vars = Some vars } }
   | DEF name=IDENTIFIER LPAREN args=parameters RPAREN COLON body=suite { FunctionDef { name; args; body } }
   | CLASS name=IDENTIFIER args=class_parameters COLON body=suite { ClassDef { name; args; body } }
 ;

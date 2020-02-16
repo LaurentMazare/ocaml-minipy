@@ -75,6 +75,9 @@ end = struct
       (* Augmented assign does not create a new bindings but replaces an existing one. *)
       | ClassDef { name; _ } | FunctionDef { name; _ } ->
         Hash_set.add local_variables name
+      | With { body; context = _; vars } ->
+        List.iter body ~f:loop;
+        Option.iter vars ~f:loop_expr
       | Assert _ | Return _ | Delete _ | Expr _ | Raise _ | Break | Continue | Pass -> ()
     and loop_expr = function
       | Name name -> Hash_set.add local_variables name
@@ -300,6 +303,7 @@ let rec eval_stmt env = function
     if eval_expr env test |> Value.to_bool
     then eval_stmts env body
     else eval_stmts env orelse
+  | With { context = _; body = _; vars = _ } -> errorf "TODO: support with"
   | Assign { targets; value } ->
     let value = eval_expr env value in
     List.iter targets ~f:(fun target -> eval_assign env ~target ~value)
