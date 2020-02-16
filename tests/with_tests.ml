@@ -36,4 +36,5 @@ except BaseException:
         entering 42
         inside1
         exiting 42
+        caught
       |}]
