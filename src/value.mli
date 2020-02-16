@@ -1,5 +1,5 @@
-open! Base
-open! Ast
+open Base
+open Ast
 
 module Class_id : sig
   type t
@@ -44,7 +44,7 @@ type t =
   | Val_builtin_fn of builtin_fn
   | Val_function of fn
 
-and builtin_fn = t list -> (string, t) Hashtbl.t -> t
+and builtin_fn = interp -> t list -> (string, t) Hashtbl.t -> t
 
 and builtins = (string, builtin_fn, String.comparator_witness) Map.t
 
@@ -67,6 +67,11 @@ and cls =
   ; attrs : (string, t) Hashtbl.t
   ; parent_class : cls option
   ; id : Class_id.t
+  }
+
+and interp =
+  { call_method : t -> string -> t list -> t
+  ; has_method : t -> string -> bool
   }
 
 val type_ : t -> Type_.t

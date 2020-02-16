@@ -138,7 +138,7 @@ end
 let list_attrs queue ~attr =
   match attr with
   | "append" ->
-    let append args kwargs =
+    let append _ args kwargs =
       if not (Hashtbl.is_empty kwargs) then errorf "reverse expects no keyword argument";
       match args with
       | [ a ] ->
@@ -148,7 +148,7 @@ let list_attrs queue ~attr =
     in
     Value.Val_builtin_fn append
   | "clear" ->
-    let clear args kwargs =
+    let clear _ args kwargs =
       if not (List.is_empty args) then errorf "clear expects no argument";
       if not (Hashtbl.is_empty kwargs) then errorf "reverse expects no keyword argument";
       Queue.clear queue;
@@ -156,7 +156,7 @@ let list_attrs queue ~attr =
     in
     Value.Val_builtin_fn clear
   | "pop" ->
-    let pop args kwargs =
+    let pop _ args kwargs =
       if not (List.is_empty args) then errorf "pop expects no argument";
       if not (Hashtbl.is_empty kwargs) then errorf "reverse expects no keyword argument";
       match Queue.dequeue queue with
@@ -165,7 +165,7 @@ let list_attrs queue ~attr =
     in
     Value.Val_builtin_fn pop
   | "reverse" ->
-    let reverse args kwargs =
+    let reverse _ args kwargs =
       if not (List.is_empty args) then errorf "reverse expects no argument";
       if not (Hashtbl.is_empty kwargs) then errorf "reverse expects no keyword argument";
       let result = Queue.create () in
@@ -179,7 +179,7 @@ let list_attrs queue ~attr =
     in
     Value.Val_builtin_fn reverse
   | "sort" ->
-    let sort args kwargs =
+    let sort _ args kwargs =
       if not (List.is_empty args) then errorf "reverse expects no argument";
       if not (Hashtbl.is_empty kwargs) then errorf "reverse expects no keyword argument";
       let sorted = Queue.to_array queue in
@@ -222,43 +222,7 @@ let rec eval_stmt env = function
     in
     Env.set env ~name ~value
   | Try { body; handlers; orelse; finalbody } ->
-    let raised =
-      try
-        eval_stmts env body;
-        false
-      with
-      | exn ->
-        let exn =
-          match exn with
-          | Raise { exc = Some exc; _ } -> Some exc
-          | _ -> None
-        in
-        List.fold_until
-          handlers
-          ~init:()
-          ~f:(fun () handler ->
-            let { Ast.type_; name = _; body } = handler in
-            match type_ with
-            | None ->
-              eval_stmts env body;
-              Stop ()
-            | Some type_ ->
-              (match eval_expr env type_ with
-              | Val_class target_class ->
-                if Option.value_map
-                     exn
-                     ~f:(Value.is_instance_or_subclass ~target_class)
-                     ~default:false
-                then (
-                  eval_stmts env body;
-                  Stop ())
-                else Continue ()
-              | _ -> Continue ()))
-          ~finish:Fn.id;
-        true
-    in
-    if not raised then eval_stmts env orelse;
-    eval_stmts env finalbody
+    eval_try env ~body ~handlers ~orelse ~finalbody
   | Raise { exc; cause } ->
     let exc =
       Option.map exc ~f:(fun exc ->
@@ -380,7 +344,7 @@ and eval_expr env = function
       |> Hashtbl.of_alist_exn (module String)
     in
     (match func with
-    | Val_builtin_fn fn -> fn arg_values keyword_values
+    | Val_builtin_fn fn -> fn interp arg_values keyword_values
     | Val_function { args; env; body; method_self } ->
       let arg_values =
         match method_self with
@@ -592,6 +556,57 @@ and eval_with env ~context ~body ~vars =
     on_exit Value.none Value.none Value.none;
     raise exn);
   on_exit Value.none Value.none Value.none
+
+and eval_try env ~body ~handlers ~orelse ~finalbody =
+  let raised =
+    try
+      eval_stmts env body;
+      false
+    with
+    | exn ->
+      let exn =
+        match exn with
+        | Raise { exc = Some exc; _ } -> Some exc
+        | _ -> None
+      in
+      List.fold_until
+        handlers
+        ~init:()
+        ~f:(fun () handler ->
+          let { Ast.type_; name = _; body } = handler in
+          match type_ with
+          | None ->
+            eval_stmts env body;
+            Stop ()
+          | Some type_ ->
+            (match eval_expr env type_ with
+            | Val_class target_class ->
+              if Option.value_map
+                   exn
+                   ~f:(Value.is_instance_or_subclass ~target_class)
+                   ~default:false
+              then (
+                eval_stmts env body;
+                Stop ())
+              else Continue ()
+            | _ -> Continue ()))
+        ~finish:Fn.id;
+      true
+  in
+  if not raised then eval_stmts env orelse;
+  eval_stmts env finalbody
+
+and (interp : Value.interp) =
+  { call_method = (fun obj name arg_values -> eval_method obj ~name ~arg_values)
+  ; has_method =
+      (fun obj name ->
+        match (obj : Value.t) with
+        | Val_object { attrs; _ } ->
+          (match Hashtbl.find attrs name with
+          | Some (Val_function { method_self = Some _; _ }) -> true
+          | _ -> false)
+        | _ -> false)
+  }
 
 let simple_eval ?(builtins = Builtins.default) t =
   let env = Env.empty ~builtins () in

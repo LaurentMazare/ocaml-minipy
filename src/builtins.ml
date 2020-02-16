@@ -7,14 +7,20 @@ let of_int i = Z.of_int i |> Value.int
 let empty_kwargs kwargs ~name =
   if not (Hashtbl.is_empty kwargs) then errorf "%s expects no keyword arguments" name
 
-let print args kwargs =
+let to_string interp v ~f =
+  if interp.Value.has_method v "__str__"
+  then interp.Value.call_method v "__str__" []
+  else f v
+
+let print interp args kwargs =
   empty_kwargs kwargs ~name:"print";
-  List.map args ~f:(Value.to_string ~escape_special_chars:false)
+  List.map args ~f:(fun v ->
+      to_string interp v ~f:Fn.id |> Value.to_string ~escape_special_chars:false)
   |> String.concat ~sep:" "
   |> Stdio.printf "%s\n";
   Value.none
 
-let range args kwargs =
+let range _ args kwargs =
   empty_kwargs kwargs ~name:"range";
   let l =
     match args with
@@ -25,7 +31,7 @@ let range args kwargs =
   in
   Value.list (List.map l ~f:of_int |> Queue.of_list)
 
-let len args kwargs =
+let len _ args kwargs =
   empty_kwargs kwargs ~name:"len";
   let l =
     match (args : Value.t list) with
@@ -38,7 +44,7 @@ let len args kwargs =
   in
   of_int l
 
-let delattr args kwargs =
+let delattr _ args kwargs =
   empty_kwargs kwargs ~name:"delattr";
   match (args : Value.t list) with
   | [ Val_object { attrs; _ }; Val_str key ] ->
@@ -46,7 +52,7 @@ let delattr args kwargs =
     Value.none
   | _ -> errorf "delattr takes exactly two arguments (object, str)"
 
-let getattr args kwargs =
+let getattr _ args kwargs =
   empty_kwargs kwargs ~name:"getattr";
   match (args : Value.t list) with
   | [ Val_object { attrs; _ }; Val_str key ] ->
@@ -60,13 +66,13 @@ let getattr args kwargs =
       "getattr takes two arguments (object, str) or three arguments (object, str, \
        default)"
 
-let hasattr args kwargs =
+let hasattr _ args kwargs =
   empty_kwargs kwargs ~name:"hasattr";
   match (args : Value.t list) with
   | [ Val_object { attrs; _ }; Val_str key ] -> Value.bool (Hashtbl.mem attrs key)
   | _ -> errorf "hasattr takes exactly two arguments (object, str)"
 
-let setattr args kwargs =
+let setattr _ args kwargs =
   empty_kwargs kwargs ~name:"setattr";
   match (args : Value.t list) with
   | [ Val_object { attrs; _ }; Val_str key; data ] ->
@@ -74,7 +80,7 @@ let setattr args kwargs =
     Value.none
   | _ -> errorf "setattr takes exactly three arguments (object, str, value)"
 
-let isinstance args kwargs =
+let isinstance _ args kwargs =
   empty_kwargs kwargs ~name:"isinstance";
   match (args : Value.t list) with
   | [ Val_object { cls; _ }; v ] ->
@@ -86,7 +92,7 @@ let isinstance args kwargs =
     Value.bool (loop v)
   | _ -> errorf "isinstance takes exactly two arguments (object, class)"
 
-let issubclass args kwargs =
+let issubclass _ args kwargs =
   empty_kwargs kwargs ~name:"issubclass";
   match (args : Value.t list) with
   | [ Val_class cls; v ] ->
@@ -98,43 +104,53 @@ let issubclass args kwargs =
     Value.bool (loop v)
   | _ -> errorf "issubclass takes exactly two arguments (class1, class2)"
 
-let str args kwargs =
+let single_argument ~f ~name interp args kwargs =
   empty_kwargs kwargs ~name:"str";
   match (args : Value.t list) with
-  | [ v ] -> Value.to_string ~escape_special_chars:true v |> Value.str
-  | _ -> errorf "str takes exactly one argument"
+  | [ v ] -> f interp v
+  | _ -> errorf "%s takes exactly one argument" name
 
-let int args kwargs =
-  empty_kwargs kwargs ~name:"int";
-  let v =
-    match (args : Value.t list) with
-    | [ Val_int v ] -> v
-    | [ Val_float f ] -> Z.of_float f
-    | [ Val_bool true ] -> Z.one
-    | [ Val_bool false ] -> Z.zero
-    | [ Val_str s ] -> Z.of_string s
-    | _ -> errorf "int takes exactly one argument"
-  in
-  Value.int v
+let str =
+  single_argument ~name:"str" ~f:(fun v ->
+      to_string v ~f:(fun v -> Value.to_string v ~escape_special_chars:false |> Value.str))
 
-let float args kwargs =
-  empty_kwargs kwargs ~name:"float";
-  let v =
-    match (args : Value.t list) with
-    | [ Val_int v ] -> Z.to_float v
-    | [ Val_float f ] -> f
-    | [ Val_bool true ] -> 1.
-    | [ Val_bool false ] -> 0.
-    | [ Val_str s ] -> Float.of_string s
-    | _ -> errorf "float takes exactly one argument"
-  in
-  Value.float v
+let int =
+  single_argument ~name:"int" ~f:(fun interp v ->
+      if interp.Value.has_method v "__int__"
+      then interp.Value.call_method v "__int__" []
+      else (
+        let v =
+          match v with
+          | Val_int v -> v
+          | Val_float f -> Z.of_float f
+          | Val_bool true -> Z.one
+          | Val_bool false -> Z.zero
+          | Val_str s -> Z.of_string s
+          | _ -> errorf "cannot convert to int"
+        in
+        Val_int v))
 
-let bool args kwargs =
-  empty_kwargs kwargs ~name:"bool";
-  match (args : Value.t list) with
-  | [ v ] -> Value.bool (Value.to_bool v)
-  | _ -> errorf "bool takes exactly one argument"
+let float =
+  single_argument ~name:"float" ~f:(fun interp v ->
+      if interp.Value.has_method v "__float__"
+      then interp.Value.call_method v "__float__" []
+      else (
+        let v =
+          match v with
+          | Val_int v -> Z.to_float v
+          | Val_float f -> f
+          | Val_bool true -> 1.
+          | Val_bool false -> 0.
+          | Val_str s -> Float.of_string s
+          | _ -> errorf "cannot convert to float"
+        in
+        Value.float v))
+
+let bool =
+  single_argument ~name:"bool" ~f:(fun interp v ->
+      if interp.Value.has_method v "__bool__"
+      then interp.Value.call_method v "__bool__" []
+      else Value.bool (Value.to_bool v))
 
 let default : Value.builtins =
   Map.of_alist_exn

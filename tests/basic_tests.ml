@@ -50,7 +50,7 @@ let%expect_test "builtins" =
   let ast = parse_str {|
 print(fact(10))
 |} in
-  let print_fn args _ =
+  let print_fn _ args _ =
     match (args : Value.t list) with
     | [ Val_int i ] ->
       Stdio.printf "%s\n" (Z.to_string i);
@@ -63,7 +63,7 @@ print(fact(10))
     | 0 -> 1
     | n -> n * fact (n - 1)
   in
-  let fact_fn args _ =
+  let fact_fn _ args _ =
     match (args : Value.t list) with
     | [ Val_int i ] -> Value.Val_int (Z.to_int i |> fact |> Z.of_int)
     | _ -> Val_none
