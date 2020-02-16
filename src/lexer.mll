@@ -97,6 +97,8 @@ rule read env = parse
   | "except" { [EXCEPT] }
   | "finally" { [FINALLY] }
   | "with" { [WITH] }
+  | "as" { [AS] }
+  | "import" { [IMPORT] }
   | "not" { [OPNOT] }
   | "is" { [OPIS] }
   | "r\"" { string_loop lexbuf ~f:string_raw2 }

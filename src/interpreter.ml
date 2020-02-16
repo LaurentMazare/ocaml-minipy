@@ -80,6 +80,10 @@ end = struct
       | With { body; context = _; vars } ->
         List.iter body ~f:loop;
         Option.iter vars ~f:loop_expr
+      | Import importnames | ImportFrom (_, importnames) ->
+        List.iter importnames ~f:(fun { Ast.import_name; as_name } ->
+            let as_name = Option.value as_name ~default:import_name in
+            Hash_set.add local_variables as_name)
       | Assert _ | Return _ | Delete _ | Expr _ | Raise _ | Break | Continue | Pass -> ()
     and loop_expr = function
       | Name name -> Hash_set.add local_variables name
@@ -285,6 +289,8 @@ let rec eval_stmt env = function
     then (
       let msg = Option.value_map msg ~f:(eval_expr env) ~default:Value.none in
       raise (Assert msg))
+  | Import _ -> failwith "TODO: Import"
+  | ImportFrom _ -> failwith "TODO: ImportFrom"
 
 and eval_expr env = function
   | None_ -> Value.none

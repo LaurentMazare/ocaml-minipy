@@ -92,6 +92,8 @@ type stmt =
       { test : expr
       ; msg : expr option
       }
+  | Import of importname list
+  | ImportFrom of string * importname list
   | Expr of { value : expr }
   | Assign of
       { targets : expr list
@@ -179,6 +181,11 @@ and excepthandler =
   { type_ : expr option
   ; name : string option
   ; body : stmt list
+  }
+
+and importname =
+  { import_name : string
+  ; as_name : string option
   }
 [@@deriving sexp]
 

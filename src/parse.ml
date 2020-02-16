@@ -77,6 +77,7 @@ let token_to_string (token : Parser.token) =
   | TRY -> "TRY"
   | EXCEPT -> "EXCEPT"
   | WITH -> "WITH"
+  | IMPORT -> "IMPORT"
   | AS -> "AS"
   | FINALLY -> "FINALLY"
   | OPIS -> "IS"
