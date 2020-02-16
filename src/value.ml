@@ -274,6 +274,11 @@ let is_instance t ~target_class =
   | Val_object { cls; _ } -> is_subclass cls ~target_class
   | _ -> false
 
+let is_instance_or_subclass t ~target_class =
+  match t with
+  | Val_class cls | Val_object { cls; _ } -> is_subclass cls ~target_class
+  | _ -> false
+
 let none = Val_none
 let list l = Val_list l
 let str s = Val_str s

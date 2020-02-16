@@ -35,6 +35,8 @@ This is a work in progress, most of the supported features are only partially im
 - Starred expressions.
 - Basic object system.
 - Exceptions, try/with blocks, `raise`.
+- With blocks.
+- Inheritance.
 
 ## Todo
 
@@ -44,7 +46,5 @@ This is a work in progress, most of the supported features are only partially im
 ## Out of Scope (for now)
 
 - Generators, `yield`.
-- Inheritance.
-- With blocks.
 - Module system, `import`.
 - Type annotations.

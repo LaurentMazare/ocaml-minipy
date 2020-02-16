@@ -2,9 +2,11 @@ open Base
 open Ast
 open Import
 
+let empty_attrs () = Hashtbl.create (module String)
+
 let base_exception_cls =
   { Value.name = "BaseException"
-  ; attrs = Hashtbl.create (module String)
+  ; attrs = empty_attrs ()
   ; parent_class = None
   ; id = Value.Class_id.create ()
   }
@@ -245,7 +247,7 @@ let rec eval_stmt env = function
               | Val_class target_class ->
                 if Option.value_map
                      exn
-                     ~f:(Value.is_instance ~target_class)
+                     ~f:(Value.is_instance_or_subclass ~target_class)
                      ~default:false
                 then (
                   eval_stmts env body;
@@ -261,11 +263,8 @@ let rec eval_stmt env = function
     let exc =
       Option.map exc ~f:(fun exc ->
           let exc = eval_expr env exc in
-          (match exc with
-          | Val_class cls | Val_object { cls; _ } ->
-            if not (Value.is_subclass cls ~target_class:base_exception_cls)
-            then errorf "exceptions must derive from BaseException"
-          | v -> Value.cannot_be_interpreted_as v "exception");
+          if not (Value.is_instance_or_subclass exc ~target_class:base_exception_cls)
+          then errorf "exceptions must derive from BaseException";
           exc)
     in
     let cause = Option.map cause ~f:(eval_expr env) in
@@ -303,7 +302,7 @@ let rec eval_stmt env = function
     if eval_expr env test |> Value.to_bool
     then eval_stmts env body
     else eval_stmts env orelse
-  | With { context = _; body = _; vars = _ } -> errorf "TODO: support with"
+  | With { context; body; vars } -> eval_with env ~context ~body ~vars
   | Assign { targets; value } ->
     let value = eval_expr env value in
     List.iter targets ~f:(fun target -> eval_assign env ~target ~value)
@@ -515,7 +514,7 @@ and call_env ~prev_env ~body ~args ~arg_values ~keyword_values =
       match Hashtbl.find_and_remove keyword_values name with
       | None ->
         errorf
-          "function takes %d positional arguments but %d were given"
+          "function takes %d positional arguments but was given %d"
           (List.length args.args)
           (List.length arg_values)
       | Some value -> Env.set env ~name ~value);
@@ -525,7 +524,7 @@ and call_env ~prev_env ~body ~args ~arg_values ~keyword_values =
     if not (List.is_empty pos_exprs)
     then
       errorf
-        "function takes %d positional arguments but %d were given"
+        "function takes %d positional arguments but was given %d"
         (List.length args.args)
         (List.length arg_values));
   List.iter args.kwonlyargs ~f:(fun (name, default_value) ->
@@ -550,6 +549,40 @@ and call_env ~prev_env ~body ~args ~arg_values ~keyword_values =
         "function received too many keyword arguments %s"
         (Hashtbl.keys keyword_values |> String.concat ~sep:","));
   env
+
+and eval_method obj ~name ~arg_values =
+  match (obj : Value.t) with
+  | Val_object { attrs; _ } ->
+    (match Hashtbl.find attrs name with
+    | Some (Val_function { args; env; body; method_self = Some self }) ->
+      let env =
+        call_env
+          ~prev_env:env
+          ~body
+          ~args
+          ~arg_values:(self :: arg_values)
+          ~keyword_values:(empty_attrs ())
+      in
+      (try
+         eval_stmts env body;
+         Value.none
+       with
+      | Return_exn value -> value)
+    | Some _ | None -> errorf "AttributeError: %s" name)
+  | v -> Value.cannot_be_interpreted_as v "object"
+
+and eval_with env ~context ~body ~vars =
+  let context = eval_expr env context in
+  let value = eval_method context ~name:"__enter__" ~arg_values:[] in
+  Option.iter vars ~f:(fun target -> eval_assign env ~target ~value);
+  Exn.protect
+    ~f:(fun () -> eval_stmts env body)
+    ~finally:(fun () ->
+      eval_method
+        context
+        ~name:"__exit__"
+        ~arg_values:[ Value.none; Value.none; Value.none ]
+      |> (ignore : Value.t -> unit))
 
 let simple_eval ?(builtins = Builtins.default) t =
   let env = Env.empty ~builtins () in

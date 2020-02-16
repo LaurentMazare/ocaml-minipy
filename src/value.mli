@@ -92,3 +92,4 @@ val cannot_be_interpreted_as : t -> string -> 'a
 val type_as_string : t -> string
 val is_subclass : cls -> target_class:cls -> bool
 val is_instance : t -> target_class:cls -> bool
+val is_instance_or_subclass : t -> target_class:cls -> bool
