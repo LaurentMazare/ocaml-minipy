@@ -98,6 +98,44 @@ let issubclass args kwargs =
     Value.bool (loop v)
   | _ -> errorf "issubclass takes exactly two arguments (class1, class2)"
 
+let str args kwargs =
+  empty_kwargs kwargs ~name:"str";
+  match (args : Value.t list) with
+  | [ v ] -> Value.to_string ~escape_special_chars:true v |> Value.str
+  | _ -> errorf "str takes exactly one argument"
+
+let int args kwargs =
+  empty_kwargs kwargs ~name:"int";
+  let v =
+    match (args : Value.t list) with
+    | [ Val_int v ] -> v
+    | [ Val_float f ] -> Z.of_float f
+    | [ Val_bool true ] -> Z.one
+    | [ Val_bool false ] -> Z.zero
+    | [ Val_str s ] -> Z.of_string s
+    | _ -> errorf "int takes exactly one argument"
+  in
+  Value.int v
+
+let float args kwargs =
+  empty_kwargs kwargs ~name:"float";
+  let v =
+    match (args : Value.t list) with
+    | [ Val_int v ] -> Z.to_float v
+    | [ Val_float f ] -> f
+    | [ Val_bool true ] -> 1.
+    | [ Val_bool false ] -> 0.
+    | [ Val_str s ] -> Float.of_string s
+    | _ -> errorf "float takes exactly one argument"
+  in
+  Value.float v
+
+let bool args kwargs =
+  empty_kwargs kwargs ~name:"bool";
+  match (args : Value.t list) with
+  | [ v ] -> Value.bool (Value.to_bool v)
+  | _ -> errorf "bool takes exactly one argument"
+
 let default : Value.builtins =
   Map.of_alist_exn
     (module String)
@@ -110,4 +148,8 @@ let default : Value.builtins =
     ; "hasattr", hasattr
     ; "isinstance", isinstance
     ; "issubclass", issubclass
+    ; "str", str
+    ; "int", int
+    ; "bool", bool
+    ; "float", float
     ]

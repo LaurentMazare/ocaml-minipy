@@ -33,9 +33,9 @@ except BaseException:
     {|
         entering 42
         inside
-        exiting 42
+        exiting 42 None
         entering 42
         inside1
-        exiting 42
+        exiting 42 <class BaseException>
         caught
       |}]
