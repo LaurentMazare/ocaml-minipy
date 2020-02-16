@@ -56,6 +56,16 @@ module Env = struct
 
   let add_tokens t tokens = Queue.enqueue_all t.tokens tokens
 end
+
+let string_loop lexbuf ~f =
+  let buf = Buffer.create 1024 in
+  let ok = ref true in
+  while !ok do
+    match f lexbuf with
+    | `char c -> Buffer.add_char buf c
+    | `eos -> ok := false
+  done;
+  [ STRING (Buffer.contents buf) ]
 }
 
 rule read env = parse
@@ -89,9 +99,14 @@ rule read env = parse
   | "with" { [WITH] }
   | "not" { [OPNOT] }
   | "is" { [OPIS] }
-  (* TODO: other string delimiters... *)
-  | '"' { [string_double_quote (Buffer.create 1024) lexbuf] }
-  | '\'' { [string_single_quote (Buffer.create 1024) lexbuf] }
+  | "r\"" { string_loop lexbuf ~f:string_raw2 }
+  | "r'" { string_loop lexbuf ~f:string_raw1 }
+  | "\"" { string_loop lexbuf ~f:string_escaped2 }
+  | "'" { string_loop lexbuf ~f:string_escaped1 }
+  | "r\"\"\"" { string_loop lexbuf ~f:string_triple_raw2 }
+  | "r'''" { string_loop lexbuf ~f:string_triple_raw1 }
+  | "\"\"\"" { string_loop lexbuf ~f:string_triple_escaped2 }
+  | "'''" { string_loop lexbuf ~f:string_triple_escaped1 }
   | ['0'-'9']+ as int { [INTEGER int] }
   | '0' ['x' 'X'] ['0'-'9' 'a'-'f' 'A'-'F']+ as int { [INTEGER int] }
   | '0' ['b' 'B'] ['0'-'1']+ as int { [INTEGER int] }
@@ -169,22 +184,50 @@ rule read env = parse
     | None -> [ENDMARKER]
     | Some dropped -> List.init dropped (fun _ -> DEDENT) @ [ENDMARKER]
   }
-and string_double_quote buf = parse
- | "\\\"" { Buffer.add_char buf '\"'; string_double_quote buf lexbuf }
- | "\\\'" { Buffer.add_char buf '\''; string_double_quote buf lexbuf }
- | "\\\\" { Buffer.add_char buf '\\'; string_double_quote buf lexbuf }
- | "\\n" { Buffer.add_char buf '\n'; string_double_quote buf lexbuf }
- | "\\t" { Buffer.add_char buf '\t'; string_double_quote buf lexbuf }
- | '"' { STRING (Buffer.contents buf) }
- | _ as c { Buffer.add_char buf c; string_double_quote buf lexbuf }
-and string_single_quote buf = parse
- | "\\\"" { Buffer.add_char buf '\"'; string_double_quote buf lexbuf }
- | "\\\'" { Buffer.add_char buf '\''; string_double_quote buf lexbuf }
- | "\\\\" { Buffer.add_char buf '\\'; string_double_quote buf lexbuf }
- | "\\n" { Buffer.add_char buf '\n'; string_single_quote buf lexbuf }
- | "\\t" { Buffer.add_char buf '\t'; string_single_quote buf lexbuf }
- | '\'' { STRING (Buffer.contents buf) }
- | _ as c { Buffer.add_char buf c; string_single_quote buf lexbuf }
+and string_escaped1 = parse
+ | "\\\"" { `char '\"' }
+ | "\\\'" { `char  '\'' }
+ | "\\\\" { `char '\\' }
+ | "\\n" { `char '\n' }
+ | "\\t" { `char '\t' }
+ | '\'' { `eos }
+ | _ as c { `char c }
+and string_raw1 = parse
+ | '\'' { `eos }
+ | _ as c { `char c }
+and string_escaped2 = parse
+ | "\\\"" { `char '\"' }
+ | "\\\'" { `char  '\'' }
+ | "\\\\" { `char '\\' }
+ | "\\n" { `char '\n' }
+ | "\\t" { `char '\t' }
+ | '\"' { `eos }
+ | _ as c { `char c }
+and string_raw2 = parse
+ | '\"' { `eos }
+ | _ as c { `char c }
+and string_triple_escaped1 = parse
+ | "\\\"" { `char '\"' }
+ | "\\\'" { `char  '\'' }
+ | "\\\\" { `char '\\' }
+ | "\\n" { `char '\n' }
+ | "\\t" { `char '\t' }
+ | "'''" { `eos }
+ | _ as c { `char c }
+and string_triple_raw1 = parse
+ | "'''" { `eos }
+ | _ as c { `char c }
+and string_triple_escaped2 = parse
+ | "\\\"" { `char '\"' }
+ | "\\\'" { `char  '\'' }
+ | "\\\\" { `char '\\' }
+ | "\\n" { `char '\n' }
+ | "\\t" { `char '\t' }
+ | "\"\"\"" { `eos }
+ | _ as c { `char c }
+and string_triple_raw2 = parse
+ | "\"\"\"" { `eos }
+ | _ as c { `char c }
 
 {
   let read env lexbuf =

@@ -134,7 +134,8 @@ print(1 <= 2 >= 3, 1 <= 2 >= 2, 1. < 1.1 < 1.05, 1. < 1.05 < 1.1 < 1.15)
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect {|
+  [%expect
+    {|
         True False False True True False True True True True False
         False True False True
       |}]
@@ -153,6 +154,33 @@ print(choose(100, 50))
 
 print(314 ** 31)
 print(314 ** 31.)
+|}
+  in
+  Interpreter.simple_eval ast;
+  [%expect
+    {|
+        1881676372353657772546715679821472637094211345624460997308994323885415202816
+        100891344545564193334812497256
+        253991445826354756304530176160876509837152573254556419876909080432674827403264
+        2.5399144582635474e+77
+      |}]
+
+let%expect_test "string-expr" =
+  let ast =
+    Basic_tests.parse_str
+      {|
+x = """
+abc\n
+test
+""de\"\'f"""
+print(str(x))
+x = '''
+abc\n
+test
+""de\"\'f'''
+print(str(x))
+print(r"abc'\a", r'abc"\"a')
+
 |}
   in
   Interpreter.simple_eval ast;
