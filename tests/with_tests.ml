@@ -14,7 +14,7 @@ class Context():
     print('entering', self._x)
 
   def __exit__(self, type, value, traceback):
-    print('exiting', self._x)
+    print('exiting', self._x, value)
 
 with Context(42):
   print('inside')
@@ -29,7 +29,8 @@ except BaseException:
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect {|
+  [%expect
+    {|
         entering 42
         inside
         exiting 42

@@ -575,14 +575,23 @@ and eval_with env ~context ~body ~vars =
   let context = eval_expr env context in
   let value = eval_method context ~name:"__enter__" ~arg_values:[] in
   Option.iter vars ~f:(fun target -> eval_assign env ~target ~value);
-  Exn.protect
-    ~f:(fun () -> eval_stmts env body)
-    ~finally:(fun () ->
-      eval_method
-        context
-        ~name:"__exit__"
-        ~arg_values:[ Value.none; Value.none; Value.none ]
-      |> (ignore : Value.t -> unit))
+  let on_exit a1 a2 a3 =
+    eval_method context ~name:"__exit__" ~arg_values:[ a1; a2; a3 ]
+    |> (ignore : Value.t -> unit)
+  in
+  (try eval_stmts env body with
+  | Raise { exc = Some exc; _ } as exn ->
+    let exc_type =
+      match exc with
+      | Val_object { cls; _ } -> Value.Val_class cls
+      | _ -> Value.none
+    in
+    on_exit exc_type exc Value.none;
+    raise exn
+  | exn ->
+    on_exit Value.none Value.none Value.none;
+    raise exn);
+  on_exit Value.none Value.none Value.none
 
 let simple_eval ?(builtins = Builtins.default) t =
   let env = Env.empty ~builtins () in
