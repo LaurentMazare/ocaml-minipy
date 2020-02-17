@@ -2,27 +2,9 @@ open Base
 open Ast
 open Import
 
-let empty_attrs () = Hashtbl.create (module String)
-
-let base_exception_cls =
-  { Value.name = "BaseException"
-  ; attrs = empty_attrs ()
-  ; parent_class = None
-  ; id = Value.Class_id.create ()
-  }
-
-let base_exception = Value.Val_class base_exception_cls
-
 exception Return_exn of Value.t
 exception Break
 exception Continue
-exception Assert of Value.t
-
-exception
-  Raise of
-    { exc : Value.t option
-    ; cause : Value.t option
-    }
 
 type builtins = Value.builtins
 
@@ -46,9 +28,7 @@ end = struct
     }
 
   let empty ?(builtins = Builtins.default) () =
-    let scope =
-      Hashtbl.of_alist_exn (module String) [ "BaseException", base_exception ]
-    in
+    let scope = Value.Exception.exceptions |> Hashtbl.of_alist_exn (module String) in
     { scope
     ; prev_env = None
     ; local_variables = Hash_set.create (module String)
@@ -228,15 +208,9 @@ let rec eval_stmt env = function
   | Try { body; handlers; orelse; finalbody } ->
     eval_try env ~body ~handlers ~orelse ~finalbody
   | Raise { exc; cause } ->
-    let exc =
-      Option.map exc ~f:(fun exc ->
-          let exc = eval_expr env exc in
-          if not (Value.is_instance_or_subclass exc ~target_class:base_exception_cls)
-          then errorf "exceptions must derive from BaseException";
-          exc)
-    in
+    let exc = Option.map exc ~f:(eval_expr env) in
     let cause = Option.map cause ~f:(eval_expr env) in
-    raise (Raise { exc; cause })
+    Value.raise_ ~exc ~cause
   | While { test; body; orelse } ->
     let rec loop () =
       if eval_expr env test |> Value.to_bool
@@ -288,7 +262,7 @@ let rec eval_stmt env = function
     if not (eval_expr env test |> Value.to_bool)
     then (
       let msg = Option.value_map msg ~f:(eval_expr env) ~default:Value.none in
-      raise (Assert msg))
+      Value.raise_cls Value.Exception.assertion_error_cls ~args:[ msg ])
   | Import _ -> failwith "TODO: Import"
   | ImportFrom _ -> failwith "TODO: ImportFrom"
 
@@ -550,7 +524,7 @@ and eval_with env ~context ~body ~vars =
     |> (ignore : Value.t -> unit)
   in
   (try eval_stmts env body with
-  | Raise { exc = Some exc; _ } as exn ->
+  | Value.Raise { exc = Some exc; _ } as exn ->
     let exc_type =
       match exc with
       | Val_object { cls; _ } -> Value.Val_class cls
@@ -572,19 +546,22 @@ and eval_try env ~body ~handlers ~orelse ~finalbody =
     | exn ->
       let exn_ =
         match exn with
-        | Raise { exc = Some exc; _ } -> Some exc
+        | Value.Raise { exc = Some exc; _ } -> Some exc
         | _ -> None
       in
       let caught =
         List.fold_until
           handlers
           ~init:()
-          ~f:(fun () handler ->
-            let { Ast.type_; name = _; body } = handler in
-            match type_ with
-            | None ->
+          ~f:(fun () { type_; name; body } ->
+            let run_body_and_stop () =
+              Option.iter exn_ ~f:(fun value ->
+                  Option.iter name ~f:(fun name -> Env.set env ~name ~value));
               eval_stmts env body;
-              Stop true
+              Continue_or_stop.Stop true
+            in
+            match type_ with
+            | None -> run_body_and_stop ()
             | Some type_ ->
               (match eval_expr env type_ with
               | Val_class target_class ->
@@ -592,9 +569,7 @@ and eval_try env ~body ~handlers ~orelse ~finalbody =
                      exn_
                      ~f:(Value.is_instance_or_subclass ~target_class)
                      ~default:false
-                then (
-                  eval_stmts env body;
-                  Stop true)
+                then run_body_and_stop ()
                 else Continue ()
               | _ -> Continue ()))
           ~finish:(fun () -> false)

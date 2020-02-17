@@ -74,6 +74,24 @@ and interp =
   ; has_method : t -> string -> bool
   }
 
+module Exception : sig
+  val base_exception_cls : cls
+  val exception_cls : cls
+  val index_error_cls : cls
+  val value_error_cls : cls
+  val not_implemented_cls : cls
+  val assertion_error_cls : cls
+  val exceptions : (string * t) list
+end
+
+exception
+  Raise of
+    { exc : t option
+    ; cause : t option
+    }
+
+val raise_ : exc:t option -> cause:t option -> 'a
+val raise_cls : cls -> args:t list -> 'a
 val type_ : t -> Type_.t
 val to_string : ?escape_special_chars:bool -> t -> string
 val to_int : t -> Z.t

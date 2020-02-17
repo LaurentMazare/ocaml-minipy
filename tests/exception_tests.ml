@@ -95,3 +95,29 @@ f(B())
         caught B
         no A
       |}]
+
+let%expect_test "predefined-exn" =
+  let ast =
+    Basic_tests.parse_str
+      {|
+def test(x):
+  try:
+    try:
+      x[3]
+    except KeyError as e: print('key', e.args)
+  except IndexError as e: print('index', e.args)
+
+test([1, 2, 3, 4])
+test({3: 4})
+print('passed')
+test([1, 2])
+test({'3': 4})
+|}
+  in
+  Interpreter.simple_eval ast;
+  [%expect
+    {|
+        passed
+        index ('index out of range',)
+        key ('3',)
+      |}]

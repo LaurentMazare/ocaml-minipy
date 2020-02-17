@@ -87,6 +87,17 @@ and interp =
   ; has_method : t -> string -> bool
   }
 
+let none = Val_none
+let list l = Val_list l
+let str s = Val_str s
+let bool b = Val_bool b
+let int i = Val_int i
+let float f = Val_float f
+let tuple t = Val_tuple t
+let dict d = Val_dict d
+let fn f = Val_function f
+let object_ ?(attrs = empty_attrs ()) cls = Val_object { cls; attrs }
+
 let to_string ?(escape_special_chars = true) t =
   let rec loop ~e = function
     | Val_none -> "None"
@@ -137,6 +148,117 @@ let type_as_string t = type_ t |> Type_.to_string
 let cannot_be_interpreted_as v str =
   errorf "%s cannot be interpreted as %s" (type_as_string v) str
 
+exception
+  Raise of
+    { exc : t option
+    ; cause : t option
+    }
+
+module Exception = struct
+  let base_exception_cls =
+    { name = "BaseException"
+    ; attrs = empty_attrs ()
+    ; parent_class = None
+    ; id = Class_id.create ()
+    }
+
+  let exception_cls =
+    { name = "Exception"
+    ; attrs = empty_attrs ()
+    ; parent_class = Some base_exception_cls
+    ; id = Class_id.create ()
+    }
+
+  let assertion_error_cls =
+    { name = "AssertionError"
+    ; attrs = empty_attrs ()
+    ; parent_class = Some exception_cls
+    ; id = Class_id.create ()
+    }
+
+  let lookup_error_cls =
+    { name = "LookupError"
+    ; attrs = empty_attrs ()
+    ; parent_class = Some exception_cls
+    ; id = Class_id.create ()
+    }
+
+  let key_error_cls =
+    { name = "KeyError"
+    ; attrs = empty_attrs ()
+    ; parent_class = Some lookup_error_cls
+    ; id = Class_id.create ()
+    }
+
+  let index_error_cls =
+    { name = "IndexError"
+    ; attrs = empty_attrs ()
+    ; parent_class = Some lookup_error_cls
+    ; id = Class_id.create ()
+    }
+
+  let not_implemented_cls =
+    { name = "NotImplemented"
+    ; attrs = empty_attrs ()
+    ; parent_class = Some exception_cls
+    ; id = Class_id.create ()
+    }
+
+  let value_error_cls =
+    { name = "ValueError"
+    ; attrs = empty_attrs ()
+    ; parent_class = Some exception_cls
+    ; id = Class_id.create ()
+    }
+
+  let exceptions =
+    List.map
+      [ base_exception_cls
+      ; exception_cls
+      ; assertion_error_cls
+      ; lookup_error_cls
+      ; key_error_cls
+      ; index_error_cls
+      ; not_implemented_cls
+      ; value_error_cls
+      ]
+      ~f:(fun cls -> cls.name, Val_class cls)
+end
+
+let rec is_subclass cls ~target_class =
+  if Class_id.equal cls.id target_class.id
+  then true
+  else (
+    match cls.parent_class with
+    | None -> false
+    | Some parent_cls -> is_subclass parent_cls ~target_class)
+
+let is_instance t ~target_class =
+  match t with
+  | Val_object { cls; _ } -> is_subclass cls ~target_class
+  | _ -> false
+
+let is_instance_or_subclass t ~target_class =
+  match t with
+  | Val_class cls | Val_object { cls; _ } -> is_subclass cls ~target_class
+  | _ -> false
+
+let raise_ ~exc ~cause =
+  let exc =
+    Option.map exc ~f:(fun exc ->
+        if not (is_instance_or_subclass exc ~target_class:Exception.base_exception_cls)
+        then errorf "exceptions must derive from BaseException";
+        exc)
+  in
+  raise (Raise { exc; cause })
+
+let raise_cls cls ~args =
+  let attrs =
+    Hashtbl.of_alist_exn (module String) [ "args", Val_tuple (Array.of_list args) ]
+  in
+  let exc = object_ ~attrs cls in
+  raise_ ~exc:(Some exc) ~cause:None
+
 let to_bool v =
   match v with
   | Val_bool b -> b
@@ -179,7 +301,7 @@ let apply_subscript ~value ~index =
     then v.(i)
     else if i < 0 && -v_len <= i
     then v.(v_len + i)
-    else errorf "unexpected index %d for an array of length %d" i v_len
+    else raise_cls Exception.index_error_cls ~args:[ Val_str "index out of range" ]
   | Val_list v, Val_int i ->
     let i = Z.to_int i in
     let v_len = Queue.length v in
@@ -187,11 +309,11 @@ let apply_subscript ~value ~index =
     then Queue.get v i
     else if i < 0 && -v_len <= i
     then Queue.get v (v_len + i)
-    else errorf "unexpected index %d for an array of length %d" i v_len
+    else raise_cls Exception.index_error_cls ~args:[ Val_str "index out of range" ]
   | Val_dict dict, i ->
     (match Hashtbl.find dict i with
     | Some v -> v
-    | None -> errorf "KeyError: %s" (to_string i))
+    | None -> raise_cls Exception.key_error_cls ~args:[ Val_str (to_string i) ])
   | _ -> errorf "not implemented: %s[%s]" (type_as_string value) (type_as_string index)
 
 let apply_subscript_assign ~lvalue ~slice ~rvalue =
@@ -265,31 +387,3 @@ let apply_comp op left right =
       (type_as_string left)
       (sexp_of_cmpop op |> Sexp.to_string_mach)
       (type_as_string right)
-
-let rec is_subclass cls ~target_class =
-  if Class_id.equal cls.id target_class.id
-  then true
-  else (
-    match cls.parent_class with
-    | None -> false
-    | Some parent_cls -> is_subclass parent_cls ~target_class)
-
-let is_instance t ~target_class =
-  match t with
-  | Val_object { cls; _ } -> is_subclass cls ~target_class
-  | _ -> false
-
-let is_instance_or_subclass t ~target_class =
-  match t with
-  | Val_class cls | Val_object { cls; _ } -> is_subclass cls ~target_class
-  | _ -> false
-
-let none = Val_none
-let list l = Val_list l
-let str s = Val_str s
-let bool b = Val_bool b
-let int i = Val_int i
-let float f = Val_float f
-let tuple t = Val_tuple t
-let dict d = Val_dict d
-let fn f = Val_function f
