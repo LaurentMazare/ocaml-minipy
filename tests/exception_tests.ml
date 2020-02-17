@@ -64,6 +64,20 @@ def f(e):
 f(A())
 f(B())
 f(C())
+
+def f(e):
+  try:
+    try:
+      raise e
+    except B: print('caught B')
+    else: print('no B')
+  except A: print('caught A')
+  else: print('no A')
+
+print('trying A')
+f(A())
+print('trying B')
+f(B())
 |}
   in
   Interpreter.simple_eval ast;
@@ -75,4 +89,9 @@ f(C())
         done
         raised something else
         done
+        trying A
+        caught A
+        trying B
+        caught B
+        no A
       |}]

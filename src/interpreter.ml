@@ -570,33 +570,36 @@ and eval_try env ~body ~handlers ~orelse ~finalbody =
       false
     with
     | exn ->
-      let exn =
+      let exn_ =
         match exn with
         | Raise { exc = Some exc; _ } -> Some exc
         | _ -> None
       in
-      List.fold_until
-        handlers
-        ~init:()
-        ~f:(fun () handler ->
-          let { Ast.type_; name = _; body } = handler in
-          match type_ with
-          | None ->
-            eval_stmts env body;
-            Stop ()
-          | Some type_ ->
-            (match eval_expr env type_ with
-            | Val_class target_class ->
-              if Option.value_map
-                   exn
-                   ~f:(Value.is_instance_or_subclass ~target_class)
-                   ~default:false
-              then (
-                eval_stmts env body;
-                Stop ())
-              else Continue ()
-            | _ -> Continue ()))
-        ~finish:Fn.id;
+      let caught =
+        List.fold_until
+          handlers
+          ~init:()
+          ~f:(fun () handler ->
+            let { Ast.type_; name = _; body } = handler in
+            match type_ with
+            | None ->
+              eval_stmts env body;
+              Stop true
+            | Some type_ ->
+              (match eval_expr env type_ with
+              | Val_class target_class ->
+                if Option.value_map
+                     exn_
+                     ~f:(Value.is_instance_or_subclass ~target_class)
+                     ~default:false
+                then (
+                  eval_stmts env body;
+                  Stop true)
+                else Continue ()
+              | _ -> Continue ()))
+          ~finish:(fun () -> false)
+      in
+      if not caught then raise exn;
       true
   in
   if not raised then eval_stmts env orelse;
