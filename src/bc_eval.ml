@@ -1,18 +1,12 @@
 open Base
 
-module Defined = struct
-  type 'a t =
-    | Defined of 'a
-    | Undefined
-end
-
 type t =
   { stack : Bc_value.t Stack.t
   ; consts : Bc_value.t array
-  ; (* TODO: use string for varnames and names and do some lookup in the related
-     environments (global/local). *)
-    varnames : Bc_value.t Defined.t array
-  ; names : Bc_value.t Defined.t array
+  ; varnames : string array
+  ; names : string array
+  ; local_scope : (string, Bc_value.t) Hashtbl.t
+  ; global_scope : (string, Bc_value.t) Hashtbl.t
   }
 
 let pop_top stack = ignore (Stack.pop_exn stack : Bc_value.t)
@@ -127,26 +121,28 @@ let inplace op stack =
   Stack.push stack tos
 
 let load_fast t ~arg =
-  match t.varnames.(arg) with
-  | Defined v -> Stack.push t.stack v
-  | Undefined -> failwith "local not defined"
+  let name = t.varnames.(arg) in
+  match Hashtbl.find t.local_scope t.varnames.(arg) with
+  | Some v -> Stack.push t.stack v
+  | None -> Printf.failwithf "local %s is not defined" name ()
 
 let store_fast t ~arg =
   let tos = Stack.pop_exn t.stack in
-  t.varnames.(arg) <- Defined tos
+  Hashtbl.set t.local_scope ~key:t.varnames.(arg) ~data:tos
 
-let delete_fast t ~arg = t.varnames.(arg) <- Undefined
+let delete_fast t ~arg = Hashtbl.remove t.local_scope t.varnames.(arg)
 
 let load_global t ~arg =
-  match t.names.(arg) with
-  | Defined v -> Stack.push t.stack v
-  | Undefined -> failwith "global not defined"
+  let name = t.names.(arg) in
+  match Hashtbl.find t.global_scope name with
+  | Some v -> Stack.push t.stack v
+  | None -> Printf.failwithf "global %s is not defined" name ()
 
 let store_global t ~arg =
   let tos = Stack.pop_exn t.stack in
-  t.names.(arg) <- Defined tos
+  Hashtbl.set t.global_scope ~key:t.names.(arg) ~data:tos
 
-let delete_global t ~arg = t.names.(arg) <- Undefined
+let delete_global t ~arg = Hashtbl.remove t.global_scope t.names.(arg)
 
 let build_tuple t ~arg =
   let rec loop acc ~arg =
