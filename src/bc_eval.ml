@@ -148,7 +148,16 @@ let store_global t ~arg =
 
 let delete_global t ~arg = t.names.(arg) <- Undefined
 
-let eval t opcode =
+let build_tuple t ~arg =
+  let rec loop acc ~arg =
+    match arg with
+    | 0 -> acc
+    | n -> loop (Stack.pop_exn t.stack :: acc) ~arg:(n - 1)
+  in
+  let tuple = loop [] ~arg |> Array.of_list in
+  Stack.push t.stack (Tuple tuple)
+
+let eval t opcode ~arg =
   match (opcode : Bc_opcode.t) with
   | POP_TOP -> pop_top t.stack
   | ROT_TWO -> rot_two t.stack
@@ -215,11 +224,11 @@ let eval t opcode =
   | UNPACK_EX -> failwith "Unsupported: UNPACK_EX"
   | STORE_ATTR -> failwith "Unsupported: STORE_ATTR"
   | DELETE_ATTR -> failwith "Unsupported: DELETE_ATTR"
-  | STORE_GLOBAL arg -> store_global t ~arg
-  | DELETE_GLOBAL arg -> delete_global t ~arg
-  | LOAD_CONST arg -> Stack.push t.stack t.consts.(arg)
+  | STORE_GLOBAL -> store_global t ~arg
+  | DELETE_GLOBAL -> delete_global t ~arg
+  | LOAD_CONST -> Stack.push t.stack t.consts.(arg)
   | LOAD_NAME -> failwith "Unsupported: LOAD_NAME"
-  | BUILD_TUPLE -> failwith "Unsupported: BUILD_TUPLE"
+  | BUILD_TUPLE -> build_tuple t ~arg
   | BUILD_LIST -> failwith "Unsupported: BUILD_LIST"
   | BUILD_SET -> failwith "Unsupported: BUILD_SET"
   | BUILD_MAP -> failwith "Unsupported: BUILD_MAP"
@@ -233,14 +242,14 @@ let eval t opcode =
   | JUMP_ABSOLUTE -> failwith "Unsupported: JUMP_ABSOLUTE"
   | POP_JUMP_IF_FALSE -> failwith "Unsupported: POP_JUMP_IF_FALSE"
   | POP_JUMP_IF_TRUE -> failwith "Unsupported: POP_JUMP_IF_TRUE"
-  | LOAD_GLOBAL arg -> load_global t ~arg
+  | LOAD_GLOBAL -> load_global t ~arg
   | CONTINUE_LOOP -> failwith "Unsupported: CONTINUE_LOOP"
   | SETUP_LOOP -> failwith "Unsupported: SETUP_LOOP"
   | SETUP_EXCEPT -> failwith "Unsupported: SETUP_EXCEPT"
   | SETUP_FINALLY -> failwith "Unsupported: SETUP_FINALLY"
-  | LOAD_FAST arg -> load_fast t ~arg
-  | STORE_FAST arg -> store_fast t ~arg
-  | DELETE_FAST arg -> delete_fast t ~arg
+  | LOAD_FAST -> load_fast t ~arg
+  | STORE_FAST -> store_fast t ~arg
+  | DELETE_FAST -> delete_fast t ~arg
   | RAISE_VARARGS -> failwith "Unsupported: RAISE_VARARGS"
   | CALL_FUNCTION -> failwith "Unsupported: CALL_FUNCTION"
   | MAKE_FUNCTION -> failwith "Unsupported: MAKE_FUNCTION"

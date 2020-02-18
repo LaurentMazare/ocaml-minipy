@@ -66,9 +66,9 @@ type t =
   | UNPACK_EX
   | STORE_ATTR
   | DELETE_ATTR
-  | STORE_GLOBAL of int
-  | DELETE_GLOBAL of int
-  | LOAD_CONST of int
+  | STORE_GLOBAL
+  | DELETE_GLOBAL
+  | LOAD_CONST
   | LOAD_NAME
   | BUILD_TUPLE
   | BUILD_LIST
@@ -84,14 +84,14 @@ type t =
   | JUMP_ABSOLUTE
   | POP_JUMP_IF_FALSE
   | POP_JUMP_IF_TRUE
-  | LOAD_GLOBAL of int
+  | LOAD_GLOBAL
   | CONTINUE_LOOP
   | SETUP_LOOP
   | SETUP_EXCEPT
   | SETUP_FINALLY
-  | LOAD_FAST of int
-  | STORE_FAST of int
-  | DELETE_FAST of int
+  | LOAD_FAST
+  | STORE_FAST
+  | DELETE_FAST
   | RAISE_VARARGS
   | CALL_FUNCTION
   | MAKE_FUNCTION
@@ -122,7 +122,7 @@ type t =
   | CALL_METHOD
 [@@deriving sexp]
 
-let of_int opcode ~arg =
+let of_int opcode =
   match opcode with
   | 1 -> POP_TOP
   | 2 -> ROT_TWO
@@ -189,9 +189,9 @@ let of_int opcode ~arg =
   | 94 -> UNPACK_EX
   | 95 -> STORE_ATTR
   | 96 -> DELETE_ATTR
-  | 97 -> STORE_GLOBAL arg
-  | 98 -> DELETE_GLOBAL arg
-  | 100 -> LOAD_CONST arg
+  | 97 -> STORE_GLOBAL
+  | 98 -> DELETE_GLOBAL
+  | 100 -> LOAD_CONST
   | 101 -> LOAD_NAME
   | 102 -> BUILD_TUPLE
   | 103 -> BUILD_LIST
@@ -207,14 +207,14 @@ let of_int opcode ~arg =
   | 113 -> JUMP_ABSOLUTE
   | 114 -> POP_JUMP_IF_FALSE
   | 115 -> POP_JUMP_IF_TRUE
-  | 116 -> LOAD_GLOBAL arg
+  | 116 -> LOAD_GLOBAL
   | 119 -> CONTINUE_LOOP
   | 120 -> SETUP_LOOP
   | 121 -> SETUP_EXCEPT
   | 122 -> SETUP_FINALLY
-  | 124 -> LOAD_FAST arg
-  | 125 -> STORE_FAST arg
-  | 126 -> DELETE_FAST arg
+  | 124 -> LOAD_FAST
+  | 125 -> STORE_FAST
+  | 126 -> DELETE_FAST
   | 130 -> RAISE_VARARGS
   | 131 -> CALL_FUNCTION
   | 132 -> MAKE_FUNCTION

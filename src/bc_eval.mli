@@ -1,3 +1,3 @@
 type t
 
-val eval : t -> Bc_opcode.t -> unit
+val eval : t -> Bc_opcode.t -> arg:int -> unit

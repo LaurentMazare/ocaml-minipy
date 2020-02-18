@@ -66,9 +66,9 @@ type t =
   | UNPACK_EX
   | STORE_ATTR
   | DELETE_ATTR
-  | STORE_GLOBAL of int
-  | DELETE_GLOBAL of int
-  | LOAD_CONST of int
+  | STORE_GLOBAL
+  | DELETE_GLOBAL
+  | LOAD_CONST
   | LOAD_NAME
   | BUILD_TUPLE
   | BUILD_LIST
@@ -84,14 +84,14 @@ type t =
   | JUMP_ABSOLUTE
   | POP_JUMP_IF_FALSE
   | POP_JUMP_IF_TRUE
-  | LOAD_GLOBAL of int
+  | LOAD_GLOBAL
   | CONTINUE_LOOP
   | SETUP_LOOP
   | SETUP_EXCEPT
   | SETUP_FINALLY
-  | LOAD_FAST of int
-  | STORE_FAST of int
-  | DELETE_FAST of int
+  | LOAD_FAST
+  | STORE_FAST
+  | DELETE_FAST
   | RAISE_VARARGS
   | CALL_FUNCTION
   | MAKE_FUNCTION
@@ -122,4 +122,4 @@ type t =
   | CALL_METHOD
 [@@deriving sexp]
 
-val of_int : int -> arg:int -> t
+val of_int : int -> t
