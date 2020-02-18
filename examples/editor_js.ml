@@ -8,7 +8,13 @@ open Js_of_ocaml_tyxml
 let protect ~f =
   try f () with
   | Minipy.RuntimeError message -> Stdio.eprintf "RuntimeError: %s\n%!" message
-  | I.Assert value -> Stdio.eprintf "AssertError: %s\n%!" (Minipy.Value.to_string value)
+  | Minipy.Value.Raise { exc; cause } ->
+    let exc = Option.map exc ~f:Minipy.Value.to_string in
+    let cause = Option.map cause ~f:Minipy.Value.to_string in
+    Stdio.eprintf
+      "%s: %s\n%!"
+      (Option.value exc ~default:"unk")
+      (Option.value cause ~default:"")
   | exn -> Stdio.printf "uncaught exception:\n%s\n%!" (Exn.to_string exn)
 
 let eval_stmts env stmts = protect ~f:(fun () -> I.eval_stmts env stmts)
