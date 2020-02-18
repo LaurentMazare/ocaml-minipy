@@ -38,13 +38,11 @@ This is a work in progress, most of the supported features are only partially im
 - With blocks.
 - Inheritance.
 
-## Todo
+## Not implemented yet
 
 - Sets.
 - Slices, e.g. `x[12:15]`.
-
-## Out of Scope (for now)
-
 - Generators, `yield`.
 - Module system, `import`.
 - Type annotations.
+- Bytecode compilation/interpreter.
