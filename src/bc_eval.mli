@@ -1,3 +1,4 @@
 type t
 
-val eval : t -> Bc_opcode.t -> arg:int -> unit
+val create : unit -> t
+val eval : t -> Bc_frame.Code.t -> unit

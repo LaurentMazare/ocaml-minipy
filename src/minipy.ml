@@ -1,5 +1,6 @@
 module Ast = Ast
 module Bc_eval = Bc_eval
+module Bc_frame = Bc_frame
 module Bc_opcode = Bc_opcode
 module Bc_value = Bc_value
 module Builtins = Builtins
