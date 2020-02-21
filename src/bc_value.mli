@@ -34,3 +34,5 @@ type t =
 
 val type_ : t -> Type_.t
 val to_string : ?escape_special_chars:bool -> t -> string
+
+type code = t Bc_code.t

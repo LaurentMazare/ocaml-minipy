@@ -71,3 +71,5 @@ let to_string ?(escape_special_chars = true) t =
     | Builtin_fn { name; fn = _ } -> Printf.sprintf "builtin<%s>" name
   in
   loop t ~e:escape_special_chars
+
+type code = t Bc_code.t

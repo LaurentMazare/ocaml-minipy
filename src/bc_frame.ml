@@ -1,18 +1,9 @@
 open Base
 open Import
 
-module Code = struct
-  type t =
-    { opcodes : (Bc_opcode.t * int) array
-    ; consts : Bc_value.t array
-    ; varnames : string array
-    ; names : string array
-    }
-end
-
 type t =
   { stack : Bc_value.t Stack.t
-  ; code : Code.t
+  ; code : Bc_value.code
   ; mutable counter : int
   ; local_scope : Bc_scope.t
   ; global_scope : Bc_scope.t
@@ -187,7 +178,7 @@ let build_tuple t ~arg =
   Stack.push t.stack (Tuple tuple)
 
 let eval_one t opcode ~arg =
-  match (opcode : Bc_opcode.t) with
+  match (opcode : Bc_code.Opcode.t) with
   | POP_TOP -> pop_top t.stack
   | ROT_TWO -> rot_two t.stack
   | ROT_THREE -> rot_three t.stack
