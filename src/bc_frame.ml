@@ -1,4 +1,5 @@
 open Base
+open Import
 
 module Code = struct
   type t =
@@ -162,13 +163,27 @@ let store_global t ~arg =
 
 let delete_global t ~arg = Bc_scope.remove t.global_scope t.code.names.(arg)
 
-let build_tuple t ~arg =
-  let rec loop acc ~arg =
-    match arg with
+let popn stack n =
+  let rec loop acc n =
+    match n with
     | 0 -> acc
-    | n -> loop (Stack.pop_exn t.stack :: acc) ~arg:(n - 1)
+    | n -> loop (Stack.pop_exn stack :: acc) (n - 1)
   in
-  let tuple = loop [] ~arg |> Array.of_list in
+  loop [] n
+
+let popn_pairs stack n =
+  let rec loop acc n =
+    match n with
+    | 0 -> acc
+    | n ->
+      let a = Stack.pop_exn stack in
+      let b = Stack.pop_exn stack in
+      loop ((a, b) :: acc) (n - 1)
+  in
+  loop [] n
+
+let build_tuple t ~arg =
+  let tuple = popn t.stack arg |> Array.of_list in
   Stack.push t.stack (Tuple tuple)
 
 let eval_one t opcode ~arg =
@@ -241,7 +256,20 @@ let eval_one t opcode ~arg =
   | STORE_GLOBAL -> store_global t ~arg
   | DELETE_GLOBAL -> delete_global t ~arg
   | LOAD_CONST -> Stack.push t.stack t.code.consts.(arg)
-  | LOAD_NAME -> failwith "Unsupported: LOAD_NAME"
+  | LOAD_NAME ->
+    let name = t.code.names.(arg) in
+    let value =
+      match Bc_scope.find t.local_scope name with
+      | Some v -> v
+      | None ->
+        (match Bc_scope.find t.global_scope name with
+        | Some v -> v
+        | None ->
+          (match Bc_scope.find t.builtins name with
+          | Some v -> v
+          | None -> Printf.failwithf "NameError: name '%s' is not defined" name ()))
+    in
+    Stack.push t.stack value
   | BUILD_TUPLE -> build_tuple t ~arg
   | BUILD_LIST -> failwith "Unsupported: BUILD_LIST"
   | BUILD_SET -> failwith "Unsupported: BUILD_SET"
@@ -265,7 +293,18 @@ let eval_one t opcode ~arg =
   | STORE_FAST -> store_fast t ~arg
   | DELETE_FAST -> delete_fast t ~arg
   | RAISE_VARARGS -> failwith "Unsupported: RAISE_VARARGS"
-  | CALL_FUNCTION -> failwith "Unsupported: CALL_FUNCTION"
+  | CALL_FUNCTION ->
+    let n_kwargs = arg / 256 in
+    let n_args = arg % 256 in
+    let _kwargs = popn_pairs t.stack n_kwargs in
+    let args = popn t.stack n_args in
+    let fn = Stack.pop_exn t.stack in
+    (match fn with
+    | Builtin_fn { name = _; fn } ->
+      let value = fn args in
+      Stack.push t.stack value
+    | _ ->
+      errorf "'%s' object is not callable" (Bc_value.type_ fn |> Bc_value.Type_.to_string))
   | MAKE_FUNCTION -> failwith "Unsupported: MAKE_FUNCTION"
   | BUILD_SLICE -> failwith "Unsupported: BUILD_SLICE"
   | LOAD_CLOSURE -> failwith "Unsupported: LOAD_CLOSURE"
@@ -293,14 +332,15 @@ let eval_one t opcode ~arg =
   | LOAD_METHOD -> failwith "Unsupported: LOAD_METHOD"
   | CALL_METHOD -> failwith "Unsupported: CALL_METHOD"
 
-let eval t =
-  let rec loop () =
-    if t.counter >= Array.length t.code.opcodes
-    then None
-    else (
-      let opcode, arg = t.code.opcodes.(t.counter) in
-      t.counter <- t.counter + 1;
-      eval_one t opcode ~arg;
-      loop ())
-  in
-  loop ()
+type action =
+  | No_action
+  | End_of_code
+
+let eval_step t =
+  if t.counter >= Array.length t.code.opcodes
+  then End_of_code
+  else (
+    let opcode, arg = t.code.opcodes.(t.counter) in
+    t.counter <- t.counter + 1;
+    eval_one t opcode ~arg;
+    No_action)
