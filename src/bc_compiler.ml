@@ -36,12 +36,17 @@ module Env = struct
 
   let load_const t const =
     let id = Id_set.find_or_add t.consts const in
-    [ Bc_code.Opcode.LOAD_CONST, id ]
+    Bc_code.Opcode.LOAD_CONST, id
 
   let load_name t name =
     (* TODO: use varnames for local variables *)
     let id = Id_set.find_or_add t.names name in
-    [ Bc_code.Opcode.LOAD_NAME, id ]
+    Bc_code.Opcode.LOAD_NAME, id
+
+  let store_name t name =
+    (* TODO: use varnames for local variables *)
+    let id = Id_set.find_or_add t.names name in
+    Bc_code.Opcode.STORE_NAME, id
 end
 
 let binop_opcode : Ast.operator -> Bc_code.Opcode.t = function
@@ -61,7 +66,13 @@ let binop_opcode : Ast.operator -> Bc_code.Opcode.t = function
 
 let rec compile_stmt env stmt =
   match (stmt : Ast.stmt) with
-  | FunctionDef _ -> failwith "Unsupported: FunctionDef"
+  | FunctionDef { name; args = _; body } ->
+    let _body = compile body in
+    [ Env.load_const env (failwith "TODO")
+    ; Env.load_const env (Bc_value.str name)
+    ; MAKE_FUNCTION, 0
+    ; Env.store_name env name
+    ]
   | ClassDef _ -> failwith "Unsupported: ClassDef"
   | If _ -> failwith "Unsupported: If"
   | For _ -> failwith "Unsupported: For"
@@ -72,10 +83,16 @@ let rec compile_stmt env stmt =
   | Assert _ -> failwith "Unsupported: Assert"
   | Import _ -> failwith "Unsupported: Import"
   | ImportFrom _ -> failwith "Unsupported: ImportFrom"
-  | Expr { value } -> compile_expr env value
+  | Expr { value } -> compile_expr env value @ [ Bc_code.Opcode.POP_TOP, 0 ]
   | Assign _ -> failwith "Unsupported: Assign"
   | AugAssign _ -> failwith "Unsupported: AugAssign"
-  | Return _ -> failwith "Unsupported: Return"
+  | Return { value } ->
+    let load_value =
+      match value with
+      | None -> [ Env.load_const env Bc_value.none ]
+      | Some expr -> compile_expr env expr
+    in
+    load_value @ [ Bc_code.Opcode.RETURN_VALUE, 0 ]
   | Delete _ -> failwith "Unsupported: Delete"
   | Pass -> failwith "Unsupported: Pass"
   | Break -> failwith "Unsupported: Break"
@@ -83,12 +100,12 @@ let rec compile_stmt env stmt =
 
 and compile_expr env expr =
   match (expr : Ast.expr) with
-  | None_ -> Env.load_const env Bc_value.none
-  | Bool b -> Env.load_const env (Bc_value.bool b)
-  | Num n -> Env.load_const env (Bc_value.int n)
-  | Float f -> Env.load_const env (Bc_value.float f)
-  | Str s -> Env.load_const env (Bc_value.str s)
-  | Name name -> Env.load_name env name
+  | None_ -> [ Env.load_const env Bc_value.none ]
+  | Bool b -> [ Env.load_const env (Bc_value.bool b) ]
+  | Num n -> [ Env.load_const env (Bc_value.int n) ]
+  | Float f -> [ Env.load_const env (Bc_value.float f) ]
+  | Str s -> [ Env.load_const env (Bc_value.str s) ]
+  | Name name -> [ Env.load_name env name ]
   | List _ -> failwith "Unsupported: List"
   | Dict _ -> failwith "Unsupported: Dict"
   | ListComp _ -> failwith "Unsupported: ListComp"
@@ -108,7 +125,7 @@ and compile_expr env expr =
   | Attribute _ -> failwith "Unsupported: Attribute"
   | Subscript _ -> failwith "Unsupported: Subscript"
 
-let compile (ast : Ast.t) =
+and compile (ast : Ast.t) =
   let env = Env.create () in
   let opcodes = List.concat_map ast ~f:(compile_stmt env) |> Array.of_list in
   { Bc_code.opcodes

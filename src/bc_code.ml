@@ -253,3 +253,4 @@ type 'const t =
   ; varnames : string array
   ; names : string array
   }
+[@@deriving sexp]
