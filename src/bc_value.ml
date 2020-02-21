@@ -1,4 +1,5 @@
 open Base
+open Import
 
 module Type_ = struct
   type t =
@@ -14,6 +15,7 @@ module Type_ = struct
     | Function
     | Object
     | Class
+    | Code
   [@@deriving sexp]
 
   let to_string t = sexp_of_t t |> Sexp.to_string_mach
@@ -32,6 +34,12 @@ type t =
       { name : string
       ; fn : t list -> t
       }
+  | Function of
+      { name : string
+      ; code : t Bc_code.t
+      ; defaults : t list
+      }
+  | Code of t Bc_code.t
 
 let type_ = function
   | None -> Type_.None_t
@@ -43,6 +51,8 @@ let type_ = function
   | Dict _ -> Dict
   | Str _ -> Str
   | Builtin_fn _ -> Builtin_fn
+  | Function _ -> Function
+  | Code _ -> Code
 
 let to_string ?(escape_special_chars = true) t =
   let rec loop ~e = function
@@ -69,7 +79,24 @@ let to_string ?(escape_special_chars = true) t =
       |> fun s -> "{" ^ s ^ "}"
     | Str s -> if e then "\'" ^ String.escaped s ^ "\'" else s
     | Builtin_fn { name; fn = _ } -> Printf.sprintf "builtin<%s>" name
+    | Function { name; _ } -> Printf.sprintf "function<%s>" name
+    | Code _ -> "<code>"
   in
   loop t ~e:escape_special_chars
 
 type code = t Bc_code.t
+
+let str_exn = function
+  | Str str -> str
+  | t -> errorf "expected string, got '%s'" (type_ t |> Type_.to_string)
+
+let code_exn = function
+  | Code c -> c
+  | t -> errorf "expected code, got '%s'" (type_ t |> Type_.to_string)
+
+let none = None
+let bool b = Bool b
+let int i = Int i
+let float f = Float f
+let str s = Str s
+let tuple ts = Tuple ts

@@ -14,6 +14,7 @@ module Type_ : sig
     | Function
     | Object
     | Class
+    | Code
 
   val to_string : t -> string
 end
@@ -31,8 +32,22 @@ type t =
       { name : string
       ; fn : t list -> t
       }
+  | Function of
+      { name : string
+      ; code : t Bc_code.t
+      ; defaults : t list
+      }
+  | Code of t Bc_code.t
+
+type code = t Bc_code.t
 
 val type_ : t -> Type_.t
 val to_string : ?escape_special_chars:bool -> t -> string
-
-type code = t Bc_code.t
+val str_exn : t -> string
+val code_exn : t -> code
+val none : t
+val bool : bool -> t
+val int : Z.t -> t
+val float : float -> t
+val str : string -> t
+val tuple : t array -> t

@@ -78,12 +78,17 @@ module Binary_op = struct
     | Xor
     | Or
 
-  let apply t _v1 _v2 =
+  let bin_add v1 v2 =
+    match (v1 : Bc_value.t), (v2 : Bc_value.t) with
+    | Int v1, Int v2 -> Bc_value.Int (Z.add v1 v2)
+    | _, _ -> errorf "TypeError in add"
+
+  let apply t v1 v2 =
     match t with
     | Matrix_multiply -> failwith "Unsupported: Matrix_multiply"
     | Power -> failwith "Unsupported: Power"
     | Multiply -> failwith "Unsupported: Multiply"
-    | Add -> failwith "Unsupported: Add"
+    | Add -> bin_add v1 v2
     | Subtract -> failwith "Unsupported: Subtract"
     | Subscr -> failwith "Unsupported: Subscr"
     | Floor_divide -> failwith "Unsupported: Floor_divide"
@@ -237,7 +242,10 @@ let eval_one t opcode ~arg =
   | POP_BLOCK -> failwith "Unsupported: POP_BLOCK"
   | END_FINALLY -> failwith "Unsupported: END_FINALLY"
   | POP_EXCEPT -> failwith "Unsupported: POP_EXCEPT"
-  | STORE_NAME -> failwith "Unsupported: STORE_NAME"
+  | STORE_NAME ->
+    let name = t.code.names.(arg) in
+    let value = Stack.pop_exn t.stack in
+    Bc_scope.set t.local_scope name value
   | DELETE_NAME -> failwith "Unsupported: DELETE_NAME"
   | UNPACK_SEQUENCE -> failwith "Unsupported: UNPACK_SEQUENCE"
   | FOR_ITER -> failwith "Unsupported: FOR_ITER"
@@ -294,9 +302,16 @@ let eval_one t opcode ~arg =
     | Builtin_fn { name = _; fn } ->
       let value = fn args in
       Stack.push t.stack value
+    | Function { name = _; code = _; defaults = _ } ->
+      failwith "TODO: CALL_FUNCTION on Function"
     | _ ->
       errorf "'%s' object is not callable" (Bc_value.type_ fn |> Bc_value.Type_.to_string))
-  | MAKE_FUNCTION -> failwith "Unsupported: MAKE_FUNCTION"
+  | MAKE_FUNCTION ->
+    let name = Stack.pop_exn t.stack |> Bc_value.str_exn in
+    let code = Stack.pop_exn t.stack |> Bc_value.code_exn in
+    let defaults = popn t.stack arg in
+    let value = Bc_value.Function { name; code; defaults } in
+    Stack.push t.stack value
   | BUILD_SLICE -> failwith "Unsupported: BUILD_SLICE"
   | LOAD_CLOSURE -> failwith "Unsupported: LOAD_CLOSURE"
   | LOAD_DEREF -> failwith "Unsupported: LOAD_DEREF"
