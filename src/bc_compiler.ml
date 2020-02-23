@@ -44,6 +44,14 @@ module Env = struct
     let id = Id_set.find_or_add t.names name in
     O.LOAD_NAME, `arg id
 
+  let load_attr t name =
+    let id = Id_set.find_or_add t.names name in
+    O.LOAD_ATTR, `arg id
+
+  let store_attr t name =
+    let id = Id_set.find_or_add t.names name in
+    O.STORE_ATTR, `arg id
+
   let store_name t name =
     (* TODO: use varnames for local variables *)
     let id = Id_set.find_or_add t.names name in
@@ -107,7 +115,7 @@ let rec compile_stmt env stmt =
     then
       List.concat
         [ test
-        ; [ O.POP_JUMP_IF_FALSE, `rel_position (3 + body_len) ]
+        ; [ O.POP_JUMP_IF_FALSE, `rel_position (2 + body_len) ]
         ; body
         ; [ O.JUMP_ABSOLUTE, `rel_position (-body_len - test_len - 1) ]
         ]
@@ -115,9 +123,9 @@ let rec compile_stmt env stmt =
       let orelse = List.concat_map orelse ~f:(compile_stmt env) in
       List.concat
         [ test
-        ; [ O.POP_JUMP_IF_FALSE, `rel_position (3 + List.length body) ]
+        ; [ O.POP_JUMP_IF_FALSE, `rel_position (2 + body_len) ]
         ; body
-        ; [ O.JUMP_ABSOLUTE, `rel_position (1 + List.length orelse) ]
+        ; [ O.JUMP_ABSOLUTE, `rel_position (-body_len - test_len - 1) ]
         ; orelse
         ])
   | Raise _ -> failwith "Unsupported: Raise"
@@ -127,8 +135,8 @@ let rec compile_stmt env stmt =
   | Import _ -> failwith "Unsupported: Import"
   | ImportFrom _ -> failwith "Unsupported: ImportFrom"
   | Expr { value } -> compile_expr env value @ [ O.POP_TOP, `no_arg ]
-  | Assign _ -> failwith "Unsupported: Assign"
-  | AugAssign _ -> failwith "Unsupported: AugAssign"
+  | Assign { targets; value } -> assign env ~targets ~value
+  | AugAssign { target; op; value } -> aug_assign env ~target ~op ~value
   | Return { value } ->
     let load_value =
       match value with
@@ -160,9 +168,12 @@ and compile_expr env expr =
     List.concat_map exprs ~f:(compile_expr env)
     @ [ O.BUILD_TUPLE, `arg (List.length exprs) ]
   | Lambda _ -> failwith "Unsupported: Lambda"
-  | BoolOp { op = _; values } ->
+  | BoolOp { op = And; values } ->
     let _values = List.map values ~f:(compile_expr env) in
-    failwith "Unsupported: BoolOp"
+    failwith "Unsupported: BoolOp And"
+  | BoolOp { op = Or; values } ->
+    let _values = List.map values ~f:(compile_expr env) in
+    failwith "Unsupported: BoolOp Or"
   | BinOp { left; op; right } ->
     List.concat
       [ compile_expr env left; compile_expr env right; [ binop_opcode op, `no_arg ] ]
@@ -178,14 +189,49 @@ and compile_expr env expr =
     @ body
     @ [ O.JUMP_ABSOLUTE, `rel_position (1 + orelse_len) ]
     @ orelse
-  | Compare _ -> failwith "Unsupported: Compare"
+  | Compare { left = _; ops_and_exprs = _ } -> failwith "Unsupported: Compare"
   | Call { func; args; keywords } ->
     let _ = keywords (* TODO: handle keywords *) in
     let func = compile_expr env func in
     let args = List.map args ~f:(compile_expr env) in
     List.concat (func :: args) @ [ CALL_FUNCTION, `arg (List.length args) ]
-  | Attribute _ -> failwith "Unsupported: Attribute"
-  | Subscript _ -> failwith "Unsupported: Subscript"
+  | Attribute { value; attr } ->
+    let value = compile_expr env value in
+    value @ [ Env.load_attr env attr ]
+  | Subscript { value; slice } ->
+    let value = compile_expr env value in
+    let slice = compile_expr env slice in
+    value @ slice @ [ O.BINARY_SUBSCR, `no_arg ]
+
+and aug_assign env ~target ~op ~value =
+  let _ = env, target, op, value in
+  failwith "Unsupported: AugAssign"
+
+and assign env ~targets ~value =
+  let value = compile_expr env value in
+  let targets =
+    List.concat_map targets ~f:(function
+        | None_ | Bool _ | Num _ | Float _ | Str _ ->
+          errorf "SyntaxError: can't assign to constant"
+        | Dict _ -> errorf "SyntaxError: can't assign to dict"
+        | BoolOp _ | BinOp _ | UnaryOp _ | IfExp _ | Compare _ ->
+          errorf "SyntaxError: can't assign to operator"
+        | Call _ -> errorf "SyntaxError: can't assign to function call"
+        | ListComp _ -> errorf "SyntaxError: can't assign to comprehension"
+        | Lambda _ -> errorf "SyntaxError: can't assign to lambda"
+        | Name name -> [ Env.store_name env name ]
+        | Tuple _exprs -> failwith "Unsupported: Assign Tuple"
+        | List _exprs -> failwith "Unsupported: Assign List"
+        | Attribute { value; attr } ->
+          let value = compile_expr env value in
+          value @ [ Env.store_attr env attr ]
+        | Subscript { value; slice } ->
+          let value = compile_expr env value in
+          let slice = compile_expr env slice in
+          value @ slice @ [ O.STORE_SUBSCR, `no_arg ])
+  in
+  let dups = List.init (List.length targets - 1) ~f:(fun _ -> O.DUP_TOP, `no_arg) in
+  value @ dups @ targets
 
 and compile (ast : Ast.t) =
   let env = Env.create () in

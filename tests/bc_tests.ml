@@ -54,6 +54,37 @@ def fact(n):
 print(fact(10))
 print(fact(100))
 |};
-  [%expect {|
+  [%expect
+    {|
     3628800
     93326215443944152681699238856266700490715968264381621468592963895217599993229915608941463976156518286253697920827223758251185210916864000000000000000000000000 |}]
+
+let%expect_test "vars" =
+  parse_compile_and_run
+    {|
+x = 4
+while x:
+  x = x - 1
+  print(x)
+
+print('there')
+x = 4
+while x:
+  x = x - 1
+  print(x)
+else: print('else')
+
+print('there')
+|};
+  [%expect {|
+    3
+    2
+    1
+    0
+    there
+    3
+    2
+    1
+    0
+    else
+    there |}]
