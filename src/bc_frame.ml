@@ -127,10 +127,11 @@ module Binary_op = struct
 
   let bin_add v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
-    | Int v1, Int v2 -> Bc_value.Int (Z.add v1 v2)
-    | Float v1, Int v2 -> Bc_value.Float (v1 +. Z.to_float v2)
-    | Int v1, Float v2 -> Bc_value.Float (Z.to_float v1 +. v2)
-    | Float v1, Float v2 -> Bc_value.Float (v1 +. v2)
+    | Int v1, Int v2 -> Bc_value.int (Z.add v1 v2)
+    | Float v1, Int v2 -> Bc_value.float (v1 +. Z.to_float v2)
+    | Int v1, Float v2 -> Bc_value.float (Z.to_float v1 +. v2)
+    | Float v1, Float v2 -> Bc_value.float (v1 +. v2)
+    | Str v1, Str v2 -> Bc_value.str (v1 ^ v2)
     | _, _ ->
       errorf
         "TypeError in add %s %s"
@@ -139,10 +140,10 @@ module Binary_op = struct
 
   let bin_sub v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
-    | Int v1, Int v2 -> Bc_value.Int (Z.sub v1 v2)
-    | Float v1, Int v2 -> Bc_value.Float (v1 -. Z.to_float v2)
-    | Int v1, Float v2 -> Bc_value.Float (Z.to_float v1 -. v2)
-    | Float v1, Float v2 -> Bc_value.Float (v1 -. v2)
+    | Int v1, Int v2 -> Bc_value.int (Z.sub v1 v2)
+    | Float v1, Int v2 -> Bc_value.float (v1 -. Z.to_float v2)
+    | Int v1, Float v2 -> Bc_value.float (Z.to_float v1 -. v2)
+    | Float v1, Float v2 -> Bc_value.float (v1 -. v2)
     | _, _ ->
       errorf
         "TypeError in sub %s %s"
@@ -151,10 +152,10 @@ module Binary_op = struct
 
   let bin_mult v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
-    | Int v1, Int v2 -> Bc_value.Int (Z.mul v1 v2)
-    | Float v1, Int v2 -> Bc_value.Float (v1 *. Z.to_float v2)
-    | Int v1, Float v2 -> Bc_value.Float (Z.to_float v1 *. v2)
-    | Float v1, Float v2 -> Bc_value.Float (v1 *. v2)
+    | Int v1, Int v2 -> Bc_value.int (Z.mul v1 v2)
+    | Float v1, Int v2 -> Bc_value.float (v1 *. Z.to_float v2)
+    | Int v1, Float v2 -> Bc_value.float (Z.to_float v1 *. v2)
+    | Float v1, Float v2 -> Bc_value.float (v1 *. v2)
     | _, _ ->
       errorf
         "TypeError in mult %s %s"
@@ -163,10 +164,10 @@ module Binary_op = struct
 
   let bin_div v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
-    | Int v1, Int v2 -> Bc_value.Float (Z.to_float v1 /. Z.to_float v2)
-    | Float v1, Int v2 -> Bc_value.Float (v1 /. Z.to_float v2)
-    | Int v1, Float v2 -> Bc_value.Float (Z.to_float v1 /. v2)
-    | Float v1, Float v2 -> Bc_value.Float (v1 /. v2)
+    | Int v1, Int v2 -> Bc_value.float (Z.to_float v1 /. Z.to_float v2)
+    | Float v1, Int v2 -> Bc_value.float (v1 /. Z.to_float v2)
+    | Int v1, Float v2 -> Bc_value.float (Z.to_float v1 /. v2)
+    | Float v1, Float v2 -> Bc_value.float (v1 /. v2)
     | _, _ ->
       errorf
         "TypeError in div %s %s"
@@ -175,7 +176,7 @@ module Binary_op = struct
 
   let bin_floor_div v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
-    | Int v1, Int v2 -> Bc_value.Int (Z.div v1 v2)
+    | Int v1, Int v2 -> Bc_value.int (Z.div v1 v2)
     | _, _ ->
       errorf
         "TypeError in floor-div %s %s"
@@ -184,7 +185,7 @@ module Binary_op = struct
 
   let bin_mod v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
-    | Int v1, Int v2 -> Bc_value.Int (Z.( mod ) v1 v2)
+    | Int v1, Int v2 -> Bc_value.int (Z.( mod ) v1 v2)
     | _, _ ->
       errorf
         "TypeError in floor-div %s %s"
@@ -201,9 +202,9 @@ module Binary_op = struct
       else if Z.(geq v2 zero)
       then Bc_value.int (Z.pow v1 (Z.to_int v2))
       else Bc_value.float (Z.to_float v1 **. Z.to_float v2)
-    | Float v1, Int v2 -> Bc_value.Float (v1 **. Z.to_float v2)
-    | Int v1, Float v2 -> Bc_value.Float (Z.to_float v1 **. v2)
-    | Float v1, Float v2 -> Bc_value.Float (v1 **. v2)
+    | Float v1, Int v2 -> Bc_value.float (v1 **. Z.to_float v2)
+    | Int v1, Float v2 -> Bc_value.float (Z.to_float v1 **. v2)
+    | Float v1, Float v2 -> Bc_value.float (v1 **. v2)
     | _, _ ->
       errorf
         "TypeError in pow %s %s"
