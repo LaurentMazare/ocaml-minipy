@@ -42,5 +42,18 @@ print(f(1000, 337))
 print(f(0, 337))
 |};
   [%expect {|
-    337000
-    337 |}]
+    337
+    0 |}]
+
+let%expect_test "fact" =
+  parse_compile_and_run
+    {|
+def fact(n):
+  return n * fact(n-1) if n else 1
+
+print(fact(10))
+print(fact(100))
+|};
+  [%expect {|
+    337
+    0 |}]

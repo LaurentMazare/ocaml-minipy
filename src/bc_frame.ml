@@ -117,6 +117,11 @@ module Binary_op = struct
     | Int v1, Int v2 -> Bc_value.Int (Z.add v1 v2)
     | _, _ -> errorf "TypeError in add"
 
+  let bin_sub v1 v2 =
+    match (v1 : Bc_value.t), (v2 : Bc_value.t) with
+    | Int v1, Int v2 -> Bc_value.Int (Z.sub v1 v2)
+    | _, _ -> errorf "TypeError in sub"
+
   let bin_mult v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
     | Int v1, Int v2 -> Bc_value.Int (Z.mul v1 v2)
@@ -128,7 +133,7 @@ module Binary_op = struct
     | Power -> failwith "Unsupported: Power"
     | Multiply -> bin_mult v1 v2
     | Add -> bin_add v1 v2
-    | Subtract -> failwith "Unsupported: Subtract"
+    | Subtract -> bin_sub v1 v2
     | Subscr -> failwith "Unsupported: Subscr"
     | Floor_divide -> failwith "Unsupported: Floor_divide"
     | True_divide -> failwith "Unsupported: True_divide"
@@ -203,6 +208,29 @@ let store_global t ~arg =
 let delete_global t ~arg =
   Bc_scope.remove t.global_scope t.code.names.(arg);
   Continue
+
+let load_name t ~arg =
+  let name = t.code.names.(arg) in
+  let rec loop_locals t =
+    match Bc_scope.find t.local_scope name with
+    | Some _ as some -> some
+    | None ->
+      (match t.parent_frame with
+      | Some parent_frame -> loop_locals parent_frame
+      | None -> None)
+  in
+  let value =
+    match loop_locals t with
+    | Some v -> v
+    | None ->
+      (match Bc_scope.find t.global_scope name with
+      | Some v -> v
+      | None ->
+        (match Bc_scope.find t.builtins name with
+        | Some v -> v
+        | None -> Printf.failwithf "NameError: name '%s' is not defined" name ()))
+  in
+  push_and_continue t.stack value
 
 let popn stack n =
   let rec loop acc n =
@@ -301,20 +329,7 @@ let eval_one t opcode ~arg =
   | STORE_GLOBAL -> store_global t ~arg
   | DELETE_GLOBAL -> delete_global t ~arg
   | LOAD_CONST -> push_and_continue t.stack t.code.consts.(arg)
-  | LOAD_NAME ->
-    let name = t.code.names.(arg) in
-    let value =
-      match Bc_scope.find t.local_scope name with
-      | Some v -> v
-      | None ->
-        (match Bc_scope.find t.global_scope name with
-        | Some v -> v
-        | None ->
-          (match Bc_scope.find t.builtins name with
-          | Some v -> v
-          | None -> Printf.failwithf "NameError: name '%s' is not defined" name ()))
-    in
-    push_and_continue t.stack value
+  | LOAD_NAME -> load_name t ~arg
   | BUILD_TUPLE -> build_tuple t ~arg
   | BUILD_LIST -> failwith "Unsupported: BUILD_LIST"
   | BUILD_SET -> failwith "Unsupported: BUILD_SET"
