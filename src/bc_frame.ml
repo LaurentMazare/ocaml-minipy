@@ -117,11 +117,16 @@ module Binary_op = struct
     | Int v1, Int v2 -> Bc_value.Int (Z.add v1 v2)
     | _, _ -> errorf "TypeError in add"
 
+  let bin_mult v1 v2 =
+    match (v1 : Bc_value.t), (v2 : Bc_value.t) with
+    | Int v1, Int v2 -> Bc_value.Int (Z.mul v1 v2)
+    | _, _ -> errorf "TypeError in add"
+
   let apply t v1 v2 =
     match t with
     | Matrix_multiply -> failwith "Unsupported: Matrix_multiply"
     | Power -> failwith "Unsupported: Power"
-    | Multiply -> failwith "Unsupported: Multiply"
+    | Multiply -> bin_mult v1 v2
     | Add -> bin_add v1 v2
     | Subtract -> failwith "Unsupported: Subtract"
     | Subscr -> failwith "Unsupported: Subscr"
@@ -319,11 +324,27 @@ let eval_one t opcode ~arg =
   | IMPORT_NAME -> failwith "Unsupported: IMPORT_NAME"
   | IMPORT_FROM -> failwith "Unsupported: IMPORT_FROM"
   | JUMP_FORWARD -> Jump_rel arg
-  | JUMP_IF_FALSE_OR_POP -> failwith "Unsupported: JUMP_IF_FALSE_OR_POP"
-  | JUMP_IF_TRUE_OR_POP -> failwith "Unsupported: JUMP_IF_TRUE_OR_POP"
+  | JUMP_IF_FALSE_OR_POP ->
+    let v = Stack.top_exn t.stack in
+    if not (Bc_value.to_bool v)
+    then Jump_abs arg
+    else (
+      ignore (Stack.pop_exn t.stack : Bc_value.t);
+      Continue)
+  | JUMP_IF_TRUE_OR_POP ->
+    let v = Stack.top_exn t.stack in
+    if Bc_value.to_bool v
+    then Jump_abs arg
+    else (
+      ignore (Stack.pop_exn t.stack : Bc_value.t);
+      Continue)
   | JUMP_ABSOLUTE -> Jump_abs arg
-  | POP_JUMP_IF_FALSE -> failwith "Unsupported: POP_JUMP_IF_FALSE"
-  | POP_JUMP_IF_TRUE -> failwith "Unsupported: POP_JUMP_IF_TRUE"
+  | POP_JUMP_IF_FALSE ->
+    let v = Stack.pop_exn t.stack in
+    if not (Bc_value.to_bool v) then Jump_abs arg else Continue
+  | POP_JUMP_IF_TRUE ->
+    let v = Stack.pop_exn t.stack in
+    if Bc_value.to_bool v then Jump_abs arg else Continue
   | LOAD_GLOBAL -> load_global t ~arg
   | CONTINUE_LOOP -> failwith "Unsupported: CONTINUE_LOOP"
   | SETUP_LOOP -> failwith "Unsupported: SETUP_LOOP"

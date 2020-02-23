@@ -36,17 +36,17 @@ module Env = struct
 
   let load_const t const =
     let id = Id_set.find_or_add t.consts const in
-    Bc_code.Opcode.LOAD_CONST, id
+    Bc_code.Opcode.LOAD_CONST, `arg id
 
   let load_name t name =
     (* TODO: use varnames for local variables *)
     let id = Id_set.find_or_add t.names name in
-    Bc_code.Opcode.LOAD_NAME, id
+    Bc_code.Opcode.LOAD_NAME, `arg id
 
   let store_name t name =
     (* TODO: use varnames for local variables *)
     let id = Id_set.find_or_add t.names name in
-    Bc_code.Opcode.STORE_NAME, id
+    Bc_code.Opcode.STORE_NAME, `arg id
 end
 
 let binop_opcode : Ast.operator -> Bc_code.Opcode.t = function
@@ -70,7 +70,7 @@ let rec compile_stmt env stmt =
     let body = compile body in
     [ Env.load_const env (Bc_value.code body ~args)
     ; Env.load_const env (Bc_value.str name)
-    ; MAKE_FUNCTION, 0
+    ; MAKE_FUNCTION, `no_arg
     ; Env.store_name env name
     ]
   | ClassDef _ -> failwith "Unsupported: ClassDef"
@@ -83,7 +83,7 @@ let rec compile_stmt env stmt =
   | Assert _ -> failwith "Unsupported: Assert"
   | Import _ -> failwith "Unsupported: Import"
   | ImportFrom _ -> failwith "Unsupported: ImportFrom"
-  | Expr { value } -> compile_expr env value @ [ Bc_code.Opcode.POP_TOP, 0 ]
+  | Expr { value } -> compile_expr env value @ [ Bc_code.Opcode.POP_TOP, `no_arg ]
   | Assign _ -> failwith "Unsupported: Assign"
   | AugAssign _ -> failwith "Unsupported: AugAssign"
   | Return { value } ->
@@ -92,7 +92,7 @@ let rec compile_stmt env stmt =
       | None -> [ Env.load_const env Bc_value.none ]
       | Some expr -> compile_expr env expr
     in
-    load_value @ [ Bc_code.Opcode.RETURN_VALUE, 0 ]
+    load_value @ [ Bc_code.Opcode.RETURN_VALUE, `no_arg ]
   | Delete _ -> failwith "Unsupported: Delete"
   | Pass -> failwith "Unsupported: Pass"
   | Break -> failwith "Unsupported: Break"
@@ -113,21 +113,42 @@ and compile_expr env expr =
   | Lambda _ -> failwith "Unsupported: Lambda"
   | BoolOp _ -> failwith "Unsupported: BoolOp"
   | BinOp { left; op; right } ->
-    List.concat [ compile_expr env left; compile_expr env right; [ binop_opcode op, 0 ] ]
+    List.concat
+      [ compile_expr env left; compile_expr env right; [ binop_opcode op, `no_arg ] ]
   | UnaryOp _ -> failwith "Unsupported: UnaryOp"
-  | IfExp _ -> failwith "Unsupported: IfExp"
+  | IfExp { test; body; orelse } ->
+    let test = compile_expr env test in
+    let body = compile_expr env body in
+    let orelse = compile_expr env orelse in
+    let orelse_len = List.length orelse in
+    let body_len = List.length body in
+    test
+    @ [ Bc_code.Opcode.POP_JUMP_IF_FALSE, `rel_position (2 + body_len) ]
+    @ body
+    @ [ Bc_code.Opcode.JUMP_ABSOLUTE, `rel_position (1 + orelse_len) ]
+    @ orelse
   | Compare _ -> failwith "Unsupported: Compare"
   | Call { func; args; keywords } ->
     let _ = keywords (* TODO: handle keywords *) in
     let func = compile_expr env func in
     let args = List.map args ~f:(compile_expr env) in
-    List.concat (func :: args) @ [ CALL_FUNCTION, List.length args ]
+    List.concat (func :: args) @ [ CALL_FUNCTION, `arg (List.length args) ]
   | Attribute _ -> failwith "Unsupported: Attribute"
   | Subscript _ -> failwith "Unsupported: Subscript"
 
 and compile (ast : Ast.t) =
   let env = Env.create () in
-  let opcodes = List.concat_map ast ~f:(compile_stmt env) |> Array.of_list in
+  let opcodes =
+    List.concat_map ast ~f:(compile_stmt env)
+    |> Array.of_list_mapi ~f:(fun index (opcode, arg) ->
+           let arg =
+             match arg with
+             | `no_arg -> 0
+             | `arg v -> v
+             | `rel_position offset -> index + offset
+           in
+           opcode, arg)
+  in
   { Bc_code.opcodes
   ; consts = Env.consts env
   ; varnames = Env.varnames env

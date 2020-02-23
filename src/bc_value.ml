@@ -21,10 +21,14 @@ module Type_ = struct
   let to_string t = sexp_of_t t |> Sexp.to_string_mach
 end
 
+type z_t = Z.t
+
+let sexp_of_z_t z = Z.to_string z |> sexp_of_string
+
 type t =
   | None
   | Bool of bool
-  | Int of Z.t
+  | Int of z_t
   | Float of float
   | Tuple of t array
   | List of t array
@@ -44,6 +48,7 @@ type t =
       { code : t Bc_code.t
       ; args : Ast.arguments
       }
+[@@deriving sexp_of]
 
 let type_ = function
   | None -> Type_.None_t
@@ -88,7 +93,7 @@ let to_string ?(escape_special_chars = true) t =
   in
   loop t ~e:escape_special_chars
 
-type code = t Bc_code.t
+type code = t Bc_code.t [@@deriving sexp_of]
 
 let str_exn = function
   | Str str -> str
@@ -105,3 +110,14 @@ let float f = Float f
 let str s = Str s
 let tuple ts = Tuple ts
 let code code ~args = Code { code; args }
+
+let to_bool t =
+  match t with
+  | None -> false
+  | Bool b -> b
+  | Int i -> not (Z.equal i Z.zero)
+  | Float f -> Float.( <> ) f 0.
+  | Tuple t | List t -> Array.length t > 0
+  | Dict d -> Hashtbl.length d > 0
+  | Str s -> String.length s > 0
+  | t -> errorf "expected string, got '%s'" (type_ t |> Type_.to_string)

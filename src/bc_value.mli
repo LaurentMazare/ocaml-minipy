@@ -42,8 +42,9 @@ type t =
       { code : t Bc_code.t
       ; args : Ast.arguments
       }
+[@@deriving sexp_of]
 
-type code = t Bc_code.t
+type code = t Bc_code.t [@@deriving sexp_of]
 
 val type_ : t -> Type_.t
 val to_string : ?escape_special_chars:bool -> t -> string
@@ -56,3 +57,4 @@ val float : float -> t
 val str : string -> t
 val tuple : t array -> t
 val code : code -> args:Ast.arguments -> t
+val to_bool : t -> bool
