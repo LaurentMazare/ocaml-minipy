@@ -1,5 +1,6 @@
 open! Base
 open! Import
+module O = Bc_code.Opcode
 
 module Id_set : sig
   type 'a t
@@ -36,20 +37,20 @@ module Env = struct
 
   let load_const t const =
     let id = Id_set.find_or_add t.consts const in
-    Bc_code.Opcode.LOAD_CONST, `arg id
+    O.LOAD_CONST, `arg id
 
   let load_name t name =
     (* TODO: use varnames for local variables *)
     let id = Id_set.find_or_add t.names name in
-    Bc_code.Opcode.LOAD_NAME, `arg id
+    O.LOAD_NAME, `arg id
 
   let store_name t name =
     (* TODO: use varnames for local variables *)
     let id = Id_set.find_or_add t.names name in
-    Bc_code.Opcode.STORE_NAME, `arg id
+    O.STORE_NAME, `arg id
 end
 
-let binop_opcode : Ast.operator -> Bc_code.Opcode.t = function
+let binop_opcode : Ast.operator -> O.t = function
   | Add -> BINARY_ADD
   | Sub -> BINARY_SUBTRACT
   | Mult -> BINARY_MULTIPLY
@@ -64,7 +65,7 @@ let binop_opcode : Ast.operator -> Bc_code.Opcode.t = function
   | BitXor -> BINARY_XOR
   | BitAnd -> BINARY_AND
 
-let unaryop_opcode : Ast.unaryop -> Bc_code.Opcode.t = function
+let unaryop_opcode : Ast.unaryop -> O.t = function
   | UAdd -> UNARY_POSITIVE
   | USub -> UNARY_NEGATIVE
   | Not -> UNARY_NOT
@@ -80,16 +81,52 @@ let rec compile_stmt env stmt =
     ; Env.store_name env name
     ]
   | ClassDef _ -> failwith "Unsupported: ClassDef"
-  | If _ -> failwith "Unsupported: If"
+  | If { test; body; orelse } ->
+    let test = compile_expr env test in
+    let body = List.concat_map body ~f:(compile_stmt env) in
+    if List.is_empty orelse
+    then
+      List.concat
+        [ test; [ O.POP_JUMP_IF_FALSE, `rel_position (1 + List.length body) ]; body ]
+    else (
+      let orelse = List.concat_map orelse ~f:(compile_stmt env) in
+      List.concat
+        [ test
+        ; [ O.POP_JUMP_IF_FALSE, `rel_position (2 + List.length body) ]
+        ; body
+        ; [ O.JUMP_ABSOLUTE, `rel_position (1 + List.length orelse) ]
+        ; orelse
+        ])
   | For _ -> failwith "Unsupported: For"
-  | While _ -> failwith "Unsupported: While"
+  | While { test; body; orelse } ->
+    let test = compile_expr env test in
+    let test_len = List.length test in
+    let body = List.concat_map body ~f:(compile_stmt env) in
+    let body_len = List.length body in
+    if List.is_empty orelse
+    then
+      List.concat
+        [ test
+        ; [ O.POP_JUMP_IF_FALSE, `rel_position (3 + body_len) ]
+        ; body
+        ; [ O.JUMP_ABSOLUTE, `rel_position (-body_len - test_len - 1) ]
+        ]
+    else (
+      let orelse = List.concat_map orelse ~f:(compile_stmt env) in
+      List.concat
+        [ test
+        ; [ O.POP_JUMP_IF_FALSE, `rel_position (3 + List.length body) ]
+        ; body
+        ; [ O.JUMP_ABSOLUTE, `rel_position (1 + List.length orelse) ]
+        ; orelse
+        ])
   | Raise _ -> failwith "Unsupported: Raise"
   | Try _ -> failwith "Unsupported: Try"
   | With _ -> failwith "Unsupported: With"
   | Assert _ -> failwith "Unsupported: Assert"
   | Import _ -> failwith "Unsupported: Import"
   | ImportFrom _ -> failwith "Unsupported: ImportFrom"
-  | Expr { value } -> compile_expr env value @ [ Bc_code.Opcode.POP_TOP, `no_arg ]
+  | Expr { value } -> compile_expr env value @ [ O.POP_TOP, `no_arg ]
   | Assign _ -> failwith "Unsupported: Assign"
   | AugAssign _ -> failwith "Unsupported: AugAssign"
   | Return { value } ->
@@ -98,9 +135,9 @@ let rec compile_stmt env stmt =
       | None -> [ Env.load_const env Bc_value.none ]
       | Some expr -> compile_expr env expr
     in
-    load_value @ [ Bc_code.Opcode.RETURN_VALUE, `no_arg ]
+    load_value @ [ O.RETURN_VALUE, `no_arg ]
   | Delete _ -> failwith "Unsupported: Delete"
-  | Pass -> [ Bc_code.Opcode.NOP, `no_arg ]
+  | Pass -> [ O.NOP, `no_arg ]
   | Break -> failwith "Unsupported: Break"
   | Continue -> failwith "Unsupported: Continue"
 
@@ -115,13 +152,13 @@ and compile_expr env expr =
   | List exprs ->
     let exprs = Array.to_list exprs in
     List.concat_map exprs ~f:(compile_expr env)
-    @ [ Bc_code.Opcode.BUILD_LIST, `arg (List.length exprs) ]
+    @ [ O.BUILD_LIST, `arg (List.length exprs) ]
   | Dict _ -> failwith "Unsupported: Dict"
   | ListComp _ -> failwith "Unsupported: ListComp"
   | Tuple exprs ->
     let exprs = Array.to_list exprs in
     List.concat_map exprs ~f:(compile_expr env)
-    @ [ Bc_code.Opcode.BUILD_TUPLE, `arg (List.length exprs) ]
+    @ [ O.BUILD_TUPLE, `arg (List.length exprs) ]
   | Lambda _ -> failwith "Unsupported: Lambda"
   | BoolOp { op = _; values } ->
     let _values = List.map values ~f:(compile_expr env) in
@@ -137,9 +174,9 @@ and compile_expr env expr =
     let orelse_len = List.length orelse in
     let body_len = List.length body in
     test
-    @ [ Bc_code.Opcode.POP_JUMP_IF_FALSE, `rel_position (2 + body_len) ]
+    @ [ O.POP_JUMP_IF_FALSE, `rel_position (2 + body_len) ]
     @ body
-    @ [ Bc_code.Opcode.JUMP_ABSOLUTE, `rel_position (1 + orelse_len) ]
+    @ [ O.JUMP_ABSOLUTE, `rel_position (1 + orelse_len) ]
     @ orelse
   | Compare _ -> failwith "Unsupported: Compare"
   | Call { func; args; keywords } ->
