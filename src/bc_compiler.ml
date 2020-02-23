@@ -66,9 +66,9 @@ let binop_opcode : Ast.operator -> Bc_code.Opcode.t = function
 
 let rec compile_stmt env stmt =
   match (stmt : Ast.stmt) with
-  | FunctionDef { name; args = _; body } ->
-    let _body = compile body in
-    [ Env.load_const env (failwith "TODO")
+  | FunctionDef { name; args; body } ->
+    let body = compile body in
+    [ Env.load_const env (Bc_value.code body ~args)
     ; Env.load_const env (Bc_value.str name)
     ; MAKE_FUNCTION, 0
     ; Env.store_name env name

@@ -37,9 +37,13 @@ type t =
   | Function of
       { name : string
       ; code : t Bc_code.t
+      ; args : Ast.arguments
       ; defaults : t list
       }
-  | Code of t Bc_code.t
+  | Code of
+      { code : t Bc_code.t
+      ; args : Ast.arguments
+      }
 
 let type_ = function
   | None -> Type_.None_t
@@ -91,7 +95,7 @@ let str_exn = function
   | t -> errorf "expected string, got '%s'" (type_ t |> Type_.to_string)
 
 let code_exn = function
-  | Code c -> c
+  | Code c -> c.code, c.args
   | t -> errorf "expected code, got '%s'" (type_ t |> Type_.to_string)
 
 let none = None
@@ -100,3 +104,4 @@ let int i = Int i
 let float f = Float f
 let str s = Str s
 let tuple ts = Tuple ts
+let code code ~args = Code { code; args }

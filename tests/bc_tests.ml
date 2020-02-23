@@ -23,7 +23,6 @@ let%expect_test "hello" =
   parse_compile_and_run "print(41+1)";
   [%expect {| 42 |}]
 
-(*
 let%expect_test "fn" =
   parse_compile_and_run {|
 def f(x, y):
@@ -31,5 +30,4 @@ def f(x, y):
 
 print(f(1000, 337))
 |};
-  [%expect {| |}]
-  *)
+  [%expect {| 1337 |}]

@@ -22,17 +22,26 @@ let create () =
 
 let eval code =
   let t = create () in
-  let frame = Bc_frame.create ~code ~global_scope:t.global_scope ~builtins:t.builtins in
+  let global_scope = t.global_scope in
+  let builtins = t.builtins in
+  let frame = Bc_frame.top_frame ~code ~global_scope ~builtins in
   Stack.push t.frames frame;
   (* Avoid using recursion here so that the recursion depth can be controlled explicitely
      in the sys module.
   *)
-  while not (Stack.is_empty t.frames) do
-    let frame = Stack.pop_exn t.frames in
-    let continue = ref true in
-    while !continue do
-      match Bc_frame.eval_step frame with
-      | No_action -> ()
-      | End_of_code -> continue := false
-    done
+  let continue = ref true in
+  while !continue do
+    match Stack.top t.frames with
+    | None -> continue := false
+    | Some frame ->
+      (match Bc_frame.eval_step frame with
+      | Continue -> ()
+      | Call_fn { code; local_scope } ->
+        let call_frame = Bc_frame.call_frame frame ~code ~local_scope in
+        Stack.push t.frames call_frame
+      | Return value ->
+        let _callee_frame = Stack.pop_exn t.frames in
+        Stack.top t.frames
+        |> Option.iter ~f:(fun caller_frame ->
+               Bc_frame.function_call_returned caller_frame value))
   done

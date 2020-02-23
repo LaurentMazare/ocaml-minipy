@@ -8,24 +8,58 @@ type t =
   ; local_scope : Bc_scope.t
   ; global_scope : Bc_scope.t
   ; builtins : Bc_scope.t
+  ; parent_frame : t option
   }
 
-let create ~code ~global_scope ~builtins =
+let create ~code ~local_scope ~global_scope ~builtins ~parent_frame =
   { stack = Stack.create ()
   ; code
   ; counter = 0
-  ; local_scope = Bc_scope.create ()
+  ; local_scope
   ; global_scope
   ; builtins
+  ; parent_frame
   }
 
-let pop_top stack = ignore (Stack.pop_exn stack : Bc_value.t)
+let top_frame ~code ~global_scope ~builtins =
+  create
+    ~code
+    ~local_scope:(Bc_scope.create ())
+    ~global_scope
+    ~builtins
+    ~parent_frame:None
+
+let call_frame t ~code ~local_scope =
+  create
+    ~code
+    ~local_scope
+    ~global_scope:t.global_scope
+    ~builtins:t.builtins
+    ~parent_frame:(Some t)
+
+type internal_action =
+  | Continue (* Different from loop continue. *)
+  | Jump_rel of int
+  | Jump_abs of int
+  | Call_fn of
+      { code : Bc_value.code
+      ; local_scope : Bc_scope.t
+      }
+  | Return of Bc_value.t
+
+let push_and_continue stack v =
+  Stack.push stack v;
+  Continue
+
+let pop_top stack =
+  ignore (Stack.pop_exn stack : Bc_value.t);
+  Continue
 
 let rot_two stack =
   let a = Stack.pop_exn stack in
   let b = Stack.pop_exn stack in
   Stack.push stack a;
-  Stack.push stack b
+  push_and_continue stack b
 
 let rot_three stack =
   let a = Stack.pop_exn stack in
@@ -33,18 +67,18 @@ let rot_three stack =
   let c = Stack.pop_exn stack in
   Stack.push stack a;
   Stack.push stack c;
-  Stack.push stack b
+  push_and_continue stack b
 
 let dup_top stack =
   let a = Stack.top_exn stack in
-  Stack.push stack a
+  push_and_continue stack a
 
 let dup_top_two stack =
   let a = Stack.pop_exn stack in
   let b = Stack.top_exn stack in
   Stack.push stack b;
   Stack.push stack a;
-  Stack.push stack a
+  push_and_continue stack a
 
 module Unary_op = struct
   type t =
@@ -121,43 +155,49 @@ end
 let unary op stack =
   let tos = Stack.pop_exn stack in
   let tos = Unary_op.apply op tos in
-  Stack.push stack tos
+  push_and_continue stack tos
 
 let binary op stack =
   let tos = Stack.pop_exn stack in
   let tos1 = Stack.pop_exn stack in
   let tos = Binary_op.apply op tos1 tos in
-  Stack.push stack tos
+  push_and_continue stack tos
 
 let inplace op stack =
   let tos = Stack.pop_exn stack in
   let tos1 = Stack.pop_exn stack in
   let tos = Binary_op.apply_inplace op tos1 tos in
-  Stack.push stack tos
+  push_and_continue stack tos
 
 let load_fast t ~arg =
   let name = t.code.varnames.(arg) in
   match Bc_scope.find t.local_scope t.code.varnames.(arg) with
-  | Some v -> Stack.push t.stack v
+  | Some v -> push_and_continue t.stack v
   | None -> Printf.failwithf "local %s is not defined" name ()
 
 let store_fast t ~arg =
   let tos = Stack.pop_exn t.stack in
-  Bc_scope.set t.local_scope t.code.varnames.(arg) tos
+  Bc_scope.set t.local_scope t.code.varnames.(arg) tos;
+  Continue
 
-let delete_fast t ~arg = Bc_scope.remove t.local_scope t.code.varnames.(arg)
+let delete_fast t ~arg =
+  Bc_scope.remove t.local_scope t.code.varnames.(arg);
+  Continue
 
 let load_global t ~arg =
   let name = t.code.names.(arg) in
   match Bc_scope.find t.global_scope name with
-  | Some v -> Stack.push t.stack v
+  | Some v -> push_and_continue t.stack v
   | None -> Printf.failwithf "global %s is not defined" name ()
 
 let store_global t ~arg =
   let tos = Stack.pop_exn t.stack in
-  Bc_scope.set t.global_scope t.code.names.(arg) tos
+  Bc_scope.set t.global_scope t.code.names.(arg) tos;
+  Continue
 
-let delete_global t ~arg = Bc_scope.remove t.global_scope t.code.names.(arg)
+let delete_global t ~arg =
+  Bc_scope.remove t.global_scope t.code.names.(arg);
+  Continue
 
 let popn stack n =
   let rec loop acc n =
@@ -180,7 +220,7 @@ let popn_pairs stack n =
 
 let build_tuple t ~arg =
   let tuple = popn t.stack arg |> Array.of_list in
-  Stack.push t.stack (Tuple tuple)
+  push_and_continue t.stack (Tuple tuple)
 
 let eval_one t opcode ~arg =
   match (opcode : Bc_code.Opcode.t) with
@@ -189,7 +229,7 @@ let eval_one t opcode ~arg =
   | ROT_THREE -> rot_three t.stack
   | DUP_TOP -> dup_top t.stack
   | DUP_TOP_TWO -> dup_top_two t.stack
-  | NOP -> ()
+  | NOP -> Continue
   | UNARY_POSITIVE -> unary Positive t.stack
   | UNARY_NEGATIVE -> unary Negative t.stack
   | UNARY_NOT -> unary Not t.stack
@@ -235,7 +275,7 @@ let eval_one t opcode ~arg =
   | BREAK_LOOP -> failwith "Unsupported: BREAK_LOOP"
   | WITH_CLEANUP_START -> failwith "Unsupported: WITH_CLEANUP_START"
   | WITH_CLEANUP_FINISH -> failwith "Unsupported: WITH_CLEANUP_FINISH"
-  | RETURN_VALUE -> failwith "Unsupported: RETURN_VALUE"
+  | RETURN_VALUE -> Return (Stack.pop_exn t.stack)
   | IMPORT_STAR -> failwith "Unsupported: IMPORT_STAR"
   | SETUP_ANNOTATIONS -> failwith "Unsupported: SETUP_ANNOTATIONS"
   | YIELD_VALUE -> failwith "Unsupported: YIELD_VALUE"
@@ -245,7 +285,8 @@ let eval_one t opcode ~arg =
   | STORE_NAME ->
     let name = t.code.names.(arg) in
     let value = Stack.pop_exn t.stack in
-    Bc_scope.set t.local_scope name value
+    Bc_scope.set t.local_scope name value;
+    Continue
   | DELETE_NAME -> failwith "Unsupported: DELETE_NAME"
   | UNPACK_SEQUENCE -> failwith "Unsupported: UNPACK_SEQUENCE"
   | FOR_ITER -> failwith "Unsupported: FOR_ITER"
@@ -254,7 +295,7 @@ let eval_one t opcode ~arg =
   | DELETE_ATTR -> failwith "Unsupported: DELETE_ATTR"
   | STORE_GLOBAL -> store_global t ~arg
   | DELETE_GLOBAL -> delete_global t ~arg
-  | LOAD_CONST -> Stack.push t.stack t.code.consts.(arg)
+  | LOAD_CONST -> push_and_continue t.stack t.code.consts.(arg)
   | LOAD_NAME ->
     let name = t.code.names.(arg) in
     let value =
@@ -268,7 +309,7 @@ let eval_one t opcode ~arg =
           | Some v -> v
           | None -> Printf.failwithf "NameError: name '%s' is not defined" name ()))
     in
-    Stack.push t.stack value
+    push_and_continue t.stack value
   | BUILD_TUPLE -> build_tuple t ~arg
   | BUILD_LIST -> failwith "Unsupported: BUILD_LIST"
   | BUILD_SET -> failwith "Unsupported: BUILD_SET"
@@ -277,10 +318,10 @@ let eval_one t opcode ~arg =
   | COMPARE_OP -> failwith "Unsupported: COMPARE_OP"
   | IMPORT_NAME -> failwith "Unsupported: IMPORT_NAME"
   | IMPORT_FROM -> failwith "Unsupported: IMPORT_FROM"
-  | JUMP_FORWARD -> t.counter <- t.counter + arg - 1
+  | JUMP_FORWARD -> Jump_rel arg
   | JUMP_IF_FALSE_OR_POP -> failwith "Unsupported: JUMP_IF_FALSE_OR_POP"
   | JUMP_IF_TRUE_OR_POP -> failwith "Unsupported: JUMP_IF_TRUE_OR_POP"
-  | JUMP_ABSOLUTE -> t.counter <- arg
+  | JUMP_ABSOLUTE -> Jump_abs arg
   | POP_JUMP_IF_FALSE -> failwith "Unsupported: POP_JUMP_IF_FALSE"
   | POP_JUMP_IF_TRUE -> failwith "Unsupported: POP_JUMP_IF_TRUE"
   | LOAD_GLOBAL -> load_global t ~arg
@@ -296,22 +337,25 @@ let eval_one t opcode ~arg =
     let n_kwargs = arg / 256 in
     let n_args = arg % 256 in
     let _kwargs = popn_pairs t.stack n_kwargs in
-    let args = popn t.stack n_args in
+    let pos_args = popn t.stack n_args in
     let fn = Stack.pop_exn t.stack in
     (match fn with
     | Builtin_fn { name = _; fn } ->
-      let value = fn args in
-      Stack.push t.stack value
-    | Function { name = _; code = _; defaults = _ } ->
-      failwith "TODO: CALL_FUNCTION on Function"
+      let value = fn pos_args in
+      push_and_continue t.stack value
+    | Function { name = _; code; args; defaults = _ } ->
+      let local_scope = Bc_scope.create () in
+      List.iter2_exn args.args pos_args ~f:(fun arg_name value ->
+          Bc_scope.set local_scope arg_name value);
+      Call_fn { code; local_scope }
     | _ ->
       errorf "'%s' object is not callable" (Bc_value.type_ fn |> Bc_value.Type_.to_string))
   | MAKE_FUNCTION ->
     let name = Stack.pop_exn t.stack |> Bc_value.str_exn in
-    let code = Stack.pop_exn t.stack |> Bc_value.code_exn in
+    let code, args = Stack.pop_exn t.stack |> Bc_value.code_exn in
     let defaults = popn t.stack arg in
-    let value = Bc_value.Function { name; code; defaults } in
-    Stack.push t.stack value
+    let value = Bc_value.Function { name; code; args; defaults } in
+    push_and_continue t.stack value
   | BUILD_SLICE -> failwith "Unsupported: BUILD_SLICE"
   | LOAD_CLOSURE -> failwith "Unsupported: LOAD_CLOSURE"
   | LOAD_DEREF -> failwith "Unsupported: LOAD_DEREF"
@@ -339,14 +383,31 @@ let eval_one t opcode ~arg =
   | CALL_METHOD -> failwith "Unsupported: CALL_METHOD"
 
 type action =
-  | No_action
-  | End_of_code
+  | Continue
+  | Call_fn of
+      { code : Bc_value.code
+      ; local_scope : Bc_scope.t
+      }
+  | Return of Bc_value.t
 
 let eval_step t =
   if t.counter >= Array.length t.code.opcodes
-  then End_of_code
+  then Return Bc_value.none
   else (
     let opcode, arg = t.code.opcodes.(t.counter) in
-    t.counter <- t.counter + 1;
-    eval_one t opcode ~arg;
-    No_action)
+    match eval_one t opcode ~arg with
+    | Continue ->
+      t.counter <- t.counter + 1;
+      Continue
+    | Call_fn { code; local_scope } ->
+      t.counter <- t.counter + 1;
+      Call_fn { code; local_scope }
+    | Jump_rel i ->
+      t.counter <- t.counter + i;
+      Continue
+    | Jump_abs a ->
+      t.counter <- a;
+      Continue
+    | Return v -> Return v)
+
+let function_call_returned t v = Stack.push t.stack v
