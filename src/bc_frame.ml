@@ -55,16 +55,24 @@ let pop_top stack =
   ignore (Stack.pop_exn stack : Bc_value.t);
   Continue
 
-let rot_two stack =
+let pop2 stack =
   let a = Stack.pop_exn stack in
   let b = Stack.pop_exn stack in
+  a, b
+
+let pop3 stack =
+  let a = Stack.pop_exn stack in
+  let b = Stack.pop_exn stack in
+  let c = Stack.pop_exn stack in
+  a, b, c
+
+let rot_two stack =
+  let a, b = pop2 stack in
   Stack.push stack a;
   push_and_continue stack b
 
 let rot_three stack =
-  let a = Stack.pop_exn stack in
-  let b = Stack.pop_exn stack in
-  let c = Stack.pop_exn stack in
+  let a, b, c = pop3 stack in
   Stack.push stack a;
   Stack.push stack c;
   push_and_continue stack b
@@ -74,8 +82,7 @@ let dup_top stack =
   push_and_continue stack a
 
 let dup_top_two stack =
-  let a = Stack.pop_exn stack in
-  let b = Stack.top_exn stack in
+  let a, b = pop2 stack in
   Stack.push stack b;
   Stack.push stack a;
   push_and_continue stack a
@@ -86,13 +93,19 @@ module Unary_op = struct
     | Negative
     | Not
     | Invert
+  [@@deriving sexp]
 
-  let apply t _v =
-    match t with
-    | Positive -> failwith "Unsupported: Positive"
-    | Negative -> failwith "Unsupported: Negative"
-    | Not -> failwith "Unsupported: Not"
-    | Invert -> failwith "Unsupported: Invert"
+  let apply t v =
+    match t, (v : Bc_value.t) with
+    | Positive, ((Int _ | Float _) as v) -> v
+    | Negative, Int v -> Bc_value.int (Z.neg v)
+    | Negative, Float v -> Bc_value.Float (-.v)
+    | Not, v -> Bc_value.bool (not (Bc_value.to_bool v))
+    | _ ->
+      errorf
+        "TypeError: bad operand type for unary %s: %s"
+        (sexp_of_t t |> Sexp.to_string)
+        (Bc_value.type_ v |> Bc_value.Type_.to_string)
 end
 
 module Binary_op = struct
@@ -115,29 +128,99 @@ module Binary_op = struct
   let bin_add v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
     | Int v1, Int v2 -> Bc_value.Int (Z.add v1 v2)
-    | _, _ -> errorf "TypeError in add"
+    | Float v1, Int v2 -> Bc_value.Float (v1 +. Z.to_float v2)
+    | Int v1, Float v2 -> Bc_value.Float (Z.to_float v1 +. v2)
+    | Float v1, Float v2 -> Bc_value.Float (v1 +. v2)
+    | _, _ ->
+      errorf
+        "TypeError in add %s %s"
+        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
+        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
 
   let bin_sub v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
     | Int v1, Int v2 -> Bc_value.Int (Z.sub v1 v2)
-    | _, _ -> errorf "TypeError in sub"
+    | Float v1, Int v2 -> Bc_value.Float (v1 -. Z.to_float v2)
+    | Int v1, Float v2 -> Bc_value.Float (Z.to_float v1 -. v2)
+    | Float v1, Float v2 -> Bc_value.Float (v1 -. v2)
+    | _, _ ->
+      errorf
+        "TypeError in sub %s %s"
+        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
+        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
 
   let bin_mult v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
     | Int v1, Int v2 -> Bc_value.Int (Z.mul v1 v2)
-    | _, _ -> errorf "TypeError in add"
+    | Float v1, Int v2 -> Bc_value.Float (v1 *. Z.to_float v2)
+    | Int v1, Float v2 -> Bc_value.Float (Z.to_float v1 *. v2)
+    | Float v1, Float v2 -> Bc_value.Float (v1 *. v2)
+    | _, _ ->
+      errorf
+        "TypeError in mult %s %s"
+        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
+        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
+
+  let bin_div v1 v2 =
+    match (v1 : Bc_value.t), (v2 : Bc_value.t) with
+    | Int v1, Int v2 -> Bc_value.Float (Z.to_float v1 /. Z.to_float v2)
+    | Float v1, Int v2 -> Bc_value.Float (v1 /. Z.to_float v2)
+    | Int v1, Float v2 -> Bc_value.Float (Z.to_float v1 /. v2)
+    | Float v1, Float v2 -> Bc_value.Float (v1 /. v2)
+    | _, _ ->
+      errorf
+        "TypeError in div %s %s"
+        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
+        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
+
+  let bin_floor_div v1 v2 =
+    match (v1 : Bc_value.t), (v2 : Bc_value.t) with
+    | Int v1, Int v2 -> Bc_value.Int (Z.div v1 v2)
+    | _, _ ->
+      errorf
+        "TypeError in floor-div %s %s"
+        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
+        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
+
+  let bin_mod v1 v2 =
+    match (v1 : Bc_value.t), (v2 : Bc_value.t) with
+    | Int v1, Int v2 -> Bc_value.Int (Z.( mod ) v1 v2)
+    | _, _ ->
+      errorf
+        "TypeError in floor-div %s %s"
+        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
+        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
+
+  let bin_pow v1 v2 =
+    match (v1 : Bc_value.t), (v2 : Bc_value.t) with
+    | Int v1, Int v2 ->
+      if Z.(equal v2 zero)
+      then Bc_value.int Z.one
+      else if Z.(equal v1 zero)
+      then Bc_value.int Z.zero
+      else if Z.(geq v2 zero)
+      then Bc_value.int (Z.pow v1 (Z.to_int v2))
+      else Bc_value.float (Z.to_float v1 **. Z.to_float v2)
+    | Float v1, Int v2 -> Bc_value.Float (v1 **. Z.to_float v2)
+    | Int v1, Float v2 -> Bc_value.Float (Z.to_float v1 **. v2)
+    | Float v1, Float v2 -> Bc_value.Float (v1 **. v2)
+    | _, _ ->
+      errorf
+        "TypeError in pow %s %s"
+        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
+        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
 
   let apply t v1 v2 =
     match t with
     | Matrix_multiply -> failwith "Unsupported: Matrix_multiply"
-    | Power -> failwith "Unsupported: Power"
+    | Power -> bin_pow v1 v2
     | Multiply -> bin_mult v1 v2
     | Add -> bin_add v1 v2
     | Subtract -> bin_sub v1 v2
     | Subscr -> failwith "Unsupported: Subscr"
-    | Floor_divide -> failwith "Unsupported: Floor_divide"
-    | True_divide -> failwith "Unsupported: True_divide"
-    | Modulo -> failwith "Unsupported: Modulo"
+    | Floor_divide -> bin_floor_div v1 v2
+    | True_divide -> bin_div v1 v2
+    | Modulo -> bin_mod v1 v2
     | Lshift -> failwith "Unsupported: Lshift"
     | Rshift -> failwith "Unsupported: Rshift"
     | And -> failwith "Unsupported: And"
@@ -168,15 +251,50 @@ let unary op stack =
   push_and_continue stack tos
 
 let binary op stack =
-  let tos = Stack.pop_exn stack in
-  let tos1 = Stack.pop_exn stack in
+  let tos, tos1 = pop2 stack in
   let tos = Binary_op.apply op tos1 tos in
   push_and_continue stack tos
 
 let inplace op stack =
-  let tos = Stack.pop_exn stack in
-  let tos1 = Stack.pop_exn stack in
+  let tos, tos1 = pop2 stack in
   let tos = Binary_op.apply_inplace op tos1 tos in
+  push_and_continue stack tos
+
+let compare op stack =
+  let tos, tos1 = pop2 stack in
+  let tos =
+    match (op : Ast.cmpop), (tos : Bc_value.t), (tos1 : Bc_value.t) with
+    | Lt, Int v1, Int v2 -> Bc_value.bool (Z.lt v1 v2)
+    | Lt, Float v1, Int v2 -> Bc_value.bool (Float.( < ) v1 (Z.to_float v2))
+    | Lt, Int v1, Float v2 -> Bc_value.bool (Float.( < ) (Z.to_float v1) v2)
+    | Lt, Float v1, Float v2 -> Bc_value.bool (Float.( < ) v1 v2)
+    | LtE, Int v1, Int v2 -> Bc_value.bool (Z.leq v1 v2)
+    | LtE, Float v1, Int v2 -> Bc_value.bool (Float.( <= ) v1 (Z.to_float v2))
+    | LtE, Int v1, Float v2 -> Bc_value.bool (Float.( <= ) (Z.to_float v1) v2)
+    | LtE, Float v1, Float v2 -> Bc_value.bool (Float.( <= ) v1 v2)
+    | Gt, Int v1, Int v2 -> Bc_value.bool (Z.gt v1 v2)
+    | Gt, Float v1, Int v2 -> Bc_value.bool (Float.( > ) v1 (Z.to_float v2))
+    | Gt, Int v1, Float v2 -> Bc_value.bool (Float.( > ) (Z.to_float v1) v2)
+    | Gt, Float v1, Float v2 -> Bc_value.bool (Float.( > ) v1 v2)
+    | GtE, Int v1, Int v2 -> Bc_value.bool (Z.geq v1 v2)
+    | GtE, Float v1, Int v2 -> Bc_value.bool (Float.( >= ) v1 (Z.to_float v2))
+    | GtE, Int v1, Float v2 -> Bc_value.bool (Float.( >= ) (Z.to_float v1) v2)
+    | GtE, Float v1, Float v2 -> Bc_value.bool (Float.( >= ) v1 v2)
+    | Eq, Int v1, Int v2 -> Bc_value.bool (Z.equal v1 v2)
+    | Eq, Float v1, Int v2 -> Bc_value.bool (Float.( = ) v1 (Z.to_float v2))
+    | Eq, Int v1, Float v2 -> Bc_value.bool (Float.( = ) (Z.to_float v1) v2)
+    | Eq, Float v1, Float v2 -> Bc_value.bool (Float.( = ) v1 v2)
+    | NotEq, Int v1, Int v2 -> Bc_value.bool (not (Z.equal v1 v2))
+    | NotEq, Float v1, Int v2 -> Bc_value.bool (Float.( <> ) v1 (Z.to_float v2))
+    | NotEq, Int v1, Float v2 -> Bc_value.bool (Float.( <> ) (Z.to_float v1) v2)
+    | NotEq, Float v1, Float v2 -> Bc_value.bool (Float.( <> ) v1 v2)
+    | _, _, _ ->
+      errorf
+        "TypeError in %s %s %s"
+        (Ast.sexp_of_cmpop op |> Sexp.to_string)
+        (Bc_value.type_ tos |> Bc_value.Type_.to_string)
+        (Bc_value.type_ tos1 |> Bc_value.Type_.to_string)
+  in
   push_and_continue stack tos
 
 let load_fast t ~arg =
@@ -320,7 +438,10 @@ let eval_one t opcode ~arg =
     let value = Stack.pop_exn t.stack in
     Bc_scope.set t.local_scope name value;
     Continue
-  | DELETE_NAME -> failwith "Unsupported: DELETE_NAME"
+  | DELETE_NAME ->
+    let name = t.code.names.(arg) in
+    Bc_scope.remove t.local_scope name;
+    Continue
   | UNPACK_SEQUENCE -> failwith "Unsupported: UNPACK_SEQUENCE"
   | FOR_ITER -> failwith "Unsupported: FOR_ITER"
   | UNPACK_EX -> failwith "Unsupported: UNPACK_EX"
@@ -335,7 +456,7 @@ let eval_one t opcode ~arg =
   | BUILD_SET -> failwith "Unsupported: BUILD_SET"
   | BUILD_MAP -> failwith "Unsupported: BUILD_MAP"
   | LOAD_ATTR -> failwith "Unsupported: LOAD_ATTR"
-  | COMPARE_OP -> failwith "Unsupported: COMPARE_OP"
+  | COMPARE_OP -> compare (Bc_code.cmpop_of_int arg) t.stack
   | IMPORT_NAME -> failwith "Unsupported: IMPORT_NAME"
   | IMPORT_FROM -> failwith "Unsupported: IMPORT_FROM"
   | JUMP_FORWARD -> Jump_rel arg

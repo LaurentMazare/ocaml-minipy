@@ -133,3 +133,6 @@ type 'const t =
   ; names : string array
   }
 [@@deriving sexp]
+
+val cmpop_of_int : int -> Ast.cmpop
+val int_of_cmpop : Ast.cmpop -> int

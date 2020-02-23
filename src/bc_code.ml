@@ -1,4 +1,5 @@
 open Base
+open Import
 
 module Opcode = struct
   type t =
@@ -254,3 +255,28 @@ type 'const t =
   ; names : string array
   }
 [@@deriving sexp]
+
+let cmpop_of_int = function
+  | 0 -> Ast.Lt
+  | 1 -> LtE
+  | 2 -> Eq
+  | 3 -> NotEq
+  | 4 -> Gt
+  | 5 -> GtE
+  | 6 -> In
+  | 7 -> NotIn
+  | 8 -> Is
+  | 9 -> IsNot
+  | id -> errorf "unknown comparison id %d" id
+
+let int_of_cmpop = function
+  | Ast.Lt -> 0
+  | LtE -> 1
+  | Eq -> 2
+  | NotEq -> 3
+  | Gt -> 4
+  | GtE -> 5
+  | In -> 6
+  | NotIn -> 7
+  | Is -> 8
+  | IsNot -> 9

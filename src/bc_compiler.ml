@@ -64,6 +64,12 @@ let binop_opcode : Ast.operator -> Bc_code.Opcode.t = function
   | BitXor -> BINARY_XOR
   | BitAnd -> BINARY_AND
 
+let unaryop_opcode : Ast.unaryop -> Bc_code.Opcode.t = function
+  | UAdd -> UNARY_POSITIVE
+  | USub -> UNARY_NEGATIVE
+  | Not -> UNARY_NOT
+  | Invert -> UNARY_INVERT
+
 let rec compile_stmt env stmt =
   match (stmt : Ast.stmt) with
   | FunctionDef { name; args; body } ->
@@ -94,7 +100,7 @@ let rec compile_stmt env stmt =
     in
     load_value @ [ Bc_code.Opcode.RETURN_VALUE, `no_arg ]
   | Delete _ -> failwith "Unsupported: Delete"
-  | Pass -> failwith "Unsupported: Pass"
+  | Pass -> [ Bc_code.Opcode.NOP, `no_arg ]
   | Break -> failwith "Unsupported: Break"
   | Continue -> failwith "Unsupported: Continue"
 
@@ -106,16 +112,24 @@ and compile_expr env expr =
   | Float f -> [ Env.load_const env (Bc_value.float f) ]
   | Str s -> [ Env.load_const env (Bc_value.str s) ]
   | Name name -> [ Env.load_name env name ]
-  | List _ -> failwith "Unsupported: List"
+  | List exprs ->
+    let exprs = Array.to_list exprs in
+    List.concat_map exprs ~f:(compile_expr env)
+    @ [ Bc_code.Opcode.BUILD_LIST, `arg (List.length exprs) ]
   | Dict _ -> failwith "Unsupported: Dict"
   | ListComp _ -> failwith "Unsupported: ListComp"
-  | Tuple _ -> failwith "Unsupported: Tuple"
+  | Tuple exprs ->
+    let exprs = Array.to_list exprs in
+    List.concat_map exprs ~f:(compile_expr env)
+    @ [ Bc_code.Opcode.BUILD_TUPLE, `arg (List.length exprs) ]
   | Lambda _ -> failwith "Unsupported: Lambda"
-  | BoolOp _ -> failwith "Unsupported: BoolOp"
+  | BoolOp { op = _; values } ->
+    let _values = List.map values ~f:(compile_expr env) in
+    failwith "Unsupported: BoolOp"
   | BinOp { left; op; right } ->
     List.concat
       [ compile_expr env left; compile_expr env right; [ binop_opcode op, `no_arg ] ]
-  | UnaryOp _ -> failwith "Unsupported: UnaryOp"
+  | UnaryOp { op; operand } -> compile_expr env operand @ [ unaryop_opcode op, `no_arg ]
   | IfExp { test; body; orelse } ->
     let test = compile_expr env test in
     let body = compile_expr env body in
