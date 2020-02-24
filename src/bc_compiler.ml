@@ -254,7 +254,26 @@ and compile_expr env expr =
       ; orelse
       ; [ label2 ]
       ]
-  | Compare { left = _; ops_and_exprs = _ } -> failwith "Unsupported: Compare"
+  | Compare { left; ops_and_exprs } ->
+    let left = compile_expr env left in
+    let jump_to, label = O.label () in
+    let nops_and_exprs = List.length ops_and_exprs in
+    left
+    @ List.concat_mapi ops_and_exprs ~f:(fun index (cmpop, expr) ->
+          let expr = compile_expr env expr in
+          let arg = Bc_code.int_of_cmpop cmpop in
+          let tail =
+            if index = nops_and_exprs - 1
+            then [ O.op COMPARE_OP ~arg ]
+            else
+              [ O.op DUP_TOP
+              ; O.op ROT_THREE
+              ; O.op COMPARE_OP ~arg
+              ; O.jump JUMP_IF_FALSE_OR_POP jump_to
+              ]
+          in
+          expr @ tail)
+    @ [ label ]
   | Call { func; args; keywords } ->
     let _ = keywords (* TODO: handle keywords *) in
     let func = compile_expr env func in

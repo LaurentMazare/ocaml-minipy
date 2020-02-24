@@ -101,8 +101,7 @@ b2 = False
 b3 = not True
 b4 = not False
 b5 = not not b4
-#b6 = not (0 == 0)
-b6 = False
+b6 = not (0 == 0)
 b7 = not (True and False)
 b8 = True and False or True
 b9 = True and (False or True)
