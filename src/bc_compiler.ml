@@ -265,20 +265,17 @@ and compile_expr env expr =
     let nops_and_exprs = List.length ops_and_exprs in
     left
     @ List.concat_mapi ops_and_exprs ~f:(fun index (cmpop, expr) ->
-          let expr = compile_expr env expr in
           let arg = Bc_code.int_of_cmpop cmpop in
+          let expr =
+            compile_expr env expr @ [ O.op DUP_TOP; O.op ROT_THREE; O.op COMPARE_OP ~arg ]
+          in
           let tail =
             if index = nops_and_exprs - 1
-            then [ O.op COMPARE_OP ~arg ]
-            else
-              [ O.op DUP_TOP
-              ; O.op ROT_THREE
-              ; O.op COMPARE_OP ~arg
-              ; O.jump JUMP_IF_FALSE_OR_POP jump_to
-              ]
+            then [ label ]
+            else [ O.jump JUMP_IF_FALSE_OR_POP jump_to ]
           in
           expr @ tail)
-    @ [ label ]
+    @ [ O.op ROT_TWO; O.op POP_TOP ]
   | Call { func; args; keywords } ->
     let _ = keywords (* TODO: handle keywords *) in
     let func = compile_expr env func in

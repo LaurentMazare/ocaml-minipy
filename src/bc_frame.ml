@@ -73,8 +73,8 @@ let rot_two stack =
 
 let rot_three stack =
   let a, b, c = pop3 stack in
-  Stack.push stack a;
   Stack.push stack c;
+  Stack.push stack a;
   push_and_continue stack b
 
 let dup_top stack =
