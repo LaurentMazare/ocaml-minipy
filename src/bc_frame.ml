@@ -58,18 +58,18 @@ let pop_top stack =
 let pop2 stack =
   let a = Stack.pop_exn stack in
   let b = Stack.pop_exn stack in
-  a, b
+  b, a
 
 let pop3 stack =
   let a = Stack.pop_exn stack in
   let b = Stack.pop_exn stack in
   let c = Stack.pop_exn stack in
-  a, b, c
+  c, b, a
 
 let rot_two stack =
   let a, b = pop2 stack in
-  Stack.push stack a;
-  push_and_continue stack b
+  Stack.push stack b;
+  push_and_continue stack a
 
 let rot_three stack =
   let a, b, c = pop3 stack in
@@ -83,9 +83,10 @@ let dup_top stack =
 
 let dup_top_two stack =
   let a, b = pop2 stack in
+  Stack.push stack a;
   Stack.push stack b;
   Stack.push stack a;
-  push_and_continue stack a
+  push_and_continue stack b
 
 module Unary_op = struct
   type t =
@@ -253,12 +254,12 @@ let unary op stack =
 
 let binary op stack =
   let tos, tos1 = pop2 stack in
-  let tos = Binary_op.apply op tos1 tos in
+  let tos = Binary_op.apply op tos tos1 in
   push_and_continue stack tos
 
 let inplace op stack =
   let tos, tos1 = pop2 stack in
-  let tos = Binary_op.apply_inplace op tos1 tos in
+  let tos = Binary_op.apply_inplace op tos tos1 in
   push_and_continue stack tos
 
 let compare op stack =

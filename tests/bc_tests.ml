@@ -109,7 +109,16 @@ b10 = not False or True
 b11 = not (False or True)
 print(b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11)
 
-#print(1 <= 2 >= 3, 1 <= 2 >= 2, 1. < 1.1 < 1.05, 1. < 1.05 < 1.1 < 1.15)
+# print(1 <= 2 >= 3, 1 <= 2 >= 2, 1. < 1.1 < 1.05, 1. < 1.05 < 1.1 < 1.15)
+
+print('1 <= 2', 1 <= 2)
+print('2 <= 2', 2 <= 2)
+print('2 <= 1', 2 <= 1)
+print('2 < 2', 2 < 2)
+print('2 > 2', 2 > 2)
+print('2 >= 2', 2 >= 2)
+print('2 == 2', 2 == 2)
+print('2 != 2', 2 != 2)
 
 def true_p():
   print('true_p')
@@ -123,6 +132,14 @@ print(False or true_p())
   [%expect
     {|
         True False False True True False True True True True False
+        1 <= 2 True
+        2 <= 2 True
+        2 <= 1 False
+        2 < 2 False
+        2 > 2 False
+        2 >= 2 True
+        2 == 2 True
+        2 != 2 False
         true_p
         True
         False

@@ -254,6 +254,11 @@ and compile_expr env expr =
       ; orelse
       ; [ label2 ]
       ]
+  | Compare { left; ops_and_exprs = [ (cmpop, expr) ] } ->
+    let left = compile_expr env left in
+    let expr = compile_expr env expr in
+    let arg = Bc_code.int_of_cmpop cmpop in
+    left @ expr @ [ O.op COMPARE_OP ~arg ]
   | Compare { left; ops_and_exprs } ->
     let left = compile_expr env left in
     let jump_to, label = O.label () in
