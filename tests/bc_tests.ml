@@ -1,6 +1,8 @@
 open Base
 open Minipy
 
+let debug = false
+
 let code =
   { Bc_code.opcodes = [| LOAD_NAME, 0; LOAD_CONST, 0; CALL_FUNCTION, 1; POP_TOP, 0 |]
   ; consts = [| Bc_value.Str "foobar" |]
@@ -15,6 +17,7 @@ let%expect_test "bytecode" =
 let parse_compile_and_run str =
   let ast = Basic_tests.parse_str str in
   let code = Bc_compiler.compile ast in
+  if debug then Stdio.printf "%s\n%!" (Bc_value.sexp_of_code code |> Sexp.to_string_hum);
   Bc_eval.eval code
 
 let%expect_test "hello" =
@@ -76,7 +79,8 @@ else: print('else')
 
 print('there')
 |};
-  [%expect {|
+  [%expect
+    {|
     3
     2
     1

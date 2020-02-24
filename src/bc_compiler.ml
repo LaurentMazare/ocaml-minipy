@@ -1,6 +1,65 @@
 open! Base
 open! Import
-module O = Bc_code.Opcode
+
+module O : sig
+  type label
+  type t
+
+  val op : ?arg:int -> Bc_code.Opcode.t -> t
+  val jump : Bc_code.Opcode.t -> label -> t
+  val label : unit -> label * t
+  val to_opcodes : t list -> (Bc_code.Opcode.t * int) array
+end = struct
+  module Label : sig
+    type t
+
+    include Hashtbl.Key.S with type t := t
+
+    val create : unit -> t
+  end = struct
+    include Int
+
+    let create =
+      let counter = ref 0 in
+      fun () ->
+        Int.incr counter;
+        !counter
+  end
+
+  type label = Label.t
+
+  type t =
+    | Op of
+        { opcode : Bc_code.Opcode.t
+        ; arg : int
+        ; jump_to : label option
+        }
+    | Label of label
+
+  let op ?(arg = 0) opcode = Op { opcode; arg; jump_to = None }
+  let jump opcode jump_to = Op { opcode; arg = 0; jump_to = Some jump_to }
+
+  let label () =
+    let l = Label.create () in
+    l, Label l
+
+  let to_opcodes ts =
+    let labels = Hashtbl.create (module Label) in
+    let (_cnt : int) =
+      List.fold ts ~init:0 ~f:(fun acc t ->
+          match t with
+          | Label l ->
+            Hashtbl.add_exn labels ~key:l ~data:acc;
+            acc
+          | Op _ -> acc + 1)
+    in
+    List.filter_map ts ~f:(function
+        | Op { opcode; arg; jump_to } ->
+          let arg = Option.value_map jump_to ~f:(Hashtbl.find_exn labels) ~default:arg in
+          Some (opcode, arg)
+        | Label _ -> None)
+    |> Array.of_list
+end
 
 module Id_set : sig
   type 'a t
@@ -37,28 +96,28 @@ module Env = struct
 
   let load_const t const =
     let id = Id_set.find_or_add t.consts const in
-    O.LOAD_CONST, `arg id
+    O.op LOAD_CONST ~arg:id
 
   let load_name t name =
     (* TODO: use varnames for local variables *)
     let id = Id_set.find_or_add t.names name in
-    O.LOAD_NAME, `arg id
+    O.op LOAD_NAME ~arg:id
 
   let load_attr t name =
     let id = Id_set.find_or_add t.names name in
-    O.LOAD_ATTR, `arg id
+    O.op LOAD_ATTR ~arg:id
 
   let store_attr t name =
     let id = Id_set.find_or_add t.names name in
-    O.STORE_ATTR, `arg id
+    O.op STORE_ATTR ~arg:id
 
   let store_name t name =
     (* TODO: use varnames for local variables *)
     let id = Id_set.find_or_add t.names name in
-    O.STORE_NAME, `arg id
+    O.op STORE_NAME ~arg:id
 end
 
-let binop_opcode : Ast.operator -> O.t = function
+let binop_opcode : Ast.operator -> Bc_code.Opcode.t = function
   | Add -> BINARY_ADD
   | Sub -> BINARY_SUBTRACT
   | Mult -> BINARY_MULTIPLY
@@ -73,7 +132,7 @@ let binop_opcode : Ast.operator -> O.t = function
   | BitXor -> BINARY_XOR
   | BitAnd -> BINARY_AND
 
-let unaryop_opcode : Ast.unaryop -> O.t = function
+let unaryop_opcode : Ast.unaryop -> Bc_code.Opcode.t = function
   | UAdd -> UNARY_POSITIVE
   | USub -> UNARY_NEGATIVE
   | Not -> UNARY_NOT
@@ -85,7 +144,7 @@ let rec compile_stmt env stmt =
     let body = compile body in
     [ Env.load_const env (Bc_value.code body ~args)
     ; Env.load_const env (Bc_value.str name)
-    ; MAKE_FUNCTION, `no_arg
+    ; O.op MAKE_FUNCTION
     ; Env.store_name env name
     ]
   | ClassDef _ -> failwith "Unsupported: ClassDef"
@@ -93,48 +152,43 @@ let rec compile_stmt env stmt =
     let test = compile_expr env test in
     let body = List.concat_map body ~f:(compile_stmt env) in
     if List.is_empty orelse
-    then
-      List.concat
-        [ test; [ O.POP_JUMP_IF_FALSE, `rel_position (1 + List.length body) ]; body ]
+    then (
+      let jump_to, label = O.label () in
+      List.concat [ test; [ O.jump POP_JUMP_IF_FALSE jump_to ]; body; [ label ] ])
     else (
       let orelse = List.concat_map orelse ~f:(compile_stmt env) in
+      let jump_to1, label1 = O.label () in
+      let jump_to2, label2 = O.label () in
       List.concat
         [ test
-        ; [ O.POP_JUMP_IF_FALSE, `rel_position (2 + List.length body) ]
+        ; [ O.jump POP_JUMP_IF_FALSE jump_to1 ]
         ; body
-        ; [ O.JUMP_ABSOLUTE, `rel_position (1 + List.length orelse) ]
+        ; [ O.jump JUMP_ABSOLUTE jump_to2; label1 ]
         ; orelse
+        ; [ label2 ]
         ])
   | For _ -> failwith "Unsupported: For"
   | While { test; body; orelse } ->
     let test = compile_expr env test in
-    let test_len = List.length test in
     let body = List.concat_map body ~f:(compile_stmt env) in
-    let body_len = List.length body in
-    if List.is_empty orelse
-    then
-      List.concat
-        [ test
-        ; [ O.POP_JUMP_IF_FALSE, `rel_position (2 + body_len) ]
-        ; body
-        ; [ O.JUMP_ABSOLUTE, `rel_position (-body_len - test_len - 1) ]
-        ]
-    else (
-      let orelse = List.concat_map orelse ~f:(compile_stmt env) in
-      List.concat
-        [ test
-        ; [ O.POP_JUMP_IF_FALSE, `rel_position (2 + body_len) ]
-        ; body
-        ; [ O.JUMP_ABSOLUTE, `rel_position (-body_len - test_len - 1) ]
-        ; orelse
-        ])
+    let jump_to1, label1 = O.label () in
+    let jump_to2, label2 = O.label () in
+    let orelse = List.concat_map orelse ~f:(compile_stmt env) in
+    List.concat
+      [ [ label2 ]
+      ; test
+      ; [ O.jump POP_JUMP_IF_FALSE jump_to1 ]
+      ; body
+      ; [ O.jump JUMP_ABSOLUTE jump_to2; label1 ]
+      ; orelse
+      ]
   | Raise _ -> failwith "Unsupported: Raise"
   | Try _ -> failwith "Unsupported: Try"
   | With _ -> failwith "Unsupported: With"
   | Assert _ -> failwith "Unsupported: Assert"
   | Import _ -> failwith "Unsupported: Import"
   | ImportFrom _ -> failwith "Unsupported: ImportFrom"
-  | Expr { value } -> compile_expr env value @ [ O.POP_TOP, `no_arg ]
+  | Expr { value } -> compile_expr env value @ [ O.op POP_TOP ]
   | Assign { targets; value } -> assign env ~targets ~value
   | AugAssign { target; op; value } -> aug_assign env ~target ~op ~value
   | Return { value } ->
@@ -143,9 +197,9 @@ let rec compile_stmt env stmt =
       | None -> [ Env.load_const env Bc_value.none ]
       | Some expr -> compile_expr env expr
     in
-    load_value @ [ O.RETURN_VALUE, `no_arg ]
+    load_value @ [ O.op RETURN_VALUE ]
   | Delete _ -> failwith "Unsupported: Delete"
-  | Pass -> [ O.NOP, `no_arg ]
+  | Pass -> [ O.op NOP ]
   | Break -> failwith "Unsupported: Break"
   | Continue -> failwith "Unsupported: Continue"
 
@@ -160,13 +214,13 @@ and compile_expr env expr =
   | List exprs ->
     let exprs = Array.to_list exprs in
     List.concat_map exprs ~f:(compile_expr env)
-    @ [ O.BUILD_LIST, `arg (List.length exprs) ]
+    @ [ O.op BUILD_LIST ~arg:(List.length exprs) ]
   | Dict _ -> failwith "Unsupported: Dict"
   | ListComp _ -> failwith "Unsupported: ListComp"
   | Tuple exprs ->
     let exprs = Array.to_list exprs in
     List.concat_map exprs ~f:(compile_expr env)
-    @ [ O.BUILD_TUPLE, `arg (List.length exprs) ]
+    @ [ O.op BUILD_TUPLE ~arg:(List.length exprs) ]
   | Lambda _ -> failwith "Unsupported: Lambda"
   | BoolOp { op = And; values } ->
     let _values = List.map values ~f:(compile_expr env) in
@@ -176,32 +230,35 @@ and compile_expr env expr =
     failwith "Unsupported: BoolOp Or"
   | BinOp { left; op; right } ->
     List.concat
-      [ compile_expr env left; compile_expr env right; [ binop_opcode op, `no_arg ] ]
-  | UnaryOp { op; operand } -> compile_expr env operand @ [ unaryop_opcode op, `no_arg ]
+      [ compile_expr env left; compile_expr env right; [ O.op (binop_opcode op) ] ]
+  | UnaryOp { op; operand } -> compile_expr env operand @ [ O.op (unaryop_opcode op) ]
   | IfExp { test; body; orelse } ->
     let test = compile_expr env test in
     let body = compile_expr env body in
     let orelse = compile_expr env orelse in
-    let orelse_len = List.length orelse in
-    let body_len = List.length body in
-    test
-    @ [ O.POP_JUMP_IF_FALSE, `rel_position (2 + body_len) ]
-    @ body
-    @ [ O.JUMP_ABSOLUTE, `rel_position (1 + orelse_len) ]
-    @ orelse
+    let jump_to1, label1 = O.label () in
+    let jump_to2, label2 = O.label () in
+    List.concat
+      [ test
+      ; [ O.jump POP_JUMP_IF_FALSE jump_to1 ]
+      ; body
+      ; [ O.jump JUMP_ABSOLUTE jump_to2; label1 ]
+      ; orelse
+      ; [ label2 ]
+      ]
   | Compare { left = _; ops_and_exprs = _ } -> failwith "Unsupported: Compare"
   | Call { func; args; keywords } ->
     let _ = keywords (* TODO: handle keywords *) in
     let func = compile_expr env func in
     let args = List.map args ~f:(compile_expr env) in
-    List.concat (func :: args) @ [ CALL_FUNCTION, `arg (List.length args) ]
+    List.concat (func :: args) @ [ O.op CALL_FUNCTION ~arg:(List.length args) ]
   | Attribute { value; attr } ->
     let value = compile_expr env value in
     value @ [ Env.load_attr env attr ]
   | Subscript { value; slice } ->
     let value = compile_expr env value in
     let slice = compile_expr env slice in
-    value @ slice @ [ O.BINARY_SUBSCR, `no_arg ]
+    value @ slice @ [ O.op BINARY_SUBSCR ]
 
 and aug_assign env ~target ~op ~value =
   let _ = env, target, op, value in
@@ -228,24 +285,14 @@ and assign env ~targets ~value =
         | Subscript { value; slice } ->
           let value = compile_expr env value in
           let slice = compile_expr env slice in
-          value @ slice @ [ O.STORE_SUBSCR, `no_arg ])
+          value @ slice @ [ O.op STORE_SUBSCR ])
   in
-  let dups = List.init (List.length targets - 1) ~f:(fun _ -> O.DUP_TOP, `no_arg) in
+  let dups = List.init (List.length targets - 1) ~f:(fun _ -> O.op DUP_TOP) in
   value @ dups @ targets
 
 and compile (ast : Ast.t) =
   let env = Env.create () in
-  let opcodes =
-    List.concat_map ast ~f:(compile_stmt env)
-    |> Array.of_list_mapi ~f:(fun index (opcode, arg) ->
-           let arg =
-             match arg with
-             | `no_arg -> 0
-             | `arg v -> v
-             | `rel_position offset -> index + offset
-           in
-           opcode, arg)
-  in
+  let opcodes = List.concat_map ast ~f:(compile_stmt env) |> O.to_opcodes in
   { Bc_code.opcodes
   ; consts = Env.consts env
   ; varnames = Env.varnames env
