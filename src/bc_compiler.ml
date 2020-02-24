@@ -223,11 +223,19 @@ and compile_expr env expr =
     @ [ O.op BUILD_TUPLE ~arg:(List.length exprs) ]
   | Lambda _ -> failwith "Unsupported: Lambda"
   | BoolOp { op = And; values } ->
-    let _values = List.map values ~f:(compile_expr env) in
-    failwith "Unsupported: BoolOp And"
+    let values = List.map values ~f:(compile_expr env) in
+    let jump_to, label = O.label () in
+    let code =
+      List.intersperse values ~sep:[ O.jump JUMP_IF_FALSE_OR_POP jump_to ] |> List.concat
+    in
+    code @ [ label ]
   | BoolOp { op = Or; values } ->
-    let _values = List.map values ~f:(compile_expr env) in
-    failwith "Unsupported: BoolOp Or"
+    let values = List.map values ~f:(compile_expr env) in
+    let jump_to, label = O.label () in
+    let code =
+      List.intersperse values ~sep:[ O.jump JUMP_IF_TRUE_OR_POP jump_to ] |> List.concat
+    in
+    code @ [ label ]
   | BinOp { left; op; right } ->
     List.concat
       [ compile_expr env left; compile_expr env right; [ O.op (binop_opcode op) ] ]

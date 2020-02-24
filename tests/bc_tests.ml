@@ -92,3 +92,42 @@ print('there')
     0
     else
     there |}]
+
+let%expect_test "bool-expr" =
+  parse_compile_and_run
+    {|
+b1 = True
+b2 = False
+b3 = not True
+b4 = not False
+b5 = not not b4
+#b6 = not (0 == 0)
+b6 = False
+b7 = not (True and False)
+b8 = True and False or True
+b9 = True and (False or True)
+b10 = not False or True
+b11 = not (False or True)
+print(b1, b2, b3, b4, b5, b6, b7, b8, b9, b10, b11)
+
+#print(1 <= 2 >= 3, 1 <= 2 >= 2, 1. < 1.1 < 1.05, 1. < 1.05 < 1.1 < 1.15)
+
+def true_p():
+  print('true_p')
+  return True
+
+print(True and true_p())
+print(False and true_p())
+print(True or true_p())
+print(False or true_p())
+|};
+  [%expect
+    {|
+        True False False True True False True True True True False
+        true_p
+        True
+        False
+        True
+        true_p
+        True
+      |}]
