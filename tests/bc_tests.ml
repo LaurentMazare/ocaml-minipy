@@ -177,3 +177,18 @@ else: print('else')
         3
         5
       |}]
+
+let%expect_test "tuples-lists" =
+  parse_compile_and_run
+    {|
+x = 1, 2
+x = x, 3
+print(x)
+
+[(a, b), c] = x
+print(a * 100 + b * 10 + c)
+|};
+  [%expect {|
+        ((1, 2), 3)
+        123
+      |}]

@@ -393,27 +393,29 @@ and aug_assign env ~target ~op ~value =
 
 and assign env ~targets ~value =
   let value = compile_expr env value in
-  let targets =
-    List.concat_map targets ~f:(function
-        | None_ | Bool _ | Num _ | Float _ | Str _ ->
-          errorf "SyntaxError: can't assign to constant"
-        | Dict _ -> errorf "SyntaxError: can't assign to dict"
-        | BoolOp _ | BinOp _ | UnaryOp _ | IfExp _ | Compare _ ->
-          errorf "SyntaxError: can't assign to operator"
-        | Call _ -> errorf "SyntaxError: can't assign to function call"
-        | ListComp _ -> errorf "SyntaxError: can't assign to comprehension"
-        | Lambda _ -> errorf "SyntaxError: can't assign to lambda"
-        | Name name -> [ Env.store_name env name ]
-        | Tuple _exprs -> failwith "Unsupported: Assign Tuple"
-        | List _exprs -> failwith "Unsupported: Assign List"
-        | Attribute { value; attr } ->
-          let value = compile_expr env value in
-          value @ [ Env.store_attr env attr ]
-        | Subscript { value; slice } ->
-          let value = compile_expr env value in
-          let slice = compile_expr env slice in
-          value @ slice @ [ O.op STORE_SUBSCR ])
+  let rec loop = function
+    | Ast.None_ | Bool _ | Num _ | Float _ | Str _ ->
+      errorf "SyntaxError: can't assign to constant"
+    | Dict _ -> errorf "SyntaxError: can't assign to dict"
+    | BoolOp _ | BinOp _ | UnaryOp _ | IfExp _ | Compare _ ->
+      errorf "SyntaxError: can't assign to operator"
+    | Call _ -> errorf "SyntaxError: can't assign to function call"
+    | ListComp _ -> errorf "SyntaxError: can't assign to comprehension"
+    | Lambda _ -> errorf "SyntaxError: can't assign to lambda"
+    | Name name -> [ Env.store_name env name ]
+    | Tuple exprs | List exprs ->
+      let nexprs = Array.length exprs in
+      let exprs = Array.to_list exprs in
+      O.op UNPACK_SEQUENCE ~arg:nexprs :: List.concat_map exprs ~f:loop
+    | Attribute { value; attr } ->
+      let value = compile_expr env value in
+      value @ [ Env.store_attr env attr ]
+    | Subscript { value; slice } ->
+      let value = compile_expr env value in
+      let slice = compile_expr env slice in
+      value @ slice @ [ O.op STORE_SUBSCR ]
   in
+  let targets = List.concat_map targets ~f:loop in
   let dups = List.init (List.length targets - 1) ~f:(fun _ -> O.op DUP_TOP) in
   value @ dups @ targets
 

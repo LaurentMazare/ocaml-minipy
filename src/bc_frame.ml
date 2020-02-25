@@ -322,7 +322,7 @@ let load_fast t ~arg =
   let name = t.code.varnames.(arg) in
   match Bc_scope.find t.local_scope t.code.varnames.(arg) with
   | Some v -> push_and_continue t.stack v
-  | None -> Printf.failwithf "local %s is not defined" name ()
+  | None -> errorf "local %s is not defined" name
 
 let store_fast t ~arg =
   let tos = Stack.pop_exn t.stack in
@@ -337,7 +337,7 @@ let load_global t ~arg =
   let name = t.code.names.(arg) in
   match Bc_scope.find t.global_scope name with
   | Some v -> push_and_continue t.stack v
-  | None -> Printf.failwithf "global %s is not defined" name ()
+  | None -> errorf "global %s is not defined" name
 
 let store_global t ~arg =
   let tos = Stack.pop_exn t.stack in
@@ -367,9 +367,28 @@ let load_name t ~arg =
       | None ->
         (match Bc_scope.find t.builtins name with
         | Some v -> v
-        | None -> Printf.failwithf "NameError: name '%s' is not defined" name ()))
+        | None -> errorf "NameError: name '%s' is not defined" name))
   in
   push_and_continue t.stack value
+
+let unpack_sequence stack ~arg =
+  let value = Stack.pop_exn stack in
+  (match (value : Bc_value.t) with
+  | Tuple ts | List ts ->
+    if Array.length ts <> arg
+    then
+      errorf
+        "TypeError when unpacking sequence of length %d in %d items"
+        (Array.length ts)
+        arg;
+    for i = Array.length ts - 1 downto 0 do
+      Stack.push stack ts.(i)
+    done
+  | _ ->
+    errorf
+      "TypeError when unpacking sequence %s"
+      (Bc_value.type_ value |> Bc_value.Type_.to_string));
+  Continue
 
 let store_subscr stack =
   let value, obj, index = pop3 stack in
@@ -490,7 +509,7 @@ let eval_one t opcode ~arg =
     let name = t.code.names.(arg) in
     Bc_scope.remove t.local_scope name;
     Continue
-  | UNPACK_SEQUENCE -> failwith "Unsupported: UNPACK_SEQUENCE"
+  | UNPACK_SEQUENCE -> unpack_sequence t.stack ~arg
   | FOR_ITER -> failwith "Unsupported: FOR_ITER"
   | UNPACK_EX -> failwith "Unsupported: UNPACK_EX"
   | STORE_ATTR -> failwith "Unsupported: STORE_ATTR"
