@@ -189,7 +189,7 @@ module Binary_op = struct
     | Int v1, Int v2 -> Bc_value.int (Z.( mod ) v1 v2)
     | _, _ ->
       errorf
-        "TypeError in floor-div %s %s"
+        "TypeError in mod %s %s"
         (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
         (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
 
@@ -212,6 +212,17 @@ module Binary_op = struct
         (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
         (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
 
+  let bin_subscr v1 v2 =
+    match (v1 : Bc_value.t), (v2 : Bc_value.t) with
+    | Str v1, Int v2 -> Bc_value.str (String.of_char v1.[Z.to_int v2])
+    | Tuple v1, Int v2 -> v1.(Z.to_int v2)
+    | List v1, Int v2 -> v1.(Z.to_int v2)
+    | _, _ ->
+      errorf
+        "TypeError in subscript %s %s"
+        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
+        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
+
   let apply t v1 v2 =
     match t with
     | Matrix_multiply -> failwith "Unsupported: Matrix_multiply"
@@ -219,7 +230,7 @@ module Binary_op = struct
     | Multiply -> bin_mult v1 v2
     | Add -> bin_add v1 v2
     | Subtract -> bin_sub v1 v2
-    | Subscr -> failwith "Unsupported: Subscr"
+    | Subscr -> bin_subscr v1 v2
     | Floor_divide -> bin_floor_div v1 v2
     | True_divide -> bin_div v1 v2
     | Modulo -> bin_mod v1 v2
@@ -229,17 +240,20 @@ module Binary_op = struct
     | Xor -> failwith "Unsupported: Xor"
     | Or -> failwith "Unsupported: Or"
 
-  let apply_inplace t _v1 _v2 =
+  (* inplace operators are identical to the normal operators as
+     they don't handle storing the result.
+     The only difference is e.g. calling __iadd__ instead of __add__. *)
+  let apply_inplace t v1 v2 =
     match t with
     | Matrix_multiply -> failwith "Unsupported: Matrix_multiply"
-    | Power -> failwith "Unsupported: Power"
-    | Multiply -> failwith "Unsupported: Multiply"
-    | Add -> failwith "Unsupported: Add"
-    | Subtract -> failwith "Unsupported: Subtract"
-    | Subscr -> failwith "Unsupported: Subscr"
-    | Floor_divide -> failwith "Unsupported: Floor_divide"
-    | True_divide -> failwith "Unsupported: True_divide"
-    | Modulo -> failwith "Unsupported: Modulo"
+    | Power -> bin_pow v1 v2
+    | Multiply -> bin_mult v1 v2
+    | Add -> bin_add v1 v2
+    | Subtract -> bin_sub v1 v2
+    | Subscr -> bin_subscr v1 v2
+    | Floor_divide -> bin_floor_div v1 v2
+    | True_divide -> bin_div v1 v2
+    | Modulo -> bin_mod v1 v2
     | Lshift -> failwith "Unsupported: Lshift"
     | Rshift -> failwith "Unsupported: Rshift"
     | And -> failwith "Unsupported: And"

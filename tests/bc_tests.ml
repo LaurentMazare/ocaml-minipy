@@ -161,7 +161,7 @@ else: print('else')
 
 x = 0
 while True:
-  x = x + 1
+  x += 1
   if x % 2 == 0: continue
   print(x)
   if x > 4: break
@@ -169,20 +169,11 @@ else: print('else')
 |};
   [%expect
     {|
-        True False False True True False True True True True False
-        False True False True
-        1 <= 2 True
-        2 <= 2 True
-        2 <= 1 False
-        2 < 2 False
-        2 > 2 False
-        2 >= 2 True
-        2 == 2 True
-        2 != 2 False
-        true_p
-        True
-        False
-        True
-        true_p
-        True
+        1
+        3
+        5
+        else
+        1
+        3
+        5
       |}]

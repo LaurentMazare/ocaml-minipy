@@ -143,6 +143,21 @@ let binop_opcode : Ast.operator -> Bc_code.Opcode.t = function
   | BitXor -> BINARY_XOR
   | BitAnd -> BINARY_AND
 
+let inplace_opcode : Ast.operator -> Bc_code.Opcode.t = function
+  | Add -> INPLACE_ADD
+  | Sub -> INPLACE_SUBTRACT
+  | Mult -> INPLACE_MULTIPLY
+  | MatMult -> INPLACE_MATRIX_MULTIPLY
+  | Div -> INPLACE_TRUE_DIVIDE
+  | FloorDiv -> INPLACE_FLOOR_DIVIDE
+  | Mod -> INPLACE_MODULO
+  | Pow -> INPLACE_POWER
+  | LShift -> INPLACE_LSHIFT
+  | RShift -> INPLACE_RSHIFT
+  | BitOr -> INPLACE_OR
+  | BitXor -> INPLACE_XOR
+  | BitAnd -> INPLACE_AND
+
 let unaryop_opcode : Ast.unaryop -> Bc_code.Opcode.t = function
   | UAdd -> UNARY_POSITIVE
   | USub -> UNARY_NEGATIVE
@@ -310,8 +325,42 @@ and compile_expr env expr =
     value @ slice @ [ O.op BINARY_SUBSCR ]
 
 and aug_assign env ~target ~op ~value =
-  let _ = env, target, op, value in
-  failwith "Unsupported: AugAssign"
+  let value = compile_expr env value in
+  match target with
+  | None_ | Bool _ | Num _ | Float _ | Str _ ->
+    errorf "SyntaxError: can't assign to constant"
+  | Dict _ -> errorf "SyntaxError: can't assign to dict"
+  | BoolOp _ | BinOp _ | UnaryOp _ | IfExp _ | Compare _ ->
+    errorf "SyntaxError: can't assign to operator"
+  | Call _ -> errorf "SyntaxError: can't assign to function call"
+  | ListComp _ -> errorf "SyntaxError: can't assign to comprehension"
+  | Lambda _ -> errorf "SyntaxError: can't assign to lambda"
+  | Name name ->
+    List.concat
+      [ [ Env.load_name env name ]
+      ; value
+      ; [ O.op (inplace_opcode op); Env.store_name env name ]
+      ]
+  | Tuple _exprs -> failwith "Unsupported: AugAssign Tuple"
+  | List _exprs -> failwith "Unsupported: AugAssign List"
+  | Attribute { value = value_attr; attr } ->
+    let value_attr = compile_expr env value_attr in
+    List.concat
+      [ value_attr
+      ; [ O.op DUP_TOP; Env.load_attr env attr ]
+      ; value
+      ; [ O.op (inplace_opcode op); O.op ROT_TWO; Env.store_attr env attr ]
+      ]
+  | Subscript { value = value_attr; slice } ->
+    let value_attr = compile_expr env value_attr in
+    let slice = compile_expr env slice in
+    List.concat
+      [ value_attr
+      ; slice
+      ; [ O.op DUP_TOP_TWO; O.op BINARY_SUBSCR ]
+      ; value
+      ; [ O.op (inplace_opcode op); O.op ROT_THREE; O.op STORE_SUBSCR ]
+      ]
 
 and assign env ~targets ~value =
   let value = compile_expr env value in
