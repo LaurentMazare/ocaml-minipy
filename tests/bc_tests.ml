@@ -132,6 +132,7 @@ print(False or true_p())
   [%expect
     {|
         True False False True True False True True True True False
+        False True False True
         1 <= 2 True
         2 <= 2 True
         2 <= 1 False
