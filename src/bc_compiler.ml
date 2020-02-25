@@ -81,15 +81,26 @@ end = struct
 end
 
 module Env = struct
+  type loop_labels =
+    { break : O.label
+    ; continue : O.label
+    }
+
   type t =
     { consts : Bc_value.t Id_set.t
     ; names : string Id_set.t
     ; varnames : string Id_set.t
+    ; loop_labels : loop_labels option
     }
 
   let create () =
-    { consts = Id_set.create (); names = Id_set.create (); varnames = Id_set.create () }
+    { consts = Id_set.create ()
+    ; names = Id_set.create ()
+    ; varnames = Id_set.create ()
+    ; loop_labels = None
+    }
 
+  let loop_env t ~break ~continue = { t with loop_labels = Some { continue; break } }
   let consts t = Id_set.to_array t.consts
   let names t = Id_set.to_array t.names
   let varnames t = Id_set.to_array t.varnames
@@ -170,9 +181,11 @@ let rec compile_stmt env stmt =
   | For _ -> failwith "Unsupported: For"
   | While { test; body; orelse } ->
     let test = compile_expr env test in
-    let body = List.concat_map body ~f:(compile_stmt env) in
     let jump_to1, label1 = O.label () in
     let jump_to2, label2 = O.label () in
+    let jump_to3, label3 = O.label () in
+    let loop_env = Env.loop_env env ~break:jump_to3 ~continue:jump_to2 in
+    let body = List.concat_map body ~f:(compile_stmt loop_env) in
     let orelse = List.concat_map orelse ~f:(compile_stmt env) in
     List.concat
       [ [ label2 ]
@@ -181,6 +194,7 @@ let rec compile_stmt env stmt =
       ; body
       ; [ O.jump JUMP_ABSOLUTE jump_to2; label1 ]
       ; orelse
+      ; [ label3 ]
       ]
   | Raise _ -> failwith "Unsupported: Raise"
   | Try _ -> failwith "Unsupported: Try"
@@ -200,8 +214,14 @@ let rec compile_stmt env stmt =
     load_value @ [ O.op RETURN_VALUE ]
   | Delete _ -> failwith "Unsupported: Delete"
   | Pass -> [ O.op NOP ]
-  | Break -> failwith "Unsupported: Break"
-  | Continue -> failwith "Unsupported: Continue"
+  | Break ->
+    (match env.loop_labels with
+    | None -> errorf "SyntaxError: break not in a loop"
+    | Some { break; continue = _ } -> [ O.jump JUMP_ABSOLUTE break ])
+  | Continue ->
+    (match env.loop_labels with
+    | None -> errorf "SyntaxError: continue not in a loop"
+    | Some { break = _; continue } -> [ O.jump JUMP_ABSOLUTE continue ])
 
 and compile_expr env expr =
   match (expr : Ast.expr) with
