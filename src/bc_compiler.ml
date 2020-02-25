@@ -122,10 +122,18 @@ module Env = struct
     let id = Id_set.find_or_add t.names name in
     O.op STORE_ATTR ~arg:id
 
+  let delete_attr t name =
+    let id = Id_set.find_or_add t.names name in
+    O.op DELETE_ATTR ~arg:id
+
   let store_name t name =
     (* TODO: use varnames for local variables *)
     let id = Id_set.find_or_add t.names name in
     O.op STORE_NAME ~arg:id
+
+  let delete_name t name =
+    let id = Id_set.find_or_add t.names name in
+    O.op DELETE_NAME ~arg:id
 end
 
 let binop_opcode : Ast.operator -> Bc_code.Opcode.t = function
@@ -227,7 +235,7 @@ let rec compile_stmt env stmt =
       | Some expr -> compile_expr env expr
     in
     load_value @ [ O.op RETURN_VALUE ]
-  | Delete _ -> failwith "Unsupported: Delete"
+  | Delete { targets } -> delete env targets
   | Pass -> [ O.op NOP ]
   | Break ->
     (match env.loop_labels with
@@ -324,25 +332,46 @@ and compile_expr env expr =
     let slice = compile_expr env slice in
     value @ slice @ [ O.op BINARY_SUBSCR ]
 
+and delete env targets =
+  List.concat_map targets ~f:(function
+      | None_ | Bool _ | Num _ | Float _ | Str _ ->
+        errorf "SyntaxError: can't delete constant"
+      | Dict _ -> errorf "SyntaxError: can't delete dict"
+      | BoolOp _ | BinOp _ | UnaryOp _ | IfExp _ | Compare _ ->
+        errorf "SyntaxError: can't delete operator"
+      | Call _ -> errorf "SyntaxError: can't delete function call"
+      | ListComp _ -> errorf "SyntaxError: can't delete comprehension"
+      | Lambda _ -> errorf "SyntaxError: can't delete lambda"
+      | Name name -> [ Env.delete_name env name ]
+      | Tuple _exprs -> failwith "SyntaxError: can't delete tuple"
+      | List _exprs -> failwith "SyntaxError: can't delete list"
+      | Attribute { value = value_attr; attr } ->
+        let value_attr = compile_expr env value_attr in
+        List.concat [ value_attr; [ Env.delete_attr env attr ] ]
+      | Subscript { value = value_attr; slice } ->
+        let value_attr = compile_expr env value_attr in
+        let slice = compile_expr env slice in
+        List.concat [ value_attr; slice; [ O.op DELETE_SUBSCR ] ])
+
 and aug_assign env ~target ~op ~value =
   let value = compile_expr env value in
   match target with
   | None_ | Bool _ | Num _ | Float _ | Str _ ->
-    errorf "SyntaxError: can't assign to constant"
-  | Dict _ -> errorf "SyntaxError: can't assign to dict"
+    errorf "SyntaxError: can't augmented assign to constant"
+  | Dict _ -> errorf "SyntaxError: can't augmented assign to dict"
   | BoolOp _ | BinOp _ | UnaryOp _ | IfExp _ | Compare _ ->
-    errorf "SyntaxError: can't assign to operator"
-  | Call _ -> errorf "SyntaxError: can't assign to function call"
-  | ListComp _ -> errorf "SyntaxError: can't assign to comprehension"
-  | Lambda _ -> errorf "SyntaxError: can't assign to lambda"
+    errorf "SyntaxError: can't augmented assign to operator"
+  | Call _ -> errorf "SyntaxError: can't augmented assign to function call"
+  | ListComp _ -> errorf "SyntaxError: can't augmented assign to comprehension"
+  | Lambda _ -> errorf "SyntaxError: can't augmented assign to lambda"
   | Name name ->
     List.concat
       [ [ Env.load_name env name ]
       ; value
       ; [ O.op (inplace_opcode op); Env.store_name env name ]
       ]
-  | Tuple _exprs -> failwith "Unsupported: AugAssign Tuple"
-  | List _exprs -> failwith "Unsupported: AugAssign List"
+  | Tuple _exprs -> failwith "SyntaxError: can't augmented assign to tuple"
+  | List _exprs -> failwith "SyntaxError: can't augmented assign to list"
   | Attribute { value = value_attr; attr } ->
     let value_attr = compile_expr env value_attr in
     List.concat

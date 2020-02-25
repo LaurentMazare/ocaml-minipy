@@ -212,16 +212,21 @@ module Binary_op = struct
         (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
         (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
 
-  let bin_subscr v1 v2 =
-    match (v1 : Bc_value.t), (v2 : Bc_value.t) with
-    | Str v1, Int v2 -> Bc_value.str (String.of_char v1.[Z.to_int v2])
-    | Tuple v1, Int v2 -> v1.(Z.to_int v2)
-    | List v1, Int v2 -> v1.(Z.to_int v2)
+  let bin_subscr value index =
+    match (value : Bc_value.t), (index : Bc_value.t) with
+    | Str s, Int index ->
+      let index = Z.to_int index in
+      let index = if index < 0 then String.length s + index else index in
+      Bc_value.str (String.of_char s.[index])
+    | Tuple vs, Int index | List vs, Int index ->
+      let index = Z.to_int index in
+      let index = if index < 0 then Array.length vs + index else index in
+      vs.(index)
     | _, _ ->
       errorf
         "TypeError in subscript %s %s"
-        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
-        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
+        (Bc_value.type_ value |> Bc_value.Type_.to_string)
+        (Bc_value.type_ index |> Bc_value.Type_.to_string)
 
   let apply t v1 v2 =
     match t with
@@ -366,6 +371,33 @@ let load_name t ~arg =
   in
   push_and_continue t.stack value
 
+let store_subscr stack =
+  let value, obj, index = pop3 stack in
+  (match (obj : Bc_value.t), (index : Bc_value.t) with
+  | List ts, Int i ->
+    let i = Z.to_int i in
+    let i = if i < 0 then Array.length ts + i else i in
+    ts.(i) <- value
+  | Dict d, index -> Hashtbl.set d ~key:index ~data:value
+  | _, _ ->
+    errorf
+      "TypeError in store subscript %s[%s]"
+      (Bc_value.type_ obj |> Bc_value.Type_.to_string)
+      (Bc_value.type_ index |> Bc_value.Type_.to_string));
+  Continue
+
+let delete_subscr stack =
+  let obj, index = pop2 stack in
+  (match (obj : Bc_value.t), (index : Bc_value.t) with
+  | List _ts, Int _i -> failwith "cannot delete from list for now"
+  | Dict d, index -> Hashtbl.remove d index
+  | _, _ ->
+    errorf
+      "TypeError in store subscript %s[%s]"
+      (Bc_value.type_ obj |> Bc_value.Type_.to_string)
+      (Bc_value.type_ index |> Bc_value.Type_.to_string));
+  Continue
+
 let popn stack n =
   let rec loop acc n =
     match n with
@@ -420,8 +452,8 @@ let eval_one t opcode ~arg =
   | INPLACE_SUBTRACT -> inplace Subtract t.stack
   | INPLACE_MULTIPLY -> inplace Multiply t.stack
   | INPLACE_MODULO -> inplace Modulo t.stack
-  | STORE_SUBSCR -> failwith "Unsupported: STORE_SUBSCR"
-  | DELETE_SUBSCR -> failwith "Unsupported: DELETE_SUBSCR"
+  | STORE_SUBSCR -> store_subscr t.stack
+  | DELETE_SUBSCR -> delete_subscr t.stack
   | BINARY_LSHIFT -> binary Lshift t.stack
   | BINARY_RSHIFT -> binary Rshift t.stack
   | BINARY_AND -> binary And t.stack
