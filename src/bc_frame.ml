@@ -133,6 +133,8 @@ module Binary_op = struct
     | Int v1, Float v2 -> Bc_value.float (Z.to_float v1 +. v2)
     | Float v1, Float v2 -> Bc_value.float (v1 +. v2)
     | Str v1, Str v2 -> Bc_value.str (v1 ^ v2)
+    | Tuple v1, Tuple v2 -> Bc_value.tuple (Array.append v1 v2)
+    | List v1, List v2 -> Bc_value.list (Array.append v1 v2)
     | _, _ ->
       errorf
         "TypeError in add %s %s"
@@ -157,6 +159,10 @@ module Binary_op = struct
     | Float v1, Int v2 -> Bc_value.float (v1 *. Z.to_float v2)
     | Int v1, Float v2 -> Bc_value.float (Z.to_float v1 *. v2)
     | Float v1, Float v2 -> Bc_value.float (v1 *. v2)
+    | Tuple v1, Int v2 ->
+      List.init (Z.to_int v2) ~f:(fun _index -> v1) |> Array.concat |> Bc_value.tuple
+    | List v1, Int v2 ->
+      List.init (Z.to_int v2) ~f:(fun _index -> v1) |> Array.concat |> Bc_value.list
     | _, _ ->
       errorf
         "TypeError in mult %s %s"
@@ -440,6 +446,24 @@ let build_tuple t ~arg =
   let tuple = popn t.stack arg |> Array.of_list in
   push_and_continue t.stack (Tuple tuple)
 
+let build_list t ~arg =
+  let list = popn t.stack arg |> Array.of_list in
+  push_and_continue t.stack (List list)
+
+let get_iter stack =
+  let iter = Stack.pop_exn stack |> Bc_value.to_iterable in
+  push_and_continue stack iter
+
+let for_iter stack ~arg =
+  match Stack.top_exn stack with
+  | Bc_value.Iterator { next } ->
+    (match next () with
+    | Some v -> push_and_continue stack v
+    | None ->
+      let _top = Stack.pop_exn stack in
+      Jump_abs arg)
+  | v -> Bc_value.cannot_be_interpreted_as v "iterator"
+
 let eval_one t opcode ~arg =
   match (opcode : Bc_code.Opcode.t) with
   | POP_TOP -> pop_top t.stack
@@ -479,7 +503,7 @@ let eval_one t opcode ~arg =
   | BINARY_XOR -> binary Xor t.stack
   | BINARY_OR -> binary Or t.stack
   | INPLACE_POWER -> inplace Power t.stack
-  | GET_ITER -> failwith "Unsupported: GET_ITER"
+  | GET_ITER -> get_iter t.stack
   | GET_YIELD_FROM_ITER -> failwith "Unsupported: GET_YIELD_FROM_ITER"
   | PRINT_EXPR -> failwith "Unsupported: PRINT_EXPR"
   | LOAD_BUILD_CLASS -> failwith "Unsupported: LOAD_BUILD_CLASS"
@@ -510,7 +534,7 @@ let eval_one t opcode ~arg =
     Bc_scope.remove t.local_scope name;
     Continue
   | UNPACK_SEQUENCE -> unpack_sequence t.stack ~arg
-  | FOR_ITER -> failwith "Unsupported: FOR_ITER"
+  | FOR_ITER -> for_iter t.stack ~arg
   | UNPACK_EX -> failwith "Unsupported: UNPACK_EX"
   | STORE_ATTR -> failwith "Unsupported: STORE_ATTR"
   | DELETE_ATTR -> failwith "Unsupported: DELETE_ATTR"
@@ -519,7 +543,7 @@ let eval_one t opcode ~arg =
   | LOAD_CONST -> push_and_continue t.stack t.code.consts.(arg)
   | LOAD_NAME -> load_name t ~arg
   | BUILD_TUPLE -> build_tuple t ~arg
-  | BUILD_LIST -> failwith "Unsupported: BUILD_LIST"
+  | BUILD_LIST -> build_list t ~arg
   | BUILD_SET -> failwith "Unsupported: BUILD_SET"
   | BUILD_MAP -> failwith "Unsupported: BUILD_MAP"
   | LOAD_ATTR -> failwith "Unsupported: LOAD_ATTR"

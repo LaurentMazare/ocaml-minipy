@@ -1,13 +1,48 @@
 open Base
+open Import
+
+let to_int v = Bc_value.to_int v |> Z.to_int
+
+let range_fn args =
+  let start, stop, stride =
+    match args with
+    | [ v ] -> 0, to_int v, 1
+    | [ v1; v2 ] -> to_int v1, to_int v2, 1
+    | [ v1; v2; s ] -> to_int v1, to_int v2, to_int s
+    | _ -> errorf "range expects one, two, or three arguments"
+  in
+  if stride = 0 then errorf "range cannot use a stride of 0";
+  let index = ref start in
+  let next () =
+    let v = !index in
+    if (stride > 0 && v >= stop) || (stride < 0 && v <= stop)
+    then None
+    else (
+      index := v + stride;
+      Z.of_int v |> Bc_value.int |> Option.some)
+  in
+  Bc_value.iterator ~next
+
+let len_fn args =
+  let l =
+    match (args : Bc_value.t list) with
+    | [ Tuple l ] -> Array.length l
+    | [ List l ] -> Array.length l
+    | [ Str s ] -> String.length s
+    | [ Dict d ] -> Hashtbl.length d
+    | [ v ] -> Bc_value.cannot_be_interpreted_as v "type with len"
+    | _ -> errorf "len takes exactly one argument"
+  in
+  Z.of_int l |> Bc_value.int
+
+let print_fn args =
+  List.map args ~f:(Bc_value.to_string ~escape_special_chars:false)
+  |> String.concat ~sep:" "
+  |> Stdio.printf "%s\n";
+  Bc_value.None
 
 let builtins () =
-  let print_fn args =
-    List.map args ~f:(Bc_value.to_string ~escape_special_chars:false)
-    |> String.concat ~sep:" "
-    |> Stdio.printf "%s\n";
-    Bc_value.None
-  in
-  List.map [ "print", print_fn ] ~f:(fun (name, fn) ->
+  List.map [ "print", print_fn; "range", range_fn; "len", len_fn ] ~f:(fun (name, fn) ->
       name, Bc_value.Builtin_fn { name; fn })
   |> Bc_scope.of_alist_exn
 

@@ -192,3 +192,20 @@ print(a * 100 + b * 10 + c)
         ((1, 2), 3)
         123
       |}]
+
+let%expect_test "sieve" =
+  parse_compile_and_run
+    {|
+# A simple prime sieve.
+def sieve(maxp):
+  is_prime = [True] * (1+maxp)
+  primes = []
+  for p in range(2, 1+maxp):
+    if is_prime[p]:
+      primes = primes + [p] # Append would be better...
+      for q in range(p, 1+maxp, p): is_prime[q] = False
+  return primes
+
+print(sieve(40))
+|};
+  [%expect {| [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37] |}]

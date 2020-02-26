@@ -16,6 +16,7 @@ module Type_ = struct
     | Object
     | Class
     | Code
+    | Iterator
   [@@deriving sexp]
 
   let to_string t = sexp_of_t t |> Sexp.to_string_mach
@@ -48,6 +49,7 @@ type t =
       { code : t Bc_code.t
       ; args : Ast.arguments
       }
+  | Iterator of { next : unit -> t option }
 [@@deriving sexp_of]
 
 let type_ = function
@@ -62,6 +64,7 @@ let type_ = function
   | Builtin_fn _ -> Builtin_fn
   | Function _ -> Function
   | Code _ -> Code
+  | Iterator _ -> Iterator
 
 let to_string ?(escape_special_chars = true) t =
   let rec loop ~e = function
@@ -90,6 +93,7 @@ let to_string ?(escape_special_chars = true) t =
     | Builtin_fn { name; fn = _ } -> Printf.sprintf "builtin<%s>" name
     | Function { name; _ } -> Printf.sprintf "function<%s>" name
     | Code _ -> "<code>"
+    | Iterator _ -> "<iterator>"
   in
   loop t ~e:escape_special_chars
 
@@ -109,7 +113,12 @@ let int i = Int i
 let float f = Float f
 let str s = Str s
 let tuple ts = Tuple ts
+let list ts = List ts
 let code code ~args = Code { code; args }
+let iterator ~next = Iterator { next }
+
+let cannot_be_interpreted_as v str =
+  errorf "%s cannot be interpreted as %s" (type_ v |> Type_.to_string) str
 
 let to_bool t =
   match t with
@@ -120,4 +129,40 @@ let to_bool t =
   | Tuple t | List t -> Array.length t > 0
   | Dict d -> Hashtbl.length d > 0
   | Str s -> String.length s > 0
-  | t -> errorf "expected string, got '%s'" (type_ t |> Type_.to_string)
+  | t -> cannot_be_interpreted_as t "bool"
+
+let to_float t =
+  match t with
+  | Bool true -> 1.
+  | Bool false -> 0.
+  | Float f -> f
+  | Int i -> Z.to_float i
+  | v -> cannot_be_interpreted_as v "float"
+
+let to_int v =
+  match v with
+  | Bool true -> Z.one
+  | Bool false -> Z.zero
+  | Int i -> i
+  | v -> cannot_be_interpreted_as v "int"
+
+let array_iterator array =
+  let current = ref 0 in
+  let next () =
+    if !current < Array.length array
+    then (
+      let v = array.(!current) in
+      Int.incr current;
+      Some v)
+    else None
+  in
+  Iterator { next }
+
+let to_iterable v =
+  match v with
+  | List l | Tuple l -> array_iterator l
+  | Str s ->
+    String.to_array s |> Array.map ~f:(fun c -> Str (Char.to_string c)) |> array_iterator
+  | Dict s -> Hashtbl.keys s |> Array.of_list |> array_iterator
+  | Iterator _ as it -> it
+  | o -> cannot_be_interpreted_as o "iterable"

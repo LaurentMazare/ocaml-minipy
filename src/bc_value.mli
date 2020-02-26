@@ -15,6 +15,7 @@ module Type_ : sig
     | Object
     | Class
     | Code
+    | Iterator
 
   val to_string : t -> string
 end
@@ -42,6 +43,7 @@ type t =
       { code : t Bc_code.t
       ; args : Ast.arguments
       }
+  | Iterator of { next : unit -> t option }
 [@@deriving sexp_of]
 
 type code = t Bc_code.t [@@deriving sexp_of]
@@ -56,5 +58,11 @@ val int : Z.t -> t
 val float : float -> t
 val str : string -> t
 val tuple : t array -> t
+val list : t array -> t
 val code : code -> args:Ast.arguments -> t
+val iterator : next:(unit -> t option) -> t
 val to_bool : t -> bool
+val to_int : t -> Z.t
+val to_float : t -> float
+val to_iterable : t -> t
+val cannot_be_interpreted_as : t -> string -> 'a

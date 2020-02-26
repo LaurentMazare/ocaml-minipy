@@ -201,7 +201,26 @@ let rec compile_stmt env stmt =
         ; orelse
         ; [ label2 ]
         ])
-  | For _ -> failwith "Unsupported: For"
+  | For { target; iter; body; orelse } ->
+    let jump_to1, label1 = O.label () in
+    let jump_to2, label2 = O.label () in
+    let jump_to3, label3 = O.label () in
+    let iter = compile_expr env iter in
+    let assign = assign env ~target in
+    let body =
+      let loop_env = Env.loop_env env ~break:jump_to3 ~continue:jump_to2 in
+      List.concat_map body ~f:(compile_stmt loop_env)
+    in
+    let orelse = List.concat_map orelse ~f:(compile_stmt env) in
+    List.concat
+      [ iter
+      ; [ O.op GET_ITER; label2; O.jump FOR_ITER jump_to1 ]
+      ; assign
+      ; body
+      ; [ O.jump JUMP_ABSOLUTE jump_to2; label1 ]
+      ; orelse
+      ; [ label3 ]
+      ]
   | While { test; body; orelse } ->
     let test = compile_expr env test in
     let jump_to1, label1 = O.label () in
@@ -226,7 +245,7 @@ let rec compile_stmt env stmt =
   | Import _ -> failwith "Unsupported: Import"
   | ImportFrom _ -> failwith "Unsupported: ImportFrom"
   | Expr { value } -> compile_expr env value @ [ O.op POP_TOP ]
-  | Assign { targets; value } -> assign env ~targets ~value
+  | Assign { targets; value } -> assign_targets env ~targets ~value
   | AugAssign { target; op; value } -> aug_assign env ~target ~op ~value
   | Return { value } ->
     let load_value =
@@ -391,8 +410,7 @@ and aug_assign env ~target ~op ~value =
       ; [ O.op (inplace_opcode op); O.op ROT_THREE; O.op STORE_SUBSCR ]
       ]
 
-and assign env ~targets ~value =
-  let value = compile_expr env value in
+and assign env ~target =
   let rec loop = function
     | Ast.None_ | Bool _ | Num _ | Float _ | Str _ ->
       errorf "SyntaxError: can't assign to constant"
@@ -415,8 +433,12 @@ and assign env ~targets ~value =
       let slice = compile_expr env slice in
       value @ slice @ [ O.op STORE_SUBSCR ]
   in
+  loop target
+
+and assign_targets env ~targets ~value =
+  let value = compile_expr env value in
   let dups = List.init (List.length targets - 1) ~f:(fun _ -> O.op DUP_TOP) in
-  let targets = List.concat_map targets ~f:loop in
+  let targets = List.concat_map targets ~f:(fun target -> assign env ~target) in
   value @ dups @ targets
 
 and compile (ast : Ast.t) =
