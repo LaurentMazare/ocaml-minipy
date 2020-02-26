@@ -11,7 +11,7 @@ This is a work in progress, most of the supported features are only partially im
 
 - Python values:
     - Boolean.
-    - Integer (represented with limited precision).
+    - Integer (represented with arbitrary precision).
     - Float.
     - String.
     - List/Tuple.
