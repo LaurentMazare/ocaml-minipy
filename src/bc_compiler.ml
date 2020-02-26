@@ -415,8 +415,8 @@ and assign env ~targets ~value =
       let slice = compile_expr env slice in
       value @ slice @ [ O.op STORE_SUBSCR ]
   in
-  let targets = List.concat_map targets ~f:loop in
   let dups = List.init (List.length targets - 1) ~f:(fun _ -> O.op DUP_TOP) in
+  let targets = List.concat_map targets ~f:loop in
   value @ dups @ targets
 
 and compile (ast : Ast.t) =

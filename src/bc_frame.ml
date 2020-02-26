@@ -635,3 +635,4 @@ let eval_step t =
     | Return v -> Return v)
 
 let function_call_returned t v = Stack.push t.stack v
+let stack t = t.stack

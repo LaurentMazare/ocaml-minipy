@@ -40,8 +40,22 @@ let eval code =
         let call_frame = Bc_frame.call_frame frame ~code ~local_scope in
         Stack.push t.frames call_frame
       | Return value ->
-        let _callee_frame = Stack.pop_exn t.frames in
+        let callee_frame = Stack.pop_exn t.frames in
+        let callee_stack = Bc_frame.stack callee_frame in
+        if not (Stack.is_empty callee_stack)
+        then
+          Printf.failwithf
+            "non-empty stack upon return: %s"
+            (Stack.sexp_of_t Bc_value.sexp_of_t callee_stack |> Sexp.to_string_hum)
+            ();
         Stack.top t.frames
         |> Option.iter ~f:(fun caller_frame ->
                Bc_frame.function_call_returned caller_frame value))
-  done
+  done;
+  let stack = Bc_frame.stack frame in
+  if not (Stack.is_empty stack)
+  then
+    Printf.failwithf
+      "non-empty final stack: %s"
+      (Stack.sexp_of_t Bc_value.sexp_of_t stack |> Sexp.to_string_hum)
+      ()
