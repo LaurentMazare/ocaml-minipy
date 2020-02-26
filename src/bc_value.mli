@@ -26,7 +26,7 @@ type t =
   | Int of Z.t
   | Float of float
   | Tuple of t array
-  | List of t array
+  | List of t Queue.t
   | Dict of (t, t) Hashtbl.Poly.t
   | Str of string
   | Builtin_fn of
@@ -58,7 +58,7 @@ val int : Z.t -> t
 val float : float -> t
 val str : string -> t
 val tuple : t array -> t
-val list : t array -> t
+val list : t Queue.t -> t
 val code : code -> args:Ast.arguments -> t
 val iterator : next:(unit -> t option) -> t
 val to_bool : t -> bool

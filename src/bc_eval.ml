@@ -27,7 +27,7 @@ let len_fn args =
   let l =
     match (args : Bc_value.t list) with
     | [ Tuple l ] -> Array.length l
-    | [ List l ] -> Array.length l
+    | [ List l ] -> Queue.length l
     | [ Str s ] -> String.length s
     | [ Dict d ] -> Hashtbl.length d
     | [ v ] -> Bc_value.cannot_be_interpreted_as v "type with len"

@@ -134,7 +134,10 @@ module Binary_op = struct
     | Float v1, Float v2 -> Bc_value.float (v1 +. v2)
     | Str v1, Str v2 -> Bc_value.str (v1 ^ v2)
     | Tuple v1, Tuple v2 -> Bc_value.tuple (Array.append v1 v2)
-    | List v1, List v2 -> Bc_value.list (Array.append v1 v2)
+    | List v1, List v2 ->
+      Array.concat [ Queue.to_array v1; Queue.to_array v2 ]
+      |> Queue.of_array
+      |> Bc_value.list
     | _, _ ->
       errorf
         "TypeError in add %s %s"
@@ -162,7 +165,10 @@ module Binary_op = struct
     | Tuple v1, Int v2 ->
       List.init (Z.to_int v2) ~f:(fun _index -> v1) |> Array.concat |> Bc_value.tuple
     | List v1, Int v2 ->
-      List.init (Z.to_int v2) ~f:(fun _index -> v1) |> Array.concat |> Bc_value.list
+      List.init (Z.to_int v2) ~f:(fun _index -> Queue.to_array v1)
+      |> Array.concat
+      |> Queue.of_array
+      |> Bc_value.list
     | _, _ ->
       errorf
         "TypeError in mult %s %s"
@@ -224,10 +230,14 @@ module Binary_op = struct
       let index = Z.to_int index in
       let index = if index < 0 then String.length s + index else index in
       Bc_value.str (String.of_char s.[index])
-    | Tuple vs, Int index | List vs, Int index ->
+    | Tuple vs, Int index ->
       let index = Z.to_int index in
       let index = if index < 0 then Array.length vs + index else index in
       vs.(index)
+    | List vs, Int index ->
+      let index = Z.to_int index in
+      let index = if index < 0 then Queue.length vs + index else index in
+      Queue.get vs index
     | _, _ ->
       errorf
         "TypeError in subscript %s %s"
@@ -380,11 +390,21 @@ let load_name t ~arg =
 let unpack_sequence stack ~arg =
   let value = Stack.pop_exn stack in
   (match (value : Bc_value.t) with
-  | Tuple ts | List ts ->
+  | List ts ->
+    if Queue.length ts <> arg
+    then
+      errorf
+        "TypeError when unpacking list of length %d in %d items"
+        (Queue.length ts)
+        arg;
+    for i = Queue.length ts - 1 downto 0 do
+      Stack.push stack (Queue.get ts i)
+    done
+  | Tuple ts ->
     if Array.length ts <> arg
     then
       errorf
-        "TypeError when unpacking sequence of length %d in %d items"
+        "TypeError when unpacking tuple of length %d in %d items"
         (Array.length ts)
         arg;
     for i = Array.length ts - 1 downto 0 do
@@ -401,8 +421,8 @@ let store_subscr stack =
   (match (obj : Bc_value.t), (index : Bc_value.t) with
   | List ts, Int i ->
     let i = Z.to_int i in
-    let i = if i < 0 then Array.length ts + i else i in
-    ts.(i) <- value
+    let i = if i < 0 then Queue.length ts + i else i in
+    Queue.set ts i value
   | Dict d, index -> Hashtbl.set d ~key:index ~data:value
   | _, _ ->
     errorf
@@ -447,7 +467,7 @@ let build_tuple t ~arg =
   push_and_continue t.stack (Tuple tuple)
 
 let build_list t ~arg =
-  let list = popn t.stack arg |> Array.of_list in
+  let list = popn t.stack arg |> Queue.of_list in
   push_and_continue t.stack (List list)
 
 let get_iter stack =
@@ -463,6 +483,18 @@ let for_iter stack ~arg =
       let _top = Stack.pop_exn stack in
       Jump_abs arg)
   | v -> Bc_value.cannot_be_interpreted_as v "iterator"
+
+let list_append stack =
+  let v = Stack.pop_exn stack in
+  match Stack.top_exn stack with
+  | Bc_value.List l ->
+    Queue.enqueue l v;
+    Continue
+  | v -> Bc_value.cannot_be_interpreted_as v "iterator"
+
+let build_map stack =
+  let tbl = Hashtbl.Poly.create () in
+  push_and_continue stack (Bc_value.Dict tbl)
 
 let eval_one t opcode ~arg =
   match (opcode : Bc_code.Opcode.t) with
@@ -545,7 +577,7 @@ let eval_one t opcode ~arg =
   | BUILD_TUPLE -> build_tuple t ~arg
   | BUILD_LIST -> build_list t ~arg
   | BUILD_SET -> failwith "Unsupported: BUILD_SET"
-  | BUILD_MAP -> failwith "Unsupported: BUILD_MAP"
+  | BUILD_MAP -> build_map t.stack
   | LOAD_ATTR -> failwith "Unsupported: LOAD_ATTR"
   | COMPARE_OP -> compare (Bc_code.cmpop_of_int arg) t.stack
   | IMPORT_NAME -> failwith "Unsupported: IMPORT_NAME"
@@ -613,7 +645,7 @@ let eval_one t opcode ~arg =
   | CALL_FUNCTION_EX -> failwith "Unsupported: CALL_FUNCTION_EX"
   | SETUP_WITH -> failwith "Unsupported: SETUP_WITH"
   | EXTENDED_ARG -> failwith "Unsupported: EXTENDED_ARG"
-  | LIST_APPEND -> failwith "Unsupported: LIST_APPEND"
+  | LIST_APPEND -> list_append t.stack
   | SET_ADD -> failwith "Unsupported: SET_ADD"
   | MAP_ADD -> failwith "Unsupported: MAP_ADD"
   | LOAD_CLASSDEREF -> failwith "Unsupported: LOAD_CLASSDEREF"

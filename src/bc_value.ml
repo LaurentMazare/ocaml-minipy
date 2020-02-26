@@ -32,7 +32,7 @@ type t =
   | Int of z_t
   | Float of float
   | Tuple of t array
-  | List of t array
+  | List of t Queue.t
   | Dict of (t, t) Hashtbl.Poly.t
   | Str of string
   | Builtin_fn of
@@ -80,7 +80,7 @@ let to_string ?(escape_special_chars = true) t =
       |> String.concat ~sep:", "
       |> fun s -> "(" ^ s ^ ")"
     | List ts ->
-      Array.to_list ts
+      Queue.to_list ts
       |> List.map ~f:(loop ~e:true)
       |> String.concat ~sep:", "
       |> fun s -> "[" ^ s ^ "]"
@@ -126,7 +126,8 @@ let to_bool t =
   | Bool b -> b
   | Int i -> not (Z.equal i Z.zero)
   | Float f -> Float.( <> ) f 0.
-  | Tuple t | List t -> Array.length t > 0
+  | Tuple t -> Array.length t > 0
+  | List t -> Queue.length t > 0
   | Dict d -> Hashtbl.length d > 0
   | Str s -> String.length s > 0
   | t -> cannot_be_interpreted_as t "bool"
@@ -158,9 +159,22 @@ let array_iterator array =
   in
   Iterator { next }
 
+let queue_iterator q =
+  let current = ref 0 in
+  let next () =
+    if !current < Queue.length q
+    then (
+      let v = Queue.get q !current in
+      Int.incr current;
+      Some v)
+    else None
+  in
+  Iterator { next }
+
 let to_iterable v =
   match v with
-  | List l | Tuple l -> array_iterator l
+  | List l -> queue_iterator l
+  | Tuple l -> array_iterator l
   | Str s ->
     String.to_array s |> Array.map ~f:(fun c -> Str (Char.to_string c)) |> array_iterator
   | Dict s -> Hashtbl.keys s |> Array.of_list |> array_iterator
