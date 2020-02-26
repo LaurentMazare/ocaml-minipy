@@ -278,7 +278,28 @@ and compile_expr env expr =
     List.concat_map exprs ~f:(compile_expr env)
     @ [ O.op BUILD_LIST ~arg:(List.length exprs) ]
   | Dict _ -> failwith "Unsupported: Dict"
-  | ListComp _ -> failwith "Unsupported: ListComp"
+  | ListComp { elt; generators } ->
+    let depth = List.length generators in
+    let generators =
+      List.rev generators
+      |> List.fold
+           ~init:(compile_expr env elt @ [ O.op LIST_APPEND ~arg:(1 + depth) ])
+           ~f:(fun body { Ast.target; iter; ifs } ->
+             let jump_to1, label1 = O.label () in
+             let jump_to2, label2 = O.label () in
+             let iter = compile_expr env iter in
+             let assign = assign env ~target in
+             List.concat
+               [ iter
+               ; [ O.op GET_ITER; label2; O.jump FOR_ITER jump_to1 ]
+               ; assign
+               ; List.concat_map ifs ~f:(fun expr ->
+                     compile_expr env expr @ [ O.jump POP_JUMP_IF_FALSE jump_to2 ])
+               ; body
+               ; [ O.jump JUMP_ABSOLUTE jump_to2; label1 ]
+               ])
+    in
+    O.op BUILD_LIST ~arg:0 :: generators
   | Tuple exprs ->
     let exprs = Array.to_list exprs in
     List.concat_map exprs ~f:(compile_expr env)

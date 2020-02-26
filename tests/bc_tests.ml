@@ -209,3 +209,29 @@ def sieve(maxp):
 print(sieve(40))
 |};
   [%expect {| [2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37] |}]
+
+let%expect_test "list-compr" =
+  parse_compile_and_run
+    {|
+l = [i*i for i in range(4)]
+print(l)
+
+l = [i*i for i in range(5) if i != 3 ]
+print(l)
+
+l = [(i, j) for i in range(5) for j in range(i)]
+print(l)
+
+l = [(i, j) for i in range(5) for j in range(i) if i % 2 == 0]
+print(l)
+
+l = [(i, j) for i in range(5) if i % 2 == 0 for j in range(i+1) if i == j]
+print(l)
+|};
+  [%expect
+    {|
+    [0, 1, 4, 9]
+    [0, 1, 4, 16]
+    [(1, 0), (2, 0), (2, 1), (3, 0), (3, 1), (3, 2), (4, 0), (4, 1), (4, 2), (4, 3)]
+    [(2, 0), (2, 1), (4, 0), (4, 1), (4, 2), (4, 3)]
+    [(0, 0), (2, 2), (4, 4)] |}]

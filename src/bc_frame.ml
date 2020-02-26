@@ -484,13 +484,20 @@ let for_iter stack ~arg =
       Jump_abs arg)
   | v -> Bc_value.cannot_be_interpreted_as v "iterator"
 
-let list_append stack =
+let list_append stack ~arg =
   let v = Stack.pop_exn stack in
-  match Stack.top_exn stack with
+  let list =
+    Stack.fold_until
+      stack
+      ~init:1
+      ~f:(fun i value -> if i = arg then Stop value else Continue (i + 1))
+      ~finish:(fun _ -> errorf "LIST_APPEND cannot find list")
+  in
+  match list with
   | Bc_value.List l ->
     Queue.enqueue l v;
     Continue
-  | v -> Bc_value.cannot_be_interpreted_as v "iterator"
+  | v -> Bc_value.cannot_be_interpreted_as v "list"
 
 let build_map stack =
   let tbl = Hashtbl.Poly.create () in
@@ -645,7 +652,7 @@ let eval_one t opcode ~arg =
   | CALL_FUNCTION_EX -> failwith "Unsupported: CALL_FUNCTION_EX"
   | SETUP_WITH -> failwith "Unsupported: SETUP_WITH"
   | EXTENDED_ARG -> failwith "Unsupported: EXTENDED_ARG"
-  | LIST_APPEND -> list_append t.stack
+  | LIST_APPEND -> list_append t.stack ~arg
   | SET_ADD -> failwith "Unsupported: SET_ADD"
   | MAP_ADD -> failwith "Unsupported: MAP_ADD"
   | LOAD_CLASSDEREF -> failwith "Unsupported: LOAD_CLASSDEREF"
