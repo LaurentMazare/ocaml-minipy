@@ -3,7 +3,8 @@ open Import
 
 let to_int v = Bc_value.to_int v |> Z.to_int
 
-let range_fn args =
+let range_fn args kwargs =
+  check_empty_kwargs kwargs;
   let start, stop, stride =
     match args with
     | [ v ] -> 0, to_int v, 1
@@ -23,7 +24,8 @@ let range_fn args =
   in
   Bc_value.iterator ~next
 
-let len_fn args =
+let len_fn args kwargs =
+  check_empty_kwargs kwargs;
   let l =
     match (args : Bc_value.t list) with
     | [ Tuple l ] -> Array.length l
@@ -35,7 +37,8 @@ let len_fn args =
   in
   Z.of_int l |> Bc_value.int
 
-let print_fn args =
+let print_fn args kwargs =
+  check_empty_kwargs kwargs;
   List.map args ~f:(Bc_value.to_string ~escape_special_chars:false)
   |> String.concat ~sep:" "
   |> Stdio.printf "%s\n";

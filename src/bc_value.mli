@@ -1,4 +1,5 @@
 open Base
+open Import
 
 module Type_ : sig
   type t =
@@ -31,13 +32,13 @@ type t =
   | Str of string
   | Builtin_fn of
       { name : string
-      ; fn : t list -> t
+      ; fn : t list -> t String_map.t -> t
       }
   | Function of
       { name : string
       ; code : t Bc_code.t
       ; args : Ast.arguments
-      ; defaults : t list
+      ; defaults : (string * t) array
       }
   | Code of
       { code : t Bc_code.t

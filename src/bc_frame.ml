@@ -454,17 +454,6 @@ let popn stack n =
   in
   loop [] n
 
-let popn_pairs stack n =
-  let rec loop acc n =
-    match n with
-    | 0 -> acc
-    | n ->
-      let a = Stack.pop_exn stack in
-      let b = Stack.pop_exn stack in
-      loop ((a, b) :: acc) (n - 1)
-  in
-  loop [] n
-
 let build_tuple t ~arg =
   let tuple = popn t.stack arg |> Array.of_list in
   push_and_continue t.stack (Tuple tuple)
@@ -516,6 +505,53 @@ let load_attr stack attr =
       "'%s' object has no attribute '%s'"
       (Bc_value.type_ v |> Bc_value.Type_.to_string)
       attr
+
+let call_function_aux stack ~kwarg_names ~arg =
+  let n_kwargs = Array.length kwarg_names in
+  let kwargs = popn stack n_kwargs in
+  let posargs = popn stack (arg - n_kwargs) in
+  let fn = Stack.pop_exn stack in
+  let kwargs =
+    List.zip_exn (Array.to_list kwarg_names) kwargs |> Map.of_alist_exn (module String)
+  in
+  match (fn : Bc_value.t) with
+  | Builtin_fn { name = _; fn } ->
+    let value = fn posargs kwargs in
+    push_and_continue stack value
+  | Function { name = _; code; args; defaults } ->
+    let local_scope = Bc_scope.create () in
+    Array.iter defaults ~f:(fun (arg_name, value) ->
+        let value = Map.find kwargs arg_name |> Option.value ~default:value in
+        Bc_scope.set local_scope arg_name value);
+    let posarg_names =
+      List.filter_map args.args ~f:(fun arg_name ->
+          match Map.find kwargs arg_name with
+          | None -> Some arg_name
+          | Some value ->
+            Bc_scope.set local_scope arg_name value;
+            None)
+    in
+    List.iter2_exn posarg_names posargs ~f:(fun arg_name value ->
+        Bc_scope.set local_scope arg_name value);
+    Call_fn { code; local_scope }
+  | _ ->
+    errorf "'%s' object is not callable" (Bc_value.type_ fn |> Bc_value.Type_.to_string)
+
+let call_function_kw stack ~arg =
+  let kwarg_names =
+    match (Stack.pop_exn stack : Bc_value.t) with
+    | Tuple tuple ->
+      Array.map tuple ~f:(function
+          | Str name -> name
+          | _ -> errorf "CALL_FUNCTION_KW expects a tuple of string")
+    | v ->
+      errorf
+        "CALL_FUNCTION_KW expects a tuple, got '%s'"
+        (Bc_value.type_ v |> Bc_value.Type_.to_string)
+  in
+  call_function_aux stack ~arg ~kwarg_names
+
+let call_function stack ~arg = call_function_aux stack ~kwarg_names:[||] ~arg
 
 let eval_one t opcode ~arg =
   match (opcode : Bc_code.Opcode.t) with
@@ -634,27 +670,14 @@ let eval_one t opcode ~arg =
   | STORE_FAST -> store_fast t ~arg
   | DELETE_FAST -> delete_fast t ~arg
   | RAISE_VARARGS -> failwith "Unsupported: RAISE_VARARGS"
-  | CALL_FUNCTION ->
-    let n_kwargs = arg / 256 in
-    let n_args = arg % 256 in
-    let _kwargs = popn_pairs t.stack n_kwargs in
-    let pos_args = popn t.stack n_args in
-    let fn = Stack.pop_exn t.stack in
-    (match fn with
-    | Builtin_fn { name = _; fn } ->
-      let value = fn pos_args in
-      push_and_continue t.stack value
-    | Function { name = _; code; args; defaults = _ } ->
-      let local_scope = Bc_scope.create () in
-      List.iter2_exn args.args pos_args ~f:(fun arg_name value ->
-          Bc_scope.set local_scope arg_name value);
-      Call_fn { code; local_scope }
-    | _ ->
-      errorf "'%s' object is not callable" (Bc_value.type_ fn |> Bc_value.Type_.to_string))
+  | CALL_FUNCTION -> call_function t.stack ~arg
   | MAKE_FUNCTION ->
     let name = Stack.pop_exn t.stack |> Bc_value.str_exn in
     let code, args = Stack.pop_exn t.stack |> Bc_value.code_exn in
-    let defaults = popn t.stack arg in
+    let defaults = popn t.stack (List.length args.kwonlyargs) in
+    let defaults =
+      List.zip_exn (List.map args.kwonlyargs ~f:fst) defaults |> Array.of_list
+    in
     let value = Bc_value.Function { name; code; args; defaults } in
     push_and_continue t.stack value
   | BUILD_SLICE -> failwith "Unsupported: BUILD_SLICE"
@@ -662,7 +685,7 @@ let eval_one t opcode ~arg =
   | LOAD_DEREF -> failwith "Unsupported: LOAD_DEREF"
   | STORE_DEREF -> failwith "Unsupported: STORE_DEREF"
   | DELETE_DEREF -> failwith "Unsupported: DELETE_DEREF"
-  | CALL_FUNCTION_KW -> failwith "Unsupported: CALL_FUNCTION_KW"
+  | CALL_FUNCTION_KW -> call_function_kw t.stack ~arg
   | CALL_FUNCTION_EX -> failwith "Unsupported: CALL_FUNCTION_EX"
   | SETUP_WITH -> failwith "Unsupported: SETUP_WITH"
   | EXTENDED_ARG -> failwith "Unsupported: EXTENDED_ARG"

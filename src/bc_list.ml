@@ -6,7 +6,8 @@ let builtin name fn = Bc_value.Builtin_fn { name; fn }
 let attrs queue ~attr =
   match attr with
   | "append" ->
-    let append args =
+    let append args kwargs =
+      check_empty_kwargs kwargs;
       match args with
       | [ a ] ->
         Queue.enqueue queue a;
@@ -15,14 +16,16 @@ let attrs queue ~attr =
     in
     builtin "append" append
   | "clear" ->
-    let clear args =
+    let clear args kwargs =
+      check_empty_kwargs kwargs;
       if not (List.is_empty args) then errorf "clear expects no argument";
       Queue.clear queue;
       Bc_value.none
     in
     builtin "clear" clear
   | "pop" ->
-    let pop args =
+    let pop args kwargs =
+      check_empty_kwargs kwargs;
       if not (List.is_empty args) then errorf "pop expects no argument";
       match Queue.dequeue queue with
       | None -> errorf "pop from empty list"
@@ -30,7 +33,8 @@ let attrs queue ~attr =
     in
     builtin "pop" pop
   | "reverse" ->
-    let reverse args =
+    let reverse args kwargs =
+      check_empty_kwargs kwargs;
       if not (List.is_empty args) then errorf "reverse expects no argument";
       let result = Queue.create () in
       let nelems = Queue.length queue in
@@ -43,7 +47,8 @@ let attrs queue ~attr =
     in
     builtin "reverse" reverse
   | "sort" ->
-    let sort args =
+    let sort args kwargs =
+      check_empty_kwargs kwargs;
       if not (List.is_empty args) then errorf "reverse expects no argument";
       let sorted = Queue.to_array queue in
       Array.sort sorted ~compare:Poly.compare;
