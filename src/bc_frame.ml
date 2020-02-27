@@ -165,10 +165,13 @@ module Binary_op = struct
     | Tuple v1, Int v2 ->
       List.init (Z.to_int v2) ~f:(fun _index -> v1) |> Array.concat |> Bc_value.tuple
     | List v1, Int v2 ->
-      List.init (Z.to_int v2) ~f:(fun _index -> Queue.to_array v1)
-      |> Array.concat
-      |> Queue.of_array
-      |> Bc_value.list
+      let q = Queue.create () in
+      for _i = 1 to Z.to_int v2 do
+        for i = 0 to Queue.length v1 - 1 do
+          Queue.enqueue q (Queue.get v1 i)
+        done
+      done;
+      Bc_value.list q
     | _, _ ->
       errorf
         "TypeError in mult %s %s"
