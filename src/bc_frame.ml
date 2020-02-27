@@ -506,6 +506,17 @@ let build_map stack =
   let tbl = Hashtbl.Poly.create () in
   push_and_continue stack (Bc_value.Dict tbl)
 
+let load_attr stack attr =
+  match (Stack.pop_exn stack : Bc_value.t) with
+  | List q ->
+    let attr = Bc_list.attrs q ~attr in
+    push_and_continue stack attr
+  | v ->
+    errorf
+      "'%s' object has no attribute '%s'"
+      (Bc_value.type_ v |> Bc_value.Type_.to_string)
+      attr
+
 let eval_one t opcode ~arg =
   match (opcode : Bc_code.Opcode.t) with
   | POP_TOP -> pop_top t.stack
@@ -588,7 +599,7 @@ let eval_one t opcode ~arg =
   | BUILD_LIST -> build_list t ~arg
   | BUILD_SET -> failwith "Unsupported: BUILD_SET"
   | BUILD_MAP -> build_map t.stack
-  | LOAD_ATTR -> failwith "Unsupported: LOAD_ATTR"
+  | LOAD_ATTR -> load_attr t.stack t.code.names.(arg)
   | COMPARE_OP -> compare (Bc_code.cmpop_of_int arg) t.stack
   | IMPORT_NAME -> failwith "Unsupported: IMPORT_NAME"
   | IMPORT_FROM -> failwith "Unsupported: IMPORT_FROM"

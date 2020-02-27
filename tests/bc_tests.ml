@@ -227,6 +227,7 @@ print(l)
 
 l = [(i, j) for i in range(5) if i % 2 == 0 for j in range(i+1) if i == j]
 print(l)
+l.append(1)
 |};
   [%expect
     {|
