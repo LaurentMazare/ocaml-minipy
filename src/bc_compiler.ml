@@ -176,11 +176,12 @@ let rec compile_stmt env stmt =
   match (stmt : Ast.stmt) with
   | FunctionDef { name; args; body } ->
     let body = compile body in
-    [ Env.load_const env (Bc_value.code body ~args)
-    ; Env.load_const env (Bc_value.str name)
-    ; O.op MAKE_FUNCTION
-    ; Env.store_name env name
-    ]
+    List.concat_map args.Ast.kwonlyargs ~f:(fun (_, expr) -> compile_expr env expr)
+    @ [ Env.load_const env (Bc_value.code body ~args)
+      ; Env.load_const env (Bc_value.str name)
+      ; O.op MAKE_FUNCTION
+      ; Env.store_name env name
+      ]
   | ClassDef _ -> failwith "Unsupported: ClassDef"
   | If { test; body; orelse } ->
     let test = compile_expr env test in
@@ -359,11 +360,23 @@ and compile_expr env expr =
           in
           expr @ tail)
     @ [ O.op ROT_TWO; O.op POP_TOP ]
-  | Call { func; args; keywords } ->
-    let _ = keywords (* TODO: handle keywords *) in
+  | Call { func; args; keywords = [] } ->
     let func = compile_expr env func in
     let args = List.map args ~f:(compile_expr env) in
     List.concat (func :: args) @ [ O.op CALL_FUNCTION ~arg:(List.length args) ]
+  | Call { func; args; keywords } ->
+    let func = compile_expr env func in
+    let args = List.map args ~f:(compile_expr env) in
+    let kwarg_names =
+      List.map keywords ~f:(fun (name, _) -> Bc_value.str name)
+      |> Array.of_list
+      |> Bc_value.tuple
+    in
+    let kwargs = List.map keywords ~f:(fun (_, expr) -> compile_expr env expr) in
+    List.concat ((func :: args) @ kwargs)
+    @ [ Env.load_const env kwarg_names
+      ; O.op CALL_FUNCTION_KW ~arg:(List.length args + List.length kwargs)
+      ]
   | Attribute { value; attr } ->
     let value = compile_expr env value in
     value @ [ Env.load_attr env attr ]

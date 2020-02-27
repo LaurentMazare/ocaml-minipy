@@ -43,7 +43,7 @@ type t =
       { name : string
       ; code : t Bc_code.t
       ; args : Ast.arguments
-      ; defaults : (string * t) array
+      ; defaults : (string * t) list
       }
   | Code of
       { code : t Bc_code.t

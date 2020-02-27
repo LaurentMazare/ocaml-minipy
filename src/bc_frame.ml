@@ -506,33 +506,67 @@ let load_attr stack attr =
       (Bc_value.type_ v |> Bc_value.Type_.to_string)
       attr
 
+let call_scope (args : Ast.arguments) ~defaults ~arg_values ~keyword_values =
+  let scope = Bc_scope.create () in
+  let rec loop arg_and_expr =
+    match arg_and_expr with
+    | [], [] | _ :: _, [] | [], _ :: _ -> arg_and_expr
+    | name :: args, value :: arg_values ->
+      Bc_scope.set scope name value;
+      loop (args, arg_values)
+  in
+  let pos_args, pos_exprs = loop (args.args, arg_values) in
+  List.iter pos_args ~f:(fun name ->
+      match Hashtbl.find_and_remove keyword_values name with
+      | None ->
+        errorf
+          "function takes %d positional arguments but was given %d"
+          (List.length args.args)
+          (List.length arg_values)
+      | Some value -> Bc_scope.set scope name value);
+  (match args.vararg with
+  | Some name -> Bc_scope.set scope name (Bc_value.list (Queue.of_list pos_exprs))
+  | None ->
+    if not (List.is_empty pos_exprs)
+    then
+      errorf
+        "function takes %d positional arguments but was given %d"
+        (List.length args.args)
+        (List.length arg_values));
+  List.iter defaults ~f:(fun (name, default) ->
+      let value = Hashtbl.find_and_remove keyword_values name |> Option.value ~default in
+      Bc_scope.set scope name value);
+  (match args.kwarg with
+  | Some name ->
+    let dict =
+      Hashtbl.to_alist keyword_values
+      |> List.map ~f:(fun (name, value) -> Bc_value.str name, value)
+      |> Hashtbl.Poly.of_alist_exn
+    in
+    Bc_scope.set scope name (Bc_value.Dict dict)
+  | None ->
+    if not (Hashtbl.is_empty keyword_values)
+    then
+      errorf
+        "function received too many keyword arguments %s"
+        (Hashtbl.keys keyword_values |> String.concat ~sep:","));
+  scope
+
 let call_function_aux stack ~kwarg_names ~arg =
   let n_kwargs = Array.length kwarg_names in
   let kwargs = popn stack n_kwargs in
-  let posargs = popn stack (arg - n_kwargs) in
+  let n_posargs = arg - n_kwargs in
+  let arg_values = popn stack n_posargs in
   let fn = Stack.pop_exn stack in
-  let kwargs =
-    List.zip_exn (Array.to_list kwarg_names) kwargs |> Map.of_alist_exn (module String)
-  in
+  let keyword_values = List.zip_exn (Array.to_list kwarg_names) kwargs in
   match (fn : Bc_value.t) with
   | Builtin_fn { name = _; fn } ->
-    let value = fn posargs kwargs in
+    let keyword_values = Map.of_alist_exn (module String) keyword_values in
+    let value = fn arg_values keyword_values in
     push_and_continue stack value
   | Function { name = _; code; args; defaults } ->
-    let local_scope = Bc_scope.create () in
-    Array.iter defaults ~f:(fun (arg_name, value) ->
-        let value = Map.find kwargs arg_name |> Option.value ~default:value in
-        Bc_scope.set local_scope arg_name value);
-    let posarg_names =
-      List.filter_map args.args ~f:(fun arg_name ->
-          match Map.find kwargs arg_name with
-          | None -> Some arg_name
-          | Some value ->
-            Bc_scope.set local_scope arg_name value;
-            None)
-    in
-    List.iter2_exn posarg_names posargs ~f:(fun arg_name value ->
-        Bc_scope.set local_scope arg_name value);
+    let keyword_values = Hashtbl.of_alist_exn (module String) keyword_values in
+    let local_scope = call_scope args ~defaults ~arg_values ~keyword_values in
     Call_fn { code; local_scope }
   | _ ->
     errorf "'%s' object is not callable" (Bc_value.type_ fn |> Bc_value.Type_.to_string)
@@ -675,9 +709,7 @@ let eval_one t opcode ~arg =
     let name = Stack.pop_exn t.stack |> Bc_value.str_exn in
     let code, args = Stack.pop_exn t.stack |> Bc_value.code_exn in
     let defaults = popn t.stack (List.length args.kwonlyargs) in
-    let defaults =
-      List.zip_exn (List.map args.kwonlyargs ~f:fst) defaults |> Array.of_list
-    in
+    let defaults = List.zip_exn (List.map args.kwonlyargs ~f:fst) defaults in
     let value = Bc_value.Function { name; code; args; defaults } in
     push_and_continue t.stack value
   | BUILD_SLICE -> failwith "Unsupported: BUILD_SLICE"
