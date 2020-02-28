@@ -241,6 +241,10 @@ module Binary_op = struct
       let index = Z.to_int index in
       let index = if index < 0 then Queue.length vs + index else index in
       Queue.get vs index
+    | Dict d, index ->
+      (match Hashtbl.find d index with
+      | Some v -> v
+      | None -> errorf "KeyError")
     | _, _ ->
       errorf
         "TypeError in subscript %s %s"
