@@ -371,8 +371,7 @@ let delete_global t ~arg =
   Bc_scope.remove t.global_scope t.code.names.(arg);
   Continue
 
-let load_name t ~arg =
-  let name = t.code.names.(arg) in
+let find_name t name =
   let rec loop_locals t =
     match Bc_scope.find t.local_scope name with
     | Some _ as some -> some
@@ -381,18 +380,18 @@ let load_name t ~arg =
       | Some parent_frame -> loop_locals parent_frame
       | None -> None)
   in
-  let value =
-    match loop_locals t with
-    | Some v -> v
-    | None ->
-      (match Bc_scope.find t.global_scope name with
-      | Some v -> v
-      | None ->
-        (match Bc_scope.find t.builtins name with
-        | Some v -> v
-        | None -> errorf "NameError: name '%s' is not defined" name))
-  in
-  push_and_continue t.stack value
+  match loop_locals t with
+  | Some _ as v -> v
+  | None ->
+    (match Bc_scope.find t.global_scope name with
+    | Some _ as v -> v
+    | None -> Bc_scope.find t.builtins name)
+
+let load_name t ~arg =
+  let name = t.code.names.(arg) in
+  match find_name t name with
+  | None -> errorf "NameError: name '%s' is not defined" name
+  | Some value -> push_and_continue t.stack value
 
 let unpack_sequence stack ~arg =
   let value = Stack.pop_exn stack in
@@ -568,9 +567,11 @@ let call_function_aux stack ~kwarg_names ~arg =
     let keyword_values = Map.of_alist_exn (module String) keyword_values in
     let value = fn arg_values keyword_values in
     push_and_continue stack value
-  | Function { name = _; code; args; defaults } ->
+  | Function { name = _; code; args; defaults; captured } ->
     let keyword_values = Hashtbl.of_alist_exn (module String) keyword_values in
     let local_scope = call_scope args ~defaults ~arg_values ~keyword_values in
+    List.iter captured ~f:(fun (name, value) ->
+        if not (Bc_scope.mem local_scope name) then Bc_scope.set local_scope name value);
     Call_fn { code; local_scope }
   | _ ->
     errorf "'%s' object is not callable" (Bc_value.type_ fn |> Bc_value.Type_.to_string)
@@ -711,10 +712,14 @@ let eval_one t opcode ~arg =
   | CALL_FUNCTION -> call_function t.stack ~arg
   | MAKE_FUNCTION ->
     let name = Stack.pop_exn t.stack |> Bc_value.str_exn in
-    let code, args = Stack.pop_exn t.stack |> Bc_value.code_exn in
+    let code, args, to_capture = Stack.pop_exn t.stack |> Bc_value.code_exn in
     let defaults = popn t.stack (List.length args.kwonlyargs) in
     let defaults = List.zip_exn (List.map args.kwonlyargs ~f:fst) defaults in
-    let value = Bc_value.Function { name; code; args; defaults } in
+    let captured =
+      List.filter_map to_capture ~f:(fun name ->
+          find_name t name |> Option.map ~f:(fun v -> name, v))
+    in
+    let value = Bc_value.Function { name; code; args; defaults; captured } in
     push_and_continue t.stack value
   | BUILD_SLICE -> failwith "Unsupported: BUILD_SLICE"
   | LOAD_CLOSURE -> failwith "Unsupported: LOAD_CLOSURE"

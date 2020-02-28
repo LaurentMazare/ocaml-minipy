@@ -176,8 +176,9 @@ let rec compile_stmt env stmt =
   match (stmt : Ast.stmt) with
   | FunctionDef { name; args; body } ->
     let body = compile body in
+    (* TODO: populate to_capture properly *)
     List.concat_map args.Ast.kwonlyargs ~f:(fun (_, expr) -> compile_expr env expr)
-    @ [ Env.load_const env (Bc_value.code body ~args)
+    @ [ Env.load_const env (Bc_value.code body ~args ~to_capture:[])
       ; Env.load_const env (Bc_value.str name)
       ; O.op MAKE_FUNCTION
       ; Env.store_name env name

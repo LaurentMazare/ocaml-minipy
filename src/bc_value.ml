@@ -44,10 +44,12 @@ type t =
       ; code : t Bc_code.t
       ; args : Ast.arguments
       ; defaults : (string * t) list
+      ; captured : (string * t) list
       }
   | Code of
       { code : t Bc_code.t
       ; args : Ast.arguments
+      ; to_capture : string list
       }
   | Iterator of { next : unit -> t option }
 [@@deriving sexp_of]
@@ -104,7 +106,7 @@ let str_exn = function
   | t -> errorf "expected string, got '%s'" (type_ t |> Type_.to_string)
 
 let code_exn = function
-  | Code c -> c.code, c.args
+  | Code c -> c.code, c.args, c.to_capture
   | t -> errorf "expected code, got '%s'" (type_ t |> Type_.to_string)
 
 let none = None
@@ -114,7 +116,7 @@ let float f = Float f
 let str s = Str s
 let tuple ts = Tuple ts
 let list ts = List ts
-let code code ~args = Code { code; args }
+let code code ~args ~to_capture = Code { code; args; to_capture }
 let iterator ~next = Iterator { next }
 
 let cannot_be_interpreted_as v str =
