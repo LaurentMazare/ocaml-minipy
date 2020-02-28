@@ -297,8 +297,6 @@ print(all_args("a", "b", "c", a43="bar", b="43", a42="foo"))
         ('bar', ['b', 'c'])
       |}]
 
-(* TODO: get nested functions to properly capture variables around
-   them.
 let%expect_test "bc-nested-fn" =
   parse_compile_and_run
     {|
@@ -328,4 +326,3 @@ print(pd(2500))
         [(5, 2), (2, 2)] [(191, 1), (7, 1)] [(157, 1), (2, 1)]
         [(5, 4), (2, 2)]
       |}]
-*)

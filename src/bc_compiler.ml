@@ -175,10 +175,17 @@ let unaryop_opcode : Ast.unaryop -> Bc_code.Opcode.t = function
 let rec compile_stmt env stmt =
   match (stmt : Ast.stmt) with
   | FunctionDef { name; args; body } ->
+    let local_variables = Ast_utils.local_variables body in
     let body = compile body in
-    (* TODO: populate to_capture properly *)
+    let to_capture =
+      (* This could be optimized by only capturing what is necessary. *)
+      List.filter
+        ((Env.names env |> Array.to_list) @ (Env.varnames env |> Array.to_list))
+        ~f:(fun name -> not (Hash_set.mem local_variables name))
+      |> List.dedup_and_sort ~compare:String.compare
+    in
     List.concat_map args.Ast.kwonlyargs ~f:(fun (_, expr) -> compile_expr env expr)
-    @ [ Env.load_const env (Bc_value.code body ~args ~to_capture:[])
+    @ [ Env.load_const env (Bc_value.code body ~args ~to_capture)
       ; Env.load_const env (Bc_value.str name)
       ; O.op MAKE_FUNCTION
       ; Env.store_name env name
