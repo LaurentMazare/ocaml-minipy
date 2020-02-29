@@ -23,7 +23,7 @@ let toplevel () =
       | Ok stmts ->
         (match List.last stmts with
         | None -> ()
-        | Some (Expr { value }) ->
+        | Some { value = Expr { value }; loc = _ } ->
           let stmts = List.drop_last_exn stmts in
           eval_stmts stmts;
           protect ~f:(fun () ->
