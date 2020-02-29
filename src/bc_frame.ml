@@ -759,7 +759,7 @@ let eval_step t =
   if t.counter >= Array.length t.code.opcodes
   then Return Bc_value.none
   else (
-    let opcode, arg = t.code.opcodes.(t.counter) in
+    let { Bc_code.opcode; arg; lineno = _ } = t.code.opcodes.(t.counter) in
     match eval_one t opcode ~arg with
     | Continue ->
       t.counter <- t.counter + 1;

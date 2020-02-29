@@ -248,8 +248,15 @@ module Opcode = struct
     | i -> Printf.failwithf "unknown opcode %d" i ()
 end
 
+type opcode_with_arg =
+  { opcode : Opcode.t
+  ; arg : int
+  ; lineno : int
+  }
+[@@deriving sexp]
+
 type 'const t =
-  { opcodes : (Opcode.t * int) array
+  { opcodes : opcode_with_arg array
   ; consts : 'const array
   ; varnames : string array
   ; names : string array

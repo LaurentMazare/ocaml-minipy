@@ -1,14 +1,23 @@
 open! Base
 open! Import
 
+exception
+  SyntaxError of
+    { lineno : int
+    ; error : string
+    }
+
+let errorf ~lineno fmt =
+  Printf.ksprintf (fun error -> raise (SyntaxError { lineno; error })) fmt
+
 module O : sig
   type label
   type t
 
-  val op : ?arg:int -> Bc_code.Opcode.t -> t
-  val jump : Bc_code.Opcode.t -> label -> t
+  val op : ?arg:int -> lineno:int -> Bc_code.Opcode.t -> t
+  val jump : lineno:int -> Bc_code.Opcode.t -> label -> t
   val label : unit -> label * t
-  val to_opcodes : t list -> (Bc_code.Opcode.t * int) array
+  val to_opcodes : t list -> Bc_code.opcode_with_arg array
 end = struct
   module Label : sig
     type t
@@ -33,11 +42,12 @@ end = struct
         { opcode : Bc_code.Opcode.t
         ; arg : int
         ; jump_to : label option
+        ; lineno : int
         }
     | Label of label
 
-  let op ?(arg = 0) opcode = Op { opcode; arg; jump_to = None }
-  let jump opcode jump_to = Op { opcode; arg = 0; jump_to = Some jump_to }
+  let op ?(arg = 0) ~lineno opcode = Op { opcode; arg; jump_to = None; lineno }
+  let jump ~lineno opcode jump_to = Op { opcode; arg = 0; jump_to = Some jump_to; lineno }
 
   let label () =
     let l = Label.create () in
@@ -54,9 +64,9 @@ end = struct
           | Op _ -> acc + 1)
     in
     List.filter_map ts ~f:(function
-        | Op { opcode; arg; jump_to } ->
+        | Op { opcode; arg; jump_to; lineno } ->
           let arg = Option.value_map jump_to ~f:(Hashtbl.find_exn labels) ~default:arg in
-          Some (opcode, arg)
+          Some { Bc_code.opcode; arg; lineno }
         | Label _ -> None)
     |> Array.of_list
 end
@@ -105,35 +115,35 @@ module Env = struct
   let names t = Id_set.to_array t.names
   let varnames t = Id_set.to_array t.varnames
 
-  let load_const t const =
+  let load_const t const ~lineno =
     let id = Id_set.find_or_add t.consts const in
-    O.op LOAD_CONST ~arg:id
+    O.op LOAD_CONST ~arg:id ~lineno
 
-  let load_name t name =
+  let load_name t name ~lineno =
     (* TODO: use varnames for local variables *)
     let id = Id_set.find_or_add t.names name in
-    O.op LOAD_NAME ~arg:id
+    O.op LOAD_NAME ~arg:id ~lineno
 
-  let load_attr t name =
+  let load_attr t name ~lineno =
     let id = Id_set.find_or_add t.names name in
-    O.op LOAD_ATTR ~arg:id
+    O.op LOAD_ATTR ~arg:id ~lineno
 
-  let store_attr t name =
+  let store_attr t name ~lineno =
     let id = Id_set.find_or_add t.names name in
-    O.op STORE_ATTR ~arg:id
+    O.op STORE_ATTR ~arg:id ~lineno
 
-  let delete_attr t name =
+  let delete_attr t name ~lineno =
     let id = Id_set.find_or_add t.names name in
-    O.op DELETE_ATTR ~arg:id
+    O.op DELETE_ATTR ~arg:id ~lineno
 
-  let store_name t name =
+  let store_name t name ~lineno =
     (* TODO: use varnames for local variables *)
     let id = Id_set.find_or_add t.names name in
-    O.op STORE_NAME ~arg:id
+    O.op STORE_NAME ~arg:id ~lineno
 
-  let delete_name t name =
+  let delete_name t name ~lineno =
     let id = Id_set.find_or_add t.names name in
-    O.op DELETE_NAME ~arg:id
+    O.op DELETE_NAME ~arg:id ~lineno
 end
 
 let binop_opcode : Ast.operator -> Bc_code.Opcode.t = function
@@ -173,6 +183,9 @@ let unaryop_opcode : Ast.unaryop -> Bc_code.Opcode.t = function
   | Invert -> UNARY_INVERT
 
 let rec compile_stmt env stmt =
+  let lineno = (fst stmt.Ast.loc).pos_lnum in
+  let op = O.op ~lineno in
+  let jump = O.jump ~lineno in
   match (stmt.Ast.value : Ast.stmt) with
   | FunctionDef { name; args; body } ->
     let local_variables = Ast_utils.local_variables body in
@@ -185,28 +198,28 @@ let rec compile_stmt env stmt =
       |> List.dedup_and_sort ~compare:String.compare
     in
     List.concat_map args.Ast.kwonlyargs ~f:(fun (_, expr) -> compile_expr env expr)
-    @ [ Env.load_const env (Bc_value.code body ~args ~to_capture)
-      ; Env.load_const env (Bc_value.str name)
-      ; O.op MAKE_FUNCTION
-      ; Env.store_name env name
+    @ [ Env.load_const env (Bc_value.code body ~args ~to_capture) ~lineno
+      ; Env.load_const env (Bc_value.str name) ~lineno
+      ; op MAKE_FUNCTION
+      ; Env.store_name env name ~lineno
       ]
-  | ClassDef _ -> failwith "Unsupported: ClassDef"
+  | ClassDef _ -> errorf ~lineno "Unsupported: ClassDef"
   | If { test; body; orelse } ->
     let test = compile_expr env test in
     let body = List.concat_map body ~f:(compile_stmt env) in
     if List.is_empty orelse
     then (
       let jump_to, label = O.label () in
-      List.concat [ test; [ O.jump POP_JUMP_IF_FALSE jump_to ]; body; [ label ] ])
+      List.concat [ test; [ jump POP_JUMP_IF_FALSE jump_to ]; body; [ label ] ])
     else (
       let orelse = List.concat_map orelse ~f:(compile_stmt env) in
       let jump_to1, label1 = O.label () in
       let jump_to2, label2 = O.label () in
       List.concat
         [ test
-        ; [ O.jump POP_JUMP_IF_FALSE jump_to1 ]
+        ; [ jump POP_JUMP_IF_FALSE jump_to1 ]
         ; body
-        ; [ O.jump JUMP_ABSOLUTE jump_to2; label1 ]
+        ; [ jump JUMP_ABSOLUTE jump_to2; label1 ]
         ; orelse
         ; [ label2 ]
         ])
@@ -223,10 +236,10 @@ let rec compile_stmt env stmt =
     let orelse = List.concat_map orelse ~f:(compile_stmt env) in
     List.concat
       [ iter
-      ; [ O.op GET_ITER; label2; O.jump FOR_ITER jump_to1 ]
+      ; [ op GET_ITER; label2; jump FOR_ITER jump_to1 ]
       ; assign
       ; body
-      ; [ O.jump JUMP_ABSOLUTE jump_to2; label1 ]
+      ; [ jump JUMP_ABSOLUTE jump_to2; label1 ]
       ; orelse
       ; [ label3 ]
       ]
@@ -241,58 +254,61 @@ let rec compile_stmt env stmt =
     List.concat
       [ [ label2 ]
       ; test
-      ; [ O.jump POP_JUMP_IF_FALSE jump_to1 ]
+      ; [ jump POP_JUMP_IF_FALSE jump_to1 ]
       ; body
-      ; [ O.jump JUMP_ABSOLUTE jump_to2; label1 ]
+      ; [ jump JUMP_ABSOLUTE jump_to2; label1 ]
       ; orelse
       ; [ label3 ]
       ]
-  | Raise _ -> failwith "Unsupported: Raise"
-  | Try _ -> failwith "Unsupported: Try"
-  | With _ -> failwith "Unsupported: With"
-  | Assert _ -> failwith "Unsupported: Assert"
-  | Import _ -> failwith "Unsupported: Import"
-  | ImportFrom _ -> failwith "Unsupported: ImportFrom"
-  | Expr { value } -> compile_expr env value @ [ O.op POP_TOP ]
+  | Raise _ -> errorf ~lineno "Unsupported: Raise"
+  | Try _ -> errorf ~lineno "Unsupported: Try"
+  | With _ -> errorf ~lineno "Unsupported: With"
+  | Assert _ -> errorf ~lineno "Unsupported: Assert"
+  | Import _ -> errorf ~lineno "Unsupported: Import"
+  | ImportFrom _ -> errorf ~lineno "Unsupported: ImportFrom"
+  | Expr { value } -> compile_expr env value @ [ op POP_TOP ]
   | Assign { targets; value } -> assign_targets env ~targets ~value
-  | AugAssign { target; op; value } -> aug_assign env ~target ~op ~value
+  | AugAssign { target; op = op_; value } -> aug_assign env ~target ~op_ ~value
   | Return { value } ->
     let load_value =
       match value with
-      | None -> [ Env.load_const env Bc_value.none ]
+      | None -> [ Env.load_const env Bc_value.none ~lineno ]
       | Some expr -> compile_expr env expr
     in
-    load_value @ [ O.op RETURN_VALUE ]
+    load_value @ [ op RETURN_VALUE ]
   | Delete { targets } -> delete env targets
-  | Pass -> [ O.op NOP ]
+  | Pass -> [ op NOP ]
   | Break ->
     (match env.loop_labels with
-    | None -> errorf "SyntaxError: break not in a loop"
-    | Some { break; continue = _ } -> [ O.jump JUMP_ABSOLUTE break ])
+    | None -> errorf ~lineno "break not in a loop"
+    | Some { break; continue = _ } -> [ jump JUMP_ABSOLUTE break ])
   | Continue ->
     (match env.loop_labels with
-    | None -> errorf "SyntaxError: continue not in a loop"
-    | Some { break = _; continue } -> [ O.jump JUMP_ABSOLUTE continue ])
+    | None -> errorf ~lineno "continue not in a loop"
+    | Some { break = _; continue } -> [ jump JUMP_ABSOLUTE continue ])
 
 and compile_expr env expr =
+  let lineno = (fst expr.Ast.loc).pos_lnum in
+  let op = O.op ~lineno in
+  let jump = O.jump ~lineno in
   match (expr.Ast.value : Ast.expr) with
-  | None_ -> [ Env.load_const env Bc_value.none ]
-  | Bool b -> [ Env.load_const env (Bc_value.bool b) ]
-  | Num n -> [ Env.load_const env (Bc_value.int n) ]
-  | Float f -> [ Env.load_const env (Bc_value.float f) ]
-  | Str s -> [ Env.load_const env (Bc_value.str s) ]
-  | Name name -> [ Env.load_name env name ]
+  | None_ -> [ Env.load_const env Bc_value.none ~lineno ]
+  | Bool b -> [ Env.load_const env (Bc_value.bool b) ~lineno ]
+  | Num n -> [ Env.load_const env (Bc_value.int n) ~lineno ]
+  | Float f -> [ Env.load_const env (Bc_value.float f) ~lineno ]
+  | Str s -> [ Env.load_const env (Bc_value.str s) ~lineno ]
+  | Name name -> [ Env.load_name env name ~lineno ]
   | List exprs ->
     let exprs = Array.to_list exprs in
     List.concat_map exprs ~f:(compile_expr env)
-    @ [ O.op BUILD_LIST ~arg:(List.length exprs) ]
-  | Dict _ -> failwith "Unsupported: Dict"
+    @ [ op BUILD_LIST ~arg:(List.length exprs) ]
+  | Dict _ -> errorf ~lineno "Unsupported: Dict"
   | ListComp { elt; generators } ->
     let depth = List.length generators in
     let generators =
       List.rev generators
       |> List.fold
-           ~init:(compile_expr env elt @ [ O.op LIST_APPEND ~arg:(1 + depth) ])
+           ~init:(compile_expr env elt @ [ op LIST_APPEND ~arg:(1 + depth) ])
            ~f:(fun body { Ast.target; iter; ifs } ->
              let jump_to1, label1 = O.label () in
              let jump_to2, label2 = O.label () in
@@ -300,38 +316,39 @@ and compile_expr env expr =
              let assign = assign env ~target in
              List.concat
                [ iter
-               ; [ O.op GET_ITER; label2; O.jump FOR_ITER jump_to1 ]
+               ; [ op GET_ITER; label2; jump FOR_ITER jump_to1 ]
                ; assign
                ; List.concat_map ifs ~f:(fun expr ->
-                     compile_expr env expr @ [ O.jump POP_JUMP_IF_FALSE jump_to2 ])
+                     compile_expr env expr @ [ jump POP_JUMP_IF_FALSE jump_to2 ])
                ; body
-               ; [ O.jump JUMP_ABSOLUTE jump_to2; label1 ]
+               ; [ jump JUMP_ABSOLUTE jump_to2; label1 ]
                ])
     in
-    O.op BUILD_LIST ~arg:0 :: generators
+    op BUILD_LIST ~arg:0 :: generators
   | Tuple exprs ->
     let exprs = Array.to_list exprs in
     List.concat_map exprs ~f:(compile_expr env)
-    @ [ O.op BUILD_TUPLE ~arg:(List.length exprs) ]
-  | Lambda _ -> failwith "Unsupported: Lambda"
+    @ [ op BUILD_TUPLE ~arg:(List.length exprs) ]
+  | Lambda _ -> errorf ~lineno "Unsupported: Lambda"
   | BoolOp { op = And; values } ->
     let values = List.map values ~f:(compile_expr env) in
     let jump_to, label = O.label () in
     let code =
-      List.intersperse values ~sep:[ O.jump JUMP_IF_FALSE_OR_POP jump_to ] |> List.concat
+      List.intersperse values ~sep:[ jump JUMP_IF_FALSE_OR_POP jump_to ] |> List.concat
     in
     code @ [ label ]
   | BoolOp { op = Or; values } ->
     let values = List.map values ~f:(compile_expr env) in
     let jump_to, label = O.label () in
     let code =
-      List.intersperse values ~sep:[ O.jump JUMP_IF_TRUE_OR_POP jump_to ] |> List.concat
+      List.intersperse values ~sep:[ jump JUMP_IF_TRUE_OR_POP jump_to ] |> List.concat
     in
     code @ [ label ]
-  | BinOp { left; op; right } ->
+  | BinOp { left; op = op_; right } ->
     List.concat
-      [ compile_expr env left; compile_expr env right; [ O.op (binop_opcode op) ] ]
-  | UnaryOp { op; operand } -> compile_expr env operand @ [ O.op (unaryop_opcode op) ]
+      [ compile_expr env left; compile_expr env right; [ op (binop_opcode op_) ] ]
+  | UnaryOp { op = op_; operand } ->
+    compile_expr env operand @ [ op (unaryop_opcode op_) ]
   | IfExp { test; body; orelse } ->
     let test = compile_expr env test in
     let body = compile_expr env body in
@@ -340,9 +357,9 @@ and compile_expr env expr =
     let jump_to2, label2 = O.label () in
     List.concat
       [ test
-      ; [ O.jump POP_JUMP_IF_FALSE jump_to1 ]
+      ; [ jump POP_JUMP_IF_FALSE jump_to1 ]
       ; body
-      ; [ O.jump JUMP_ABSOLUTE jump_to2; label1 ]
+      ; [ jump JUMP_ABSOLUTE jump_to2; label1 ]
       ; orelse
       ; [ label2 ]
       ]
@@ -350,7 +367,7 @@ and compile_expr env expr =
     let left = compile_expr env left in
     let expr = compile_expr env expr in
     let arg = Bc_code.int_of_cmpop cmpop in
-    left @ expr @ [ O.op COMPARE_OP ~arg ]
+    left @ expr @ [ op COMPARE_OP ~arg ]
   | Compare { left; ops_and_exprs } ->
     let left = compile_expr env left in
     let jump_to, label = O.label () in
@@ -359,19 +376,19 @@ and compile_expr env expr =
     @ List.concat_mapi ops_and_exprs ~f:(fun index (cmpop, expr) ->
           let arg = Bc_code.int_of_cmpop cmpop in
           let expr =
-            compile_expr env expr @ [ O.op DUP_TOP; O.op ROT_THREE; O.op COMPARE_OP ~arg ]
+            compile_expr env expr @ [ op DUP_TOP; op ROT_THREE; op COMPARE_OP ~arg ]
           in
           let tail =
             if index = nops_and_exprs - 1
             then [ label ]
-            else [ O.jump JUMP_IF_FALSE_OR_POP jump_to ]
+            else [ jump JUMP_IF_FALSE_OR_POP jump_to ]
           in
           expr @ tail)
-    @ [ O.op ROT_TWO; O.op POP_TOP ]
+    @ [ op ROT_TWO; op POP_TOP ]
   | Call { func; args; keywords = [] } ->
     let func = compile_expr env func in
     let args = List.map args ~f:(compile_expr env) in
-    List.concat (func :: args) @ [ O.op CALL_FUNCTION ~arg:(List.length args) ]
+    List.concat (func :: args) @ [ op CALL_FUNCTION ~arg:(List.length args) ]
   | Call { func; args; keywords } ->
     let func = compile_expr env func in
     let args = List.map args ~f:(compile_expr env) in
@@ -382,65 +399,68 @@ and compile_expr env expr =
     in
     let kwargs = List.map keywords ~f:(fun (_, expr) -> compile_expr env expr) in
     List.concat ((func :: args) @ kwargs)
-    @ [ Env.load_const env kwarg_names
-      ; O.op CALL_FUNCTION_KW ~arg:(List.length args + List.length kwargs)
+    @ [ Env.load_const env kwarg_names ~lineno
+      ; op CALL_FUNCTION_KW ~arg:(List.length args + List.length kwargs)
       ]
   | Attribute { value; attr } ->
     let value = compile_expr env value in
-    value @ [ Env.load_attr env attr ]
+    value @ [ Env.load_attr env attr ~lineno ]
   | Subscript { value; slice } ->
     let value = compile_expr env value in
     let slice = compile_expr env slice in
-    value @ slice @ [ O.op BINARY_SUBSCR ]
+    value @ slice @ [ op BINARY_SUBSCR ]
 
 and delete env targets =
   List.concat_map targets ~f:(fun target ->
+      let lineno = (fst target.Ast.loc).pos_lnum in
+      let op = O.op ~lineno in
       match target.value with
-      | None_ | Bool _ | Num _ | Float _ | Str _ ->
-        errorf "SyntaxError: can't delete constant"
-      | Dict _ -> errorf "SyntaxError: can't delete dict"
+      | None_ | Bool _ | Num _ | Float _ | Str _ -> errorf ~lineno "can't delete constant"
+      | Dict _ -> errorf ~lineno "can't delete dict"
       | BoolOp _ | BinOp _ | UnaryOp _ | IfExp _ | Compare _ ->
-        errorf "SyntaxError: can't delete operator"
-      | Call _ -> errorf "SyntaxError: can't delete function call"
-      | ListComp _ -> errorf "SyntaxError: can't delete comprehension"
-      | Lambda _ -> errorf "SyntaxError: can't delete lambda"
-      | Name name -> [ Env.delete_name env name ]
-      | Tuple _exprs -> failwith "SyntaxError: can't delete tuple"
-      | List _exprs -> failwith "SyntaxError: can't delete list"
+        errorf ~lineno "can't delete operator"
+      | Call _ -> errorf ~lineno "can't delete function call"
+      | ListComp _ -> errorf ~lineno "can't delete comprehension"
+      | Lambda _ -> errorf ~lineno "can't delete lambda"
+      | Name name -> [ Env.delete_name env name ~lineno ]
+      | Tuple _exprs -> errorf ~lineno "can't delete tuple"
+      | List _exprs -> errorf ~lineno "can't delete list"
       | Attribute { value = value_attr; attr } ->
         let value_attr = compile_expr env value_attr in
-        List.concat [ value_attr; [ Env.delete_attr env attr ] ]
+        List.concat [ value_attr; [ Env.delete_attr env attr ~lineno ] ]
       | Subscript { value = value_attr; slice } ->
         let value_attr = compile_expr env value_attr in
         let slice = compile_expr env slice in
-        List.concat [ value_attr; slice; [ O.op DELETE_SUBSCR ] ])
+        List.concat [ value_attr; slice; [ op DELETE_SUBSCR ] ])
 
-and aug_assign env ~target ~op ~value =
+and aug_assign env ~target ~op_ ~value =
   let value = compile_expr env value in
+  let lineno = (fst target.Ast.loc).pos_lnum in
+  let op = O.op ~lineno in
   match target.value with
   | None_ | Bool _ | Num _ | Float _ | Str _ ->
-    errorf "SyntaxError: can't augmented assign to constant"
-  | Dict _ -> errorf "SyntaxError: can't augmented assign to dict"
+    errorf ~lineno "can't augmented assign to constant"
+  | Dict _ -> errorf ~lineno "can't augmented assign to dict"
   | BoolOp _ | BinOp _ | UnaryOp _ | IfExp _ | Compare _ ->
-    errorf "SyntaxError: can't augmented assign to operator"
-  | Call _ -> errorf "SyntaxError: can't augmented assign to function call"
-  | ListComp _ -> errorf "SyntaxError: can't augmented assign to comprehension"
-  | Lambda _ -> errorf "SyntaxError: can't augmented assign to lambda"
+    errorf ~lineno "can't augmented assign to operator"
+  | Call _ -> errorf ~lineno "can't augmented assign to function call"
+  | ListComp _ -> errorf ~lineno "can't augmented assign to comprehension"
+  | Lambda _ -> errorf ~lineno "can't augmented assign to lambda"
   | Name name ->
     List.concat
-      [ [ Env.load_name env name ]
+      [ [ Env.load_name env name ~lineno ]
       ; value
-      ; [ O.op (inplace_opcode op); Env.store_name env name ]
+      ; [ op (inplace_opcode op_); Env.store_name env name ~lineno ]
       ]
-  | Tuple _exprs -> failwith "SyntaxError: can't augmented assign to tuple"
-  | List _exprs -> failwith "SyntaxError: can't augmented assign to list"
+  | Tuple _exprs -> errorf ~lineno "can't augmented assign to tuple"
+  | List _exprs -> errorf ~lineno "can't augmented assign to list"
   | Attribute { value = value_attr; attr } ->
     let value_attr = compile_expr env value_attr in
     List.concat
       [ value_attr
-      ; [ O.op DUP_TOP; Env.load_attr env attr ]
+      ; [ op DUP_TOP; Env.load_attr env attr ~lineno ]
       ; value
-      ; [ O.op (inplace_opcode op); O.op ROT_TWO; Env.store_attr env attr ]
+      ; [ op (inplace_opcode op_); op ROT_TWO; Env.store_attr env attr ~lineno ]
       ]
   | Subscript { value = value_attr; slice } ->
     let value_attr = compile_expr env value_attr in
@@ -448,40 +468,44 @@ and aug_assign env ~target ~op ~value =
     List.concat
       [ value_attr
       ; slice
-      ; [ O.op DUP_TOP_TWO; O.op BINARY_SUBSCR ]
+      ; [ op DUP_TOP_TWO; op BINARY_SUBSCR ]
       ; value
-      ; [ O.op (inplace_opcode op); O.op ROT_THREE; O.op STORE_SUBSCR ]
+      ; [ op (inplace_opcode op_); op ROT_THREE; op STORE_SUBSCR ]
       ]
 
 and assign env ~target =
   let rec loop expr =
+    let lineno = (fst expr.Ast.loc).pos_lnum in
+    let op = O.op ~lineno in
     match expr.Ast.value with
     | Ast.None_ | Bool _ | Num _ | Float _ | Str _ ->
-      errorf "SyntaxError: can't assign to constant"
-    | Dict _ -> errorf "SyntaxError: can't assign to dict"
+      errorf ~lineno "can't assign to constant"
+    | Dict _ -> errorf ~lineno "can't assign to dict"
     | BoolOp _ | BinOp _ | UnaryOp _ | IfExp _ | Compare _ ->
-      errorf "SyntaxError: can't assign to operator"
-    | Call _ -> errorf "SyntaxError: can't assign to function call"
-    | ListComp _ -> errorf "SyntaxError: can't assign to comprehension"
-    | Lambda _ -> errorf "SyntaxError: can't assign to lambda"
-    | Name name -> [ Env.store_name env name ]
+      errorf ~lineno "can't assign to operator"
+    | Call _ -> errorf ~lineno "can't assign to function call"
+    | ListComp _ -> errorf ~lineno "can't assign to comprehension"
+    | Lambda _ -> errorf ~lineno "can't assign to lambda"
+    | Name name -> [ Env.store_name env name ~lineno ]
     | Tuple exprs | List exprs ->
       let nexprs = Array.length exprs in
       let exprs = Array.to_list exprs in
-      O.op UNPACK_SEQUENCE ~arg:nexprs :: List.concat_map exprs ~f:loop
+      op UNPACK_SEQUENCE ~arg:nexprs :: List.concat_map exprs ~f:loop
     | Attribute { value; attr } ->
       let value = compile_expr env value in
-      value @ [ Env.store_attr env attr ]
+      value @ [ Env.store_attr env attr ~lineno ]
     | Subscript { value; slice } ->
       let value = compile_expr env value in
       let slice = compile_expr env slice in
-      value @ slice @ [ O.op STORE_SUBSCR ]
+      value @ slice @ [ op STORE_SUBSCR ]
   in
   loop target
 
 and assign_targets env ~targets ~value =
+  let lineno = (fst value.Ast.loc).pos_lnum in
+  let op = O.op ~lineno in
   let value = compile_expr env value in
-  let dups = List.init (List.length targets - 1) ~f:(fun _ -> O.op DUP_TOP) in
+  let dups = List.init (List.length targets - 1) ~f:(fun _ -> op DUP_TOP) in
   let targets = List.concat_map targets ~f:(fun target -> assign env ~target) in
   value @ dups @ targets
 

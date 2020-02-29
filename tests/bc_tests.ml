@@ -4,7 +4,9 @@ open Minipy
 let debug = false
 
 let code =
-  { Bc_code.opcodes = [| LOAD_NAME, 0; LOAD_CONST, 0; CALL_FUNCTION, 1; POP_TOP, 0 |]
+  { Bc_code.opcodes =
+      [| Bc_code.Opcode.LOAD_NAME, 0; LOAD_CONST, 0; CALL_FUNCTION, 1; POP_TOP, 0 |]
+      |> Array.map ~f:(fun (opcode, arg) -> { Bc_code.opcode; arg; lineno = 0 })
   ; consts = [| Bc_value.Str "foobar" |]
   ; varnames = [||]
   ; names = [| "print" |]
