@@ -138,6 +138,7 @@ type 'const t =
   ; consts : 'const array
   ; varnames : string array
   ; names : string array
+  ; filename : string
   }
 [@@deriving sexp]
 

@@ -1,6 +1,23 @@
 open Base
 open Import
 
+module Class_id : sig
+  type t [@@deriving sexp]
+
+  val create : unit -> t
+  val equal : t -> t -> bool
+end = struct
+  type t = int [@@deriving sexp]
+
+  let create =
+    let counter = ref 0 in
+    fun () ->
+      Int.incr counter;
+      !counter
+
+  let equal = Int.equal
+end
+
 module Type_ = struct
   type t =
     | None_t
@@ -52,6 +69,18 @@ type t =
       ; to_capture : string list
       }
   | Iterator of { next : unit -> t option }
+  | Class of cls
+  | Object of
+      { cls : cls
+      ; attrs : (string, t) Hashtbl.t
+      }
+
+and cls =
+  { name : string
+  ; attrs : (string, t) Hashtbl.t
+  ; parent_class : cls option
+  ; id : Class_id.t
+  }
 [@@deriving sexp_of]
 
 let type_ = function
@@ -67,6 +96,8 @@ let type_ = function
   | Function _ -> Function
   | Code _ -> Code
   | Iterator _ -> Iterator
+  | Class _ -> Class
+  | Object _ -> Object
 
 let to_string ?(escape_special_chars = true) t =
   let rec loop ~e = function
@@ -96,6 +127,8 @@ let to_string ?(escape_special_chars = true) t =
     | Function { name; _ } -> Printf.sprintf "function<%s>" name
     | Code _ -> "<code>"
     | Iterator _ -> "<iterator>"
+    | Class cls -> Printf.sprintf "<class.%s>" cls.name
+    | Object { cls; attrs = _ } -> Printf.sprintf "<object.%s>" cls.name
   in
   loop t ~e:escape_special_chars
 
@@ -182,3 +215,21 @@ let to_iterable v =
   | Dict s -> Hashtbl.keys s |> Array.of_list |> array_iterator
   | Iterator _ as it -> it
   | o -> cannot_be_interpreted_as o "iterable"
+
+let rec is_subclass cls ~target_class =
+  if Class_id.equal cls.id target_class.id
+  then true
+  else (
+    match cls.parent_class with
+    | None -> false
+    | Some parent_cls -> is_subclass parent_cls ~target_class)
+
+let is_instance t ~target_class =
+  match t with
+  | Object { cls; _ } -> is_subclass cls ~target_class
+  | _ -> false
+
+let is_instance_or_subclass t ~target_class =
+  match t with
+  | Class cls | Object { cls; _ } -> is_subclass cls ~target_class
+  | _ -> false

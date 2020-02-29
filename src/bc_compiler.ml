@@ -512,8 +512,14 @@ and assign_targets env ~targets ~value =
 and compile (ast : Ast.t) =
   let env = Env.create () in
   let opcodes = List.concat_map ast ~f:(compile_stmt env) |> O.to_opcodes in
+  let filename =
+    match ast with
+    | [] -> "unknown"
+    | stmt :: _ -> (fst stmt.loc).pos_fname
+  in
   { Bc_code.opcodes
   ; consts = Env.consts env
   ; varnames = Env.varnames env
   ; names = Env.names env
+  ; filename
   }

@@ -10,6 +10,7 @@ let code =
   ; consts = [| Bc_value.Str "foobar" |]
   ; varnames = [||]
   ; names = [| "print" |]
+  ; filename = "test"
   }
 
 let%expect_test "bytecode" =

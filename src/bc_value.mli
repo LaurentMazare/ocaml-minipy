@@ -1,6 +1,13 @@
 open Base
 open Import
 
+module Class_id : sig
+  type t
+
+  val create : unit -> t
+  val equal : t -> t -> bool
+end
+
 module Type_ : sig
   type t =
     | None_t
@@ -47,6 +54,18 @@ type t =
       ; to_capture : string list
       }
   | Iterator of { next : unit -> t option }
+  | Class of cls
+  | Object of
+      { cls : cls
+      ; attrs : (string, t) Hashtbl.t
+      }
+
+and cls =
+  { name : string
+  ; attrs : (string, t) Hashtbl.t
+  ; parent_class : cls option
+  ; id : Class_id.t
+  }
 [@@deriving sexp_of]
 
 type code = t Bc_code.t [@@deriving sexp_of]
@@ -69,3 +88,6 @@ val to_int : t -> Z.t
 val to_float : t -> float
 val to_iterable : t -> t
 val cannot_be_interpreted_as : t -> string -> 'a
+val is_subclass : cls -> target_class:cls -> bool
+val is_instance : t -> target_class:cls -> bool
+val is_instance_or_subclass : t -> target_class:cls -> bool

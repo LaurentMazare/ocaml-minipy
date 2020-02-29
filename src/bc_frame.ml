@@ -777,3 +777,11 @@ let eval_step t =
 
 let function_call_returned t v = Stack.push t.stack v
 let stack t = t.stack
+
+let current_filename_and_lineno t =
+  let lineno =
+    if t.counter >= Array.length t.code.opcodes
+    then None
+    else Some t.code.opcodes.(t.counter).lineno
+  in
+  t.code.filename, lineno

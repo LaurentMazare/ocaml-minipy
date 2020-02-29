@@ -58,6 +58,21 @@ type t =
 let create () =
   { frames = Stack.create (); global_scope = Bc_scope.create (); builtins = builtins () }
 
+type filename_and_lineno =
+  { filename : string
+  ; lineno : int option
+  }
+[@@deriving sexp]
+
+type backtrace = filename_and_lineno list [@@deriving sexp]
+
+exception Exn_with_backtrace of Exn.t * backtrace
+
+let backtrace t =
+  Stack.fold t.frames ~init:[] ~f:(fun acc frame ->
+      let filename, lineno = Bc_frame.current_filename_and_lineno frame in
+      { filename; lineno } :: acc)
+
 let eval code =
   let t = create () in
   let global_scope = t.global_scope in
@@ -72,7 +87,11 @@ let eval code =
     match Stack.top t.frames with
     | None -> continue := false
     | Some frame ->
-      (match Bc_frame.eval_step frame with
+      let action =
+        try Bc_frame.eval_step frame with
+        | exn -> raise (Exn_with_backtrace (exn, backtrace t))
+      in
+      (match action with
       | Continue -> ()
       | Call_fn { code; local_scope } ->
         let call_frame = Bc_frame.call_frame frame ~code ~local_scope in
