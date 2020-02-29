@@ -58,7 +58,7 @@ and env =
 and fn =
   { args : Ast.arguments
   ; env : env
-  ; body : Ast.stmt list
+  ; body : Ast.t
   ; method_self : t option
   }
 

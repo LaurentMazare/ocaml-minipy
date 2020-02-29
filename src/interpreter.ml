@@ -14,7 +14,7 @@ module Env : sig
   val empty : ?builtins:builtins -> unit -> t
 
   (* [body] is used to extract local variables. *)
-  val nest : prev_env:t -> body:stmt list -> t
+  val nest : prev_env:t -> body:Ast.t -> t
   val find_exn : t -> name:string -> Value.t
   val set : t -> name:string -> value:Value.t -> unit
   val remove : t -> name:string -> unit
@@ -127,7 +127,8 @@ let list_attrs queue ~attr =
   | attr -> errorf "'sort' object has no attribute '%s'" attr
 
 (* Very naive evaluation. *)
-let rec eval_stmt env = function
+let rec eval_stmt env stmt =
+  match stmt.value with
   | Expr { value } -> ignore (eval_expr env value : Value.t)
   | FunctionDef { name; args; body } ->
     Env.set env ~name ~value:(Val_function { args; env; body; method_self = None })
@@ -215,7 +216,8 @@ let rec eval_stmt env = function
   | Import _ -> failwith "TODO: Import"
   | ImportFrom _ -> failwith "TODO: ImportFrom"
 
-and eval_expr env = function
+and eval_expr env expr =
+  match expr.value with
   | None_ -> Value.none
   | Bool b -> Value.bool b
   | Num n -> Value.int n
@@ -321,12 +323,13 @@ and eval_expr env = function
     let index = eval_expr env slice in
     Value.apply_subscript ~value ~index
   | Lambda { args; body } ->
-    Value.fn { args; env; body = [ Return { value = Some body } ]; method_self = None }
+    let return = { value = Return { value = Some body }; loc = expr.loc } in
+    Value.fn { args; env; body = [ return ]; method_self = None }
 
 and eval_stmts env stmts = List.iter stmts ~f:(eval_stmt env)
 
 and eval_assign env ~target ~value =
-  match target with
+  match target.value with
   | Name name -> Env.set env ~name ~value
   | Subscript { value = lvalue; slice } ->
     let lvalue = eval_expr env lvalue in
@@ -369,7 +372,7 @@ and eval_list_comp env ~elt ~generators =
   Value.list (loop env generators |> Queue.of_array)
 
 and delete env expr =
-  match expr with
+  match expr.value with
   | Name name -> Env.remove env ~name
   | Subscript { value; slice } ->
     (match eval_expr env value, eval_expr env slice with

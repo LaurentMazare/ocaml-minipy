@@ -18,8 +18,43 @@ let%expect_test "parse" =
   Stdio.printf !"%{sexp:Ast.t}\n" ast;
   [%expect
     {|
-        ((Assign (targets ((Name x))) (value (Num 1)))
-         (Expr (value (Call (func (Name print)) (args ((Num 42))) (keywords ())))))
+        (((loc
+           (((pos_fname unk) (pos_lnum 1) (pos_bol 0) (pos_cnum 0))
+            ((pos_fname unk) (pos_lnum 1) (pos_bol 0) (pos_cnum 3))))
+          (value
+           (Assign
+            (targets
+             (((loc
+                (((pos_fname unk) (pos_lnum 1) (pos_bol 0) (pos_cnum 0))
+                 ((pos_fname unk) (pos_lnum 1) (pos_bol 0) (pos_cnum 1))))
+               (value (Name x)))))
+            (value
+             ((loc
+               (((pos_fname unk) (pos_lnum 1) (pos_bol 0) (pos_cnum 2))
+                ((pos_fname unk) (pos_lnum 1) (pos_bol 0) (pos_cnum 3))))
+              (value (Num 1)))))))
+         ((loc
+           (((pos_fname unk) (pos_lnum 2) (pos_bol 4) (pos_cnum 4))
+            ((pos_fname unk) (pos_lnum 2) (pos_bol 4) (pos_cnum 13))))
+          (value
+           (Expr
+            (value
+             ((loc
+               (((pos_fname unk) (pos_lnum 2) (pos_bol 4) (pos_cnum 4))
+                ((pos_fname unk) (pos_lnum 2) (pos_bol 4) (pos_cnum 13))))
+              (value
+               (Call
+                (func
+                 ((loc
+                   (((pos_fname unk) (pos_lnum 2) (pos_bol 4) (pos_cnum 4))
+                    ((pos_fname unk) (pos_lnum 2) (pos_bol 4) (pos_cnum 9))))
+                  (value (Name print))))
+                (args
+                 (((loc
+                    (((pos_fname unk) (pos_lnum 2) (pos_bol 4) (pos_cnum 10))
+                     ((pos_fname unk) (pos_lnum 2) (pos_bol 4) (pos_cnum 12))))
+                   (value (Num 42)))))
+                (keywords ())))))))))
       |}]
 
 let%expect_test "hello" =

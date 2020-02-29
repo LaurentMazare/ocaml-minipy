@@ -11,13 +11,13 @@ exception ParseError of string
 open Ast
 let errorf fmt = Printf.ksprintf (fun s -> raise (ParseError s)) fmt
 
-let combine_if ~test ~body ~elif ~orelse =
+let combine_if loc ~test ~body ~elif ~orelse =
   let orelse =
     List.rev elif
     |> List.fold ~init:orelse ~f:(fun orelse (test, body) ->
-        [ If { test; body; orelse } ])
+        [ { loc; value = If { test; body; orelse } } ])
   in
-  If { test; body; orelse }
+  { loc; value = If { test; body; orelse } }
 
 let empty_args = { args = []; vararg = None; kwonlyargs = []; kwarg = None }
 
@@ -67,6 +67,46 @@ let merge_args args =
       | `Keyword kwarg -> acc_a, kwarg :: acc_kw)
   in
   List.rev args, List.rev keywords
+
+let none loc = { loc; value = None_ }
+let bool loc b = { loc; value = Bool b }
+let num loc v = { loc; value = Num v }
+let float loc f = { loc; value = Float f }
+let str loc s = { loc; value = Str s }
+let name loc s = { loc; value = Name s }
+let list loc l = { loc; value = List l }
+let dict loc ~key_values = { loc; value = Dict { key_values } }
+let listcomp loc ~elt ~generators = { loc; value = ListComp { elt; generators } }
+let tuple loc l = { loc; value = Tuple l }
+let lambda loc ~args ~body = { loc; value = Lambda { args; body } }
+let boolop loc ~op ~values = { loc; value = BoolOp { op; values } }
+let binop loc ~left ~op ~right = { loc; value = BinOp { left; op; right } }
+let unaryop loc ~op ~operand = { loc; value = UnaryOp { op; operand } }
+let ifexp loc ~body ~test ~orelse = { loc; value = IfExp { body; test; orelse } }
+let compare loc ~left ~ops_and_exprs = { loc; value = Compare { left; ops_and_exprs } }
+let call loc ~func ~args ~keywords = { loc; value = Call { func; args; keywords } }
+let attribute loc ~value ~attr = { loc; value = Attribute { value; attr } }
+let subscript loc ~value ~slice = { loc; value = Subscript { value; slice } }
+
+let functiondef loc ~name ~args ~body = { loc; value = FunctionDef { name; args; body } }
+let classdef loc ~name ~args ~body = { loc; value = ClassDef { name; args; body } }
+let _if_ loc ~test ~body ~orelse = { loc; value = If { test; body; orelse } }
+let for_ loc ~target ~iter ~body ~orelse = { loc; value = For { target; iter; body; orelse } }
+let while_ loc ~test ~body ~orelse = { loc; value = While { test; body; orelse } }
+let raise_ loc ~exc ~cause = { loc; value = Raise { exc; cause } }
+let try_ loc ~body ~handlers ~orelse ~finalbody = { loc; value = Try { body; handlers; orelse; finalbody } }
+let with_ loc ~body ~context ~vars = { loc; value = With { body; context; vars } }
+let assert_ loc ~test ~msg = { loc; value = Assert { test; msg } }
+let _import loc i = { loc; value = Import i }
+let _importfrom loc n is = { loc; value = ImportFrom (n, is) }
+let expr loc ~value = { loc; value = Expr { value } }
+let assign loc ~targets ~value = { loc; value = Assign { targets; value } }
+let augassign loc ~target ~op ~value = { loc; value = AugAssign { target; op; value } }
+let return loc ~value = { loc; value = Return { value } }
+let delete loc ~targets = { loc; value = Delete { targets } }
+let pass loc = { loc; value = Pass }
+let break loc = { loc; value = Break }
+let continue loc = { loc; value = Continue }
 %}
 
 %token <string> INTEGER
@@ -88,11 +128,6 @@ let merge_args args =
 %token ENDMARKER
 
 %type <Ast.t> mod_
-%type <Ast.stmt list> newline_or_stmt suite orelse
-%type <Ast.stmt list> stmt simple_stmt simple_stmt_or_empty
-%type <Ast.stmt> compound_stmt small_stmt flow_stmt
-%type <Ast.expr * Ast.stmt list> elif
-%type <Ast.expr option> assert_message
 %start mod_
 %%
 
@@ -122,17 +157,17 @@ simple_stmt_or_empty:
 ;
 
 small_stmt:
-  | value=testlist { Expr { value } }
+  | value=testlist { expr $loc ~value }
   | e1=testlist EQUAL e2=testlist l=assign_right {
     match List.rev (e1 :: e2 :: l) with
-    | value :: targets -> Assign { targets; value }
+    | value :: targets -> assign $loc ~targets ~value
     | _ -> assert false
   }
-  | target=testlist op=augassign value=testlist { AugAssign { target; value; op } }
-  | DELETE e=testlist { Delete { targets = [ e ] } }
-  | PASS { Pass }
+  | target=testlist op=augassign value=testlist { augassign $loc ~target ~value ~op }
+  | DELETE e=testlist { delete $loc ~targets:[ e ] }
+  | PASS { pass $loc }
   | s=flow_stmt { s }
-  | ASSERT test=test msg=assert_message { Assert { test; msg } }
+  | ASSERT test=test msg=assert_message { assert_ $loc ~test ~msg }
 ;
 
 augassign:
@@ -150,12 +185,12 @@ assign_right:
 ;
 
 flow_stmt:
-  | BREAK { Break }
-  | CONTINUE { Continue }
-  | RETURN { Return { value = None } }
-  | RETURN v=testlist { Return { value = Some v } }
-  | RAISE exc=test? { Raise { exc; cause = None } }
-  | RAISE exc=test? FROM cause=test { Raise { exc; cause = Some cause } }
+  | BREAK { break $loc }
+  | CONTINUE { continue $loc }
+  | RETURN { return $loc ~value:None }
+  | RETURN v=testlist { return $loc ~value:(Some v) }
+  | RAISE exc=test? { raise_ $loc ~exc ~cause:None }
+  | RAISE exc=test? FROM cause=test { raise_ $loc ~exc ~cause:(Some cause) }
 ;
 
 suite:
@@ -164,16 +199,16 @@ suite:
 ;
 
 compound_stmt:
-  | IF test=test COLON body=suite elif=elif* orelse=orelse { combine_if ~test ~body ~elif ~orelse }
-  | WHILE test=test COLON body=suite orelse=orelse { While { test; body; orelse } }
-  | FOR target=exprlist IN iter=testlist COLON body=suite orelse=orelse { For { target; iter; body; orelse } }
-  | TRY COLON body=suite finalbody=try_finally { Try { body; handlers = []; orelse = []; finalbody } }
+  | IF test=test COLON body=suite elif=elif* orelse=orelse { combine_if $loc ~test ~body ~elif ~orelse }
+  | WHILE test=test COLON body=suite orelse=orelse { while_ $loc ~test ~body ~orelse }
+  | FOR target=exprlist IN iter=testlist COLON body=suite orelse=orelse { for_ $loc ~target ~iter ~body ~orelse }
+  | TRY COLON body=suite finalbody=try_finally { try_ $loc ~body ~handlers:[] ~orelse:[] ~finalbody }
   | TRY COLON body=suite handlers=try_except+ orelse=try_orelse f=try_finally?
-    { Try { body; handlers; orelse; finalbody = Option.value f ~default:[] } }
-  | WITH context=test COLON body=suite { With { context; body; vars = None } }
-  | WITH context=test AS vars=expr COLON body=suite { With { context; body; vars = Some vars } }
-  | DEF name=IDENTIFIER LPAREN args=parameters RPAREN COLON body=suite { FunctionDef { name; args; body } }
-  | CLASS name=IDENTIFIER args=class_parameters COLON body=suite { ClassDef { name; args; body } }
+    { try_ $loc ~body ~handlers ~orelse ~finalbody:(Option.value f ~default:[]) }
+  | WITH context=test COLON body=suite { with_ $loc ~context ~body ~vars:None }
+  | WITH context=test AS vars=expr COLON body=suite { with_ $loc ~context ~body ~vars:(Some vars) }
+  | DEF name=IDENTIFIER LPAREN args=parameters RPAREN COLON body=suite { functiondef $loc ~name ~args ~body }
+  | CLASS name=IDENTIFIER args=class_parameters COLON body=suite { classdef $loc ~name ~args ~body }
 ;
 
 try_except:
@@ -218,7 +253,7 @@ assert_message:
 
 testlist:
   | e=test { e }
-  | e=test COMMA l=testlist_or_empty { Tuple (Array.of_list (e :: l)) }
+  | e=test COMMA l=testlist_or_empty { tuple $loc (Array.of_list (e :: l)) }
 ;
 
 testlist_or_empty:
@@ -229,7 +264,7 @@ testlist_or_empty:
 
 exprlist:
   | e=expr { e }
-  | e=expr COMMA l=exprlist_or_empty { Tuple (Array.of_list (e :: l)) }
+  | e=expr COMMA l=exprlist_or_empty { tuple $loc (Array.of_list (e :: l)) }
 ;
 
 exprlist_or_empty:
@@ -240,15 +275,15 @@ exprlist_or_empty:
 
 test:
   | e=or_test { e }
-  | body=or_test IF test=or_test ELSE orelse=test { IfExp { body; test; orelse } }
-  | LAMBDA args=parameters COLON body=test { Lambda { args; body } }
+  | body=or_test IF test=or_test ELSE orelse=test { ifexp $loc ~body ~test ~orelse }
+  | LAMBDA args=parameters COLON body=test { lambda $loc ~args ~body }
 ;
 
 or_test:
   | e=separated_nonempty_list(OPOR, and_test) {
     match e with
     | [e] -> e
-    | values -> BoolOp { op = Or; values }
+    | values -> boolop $loc ~op:Or ~values
 }
 ;
 
@@ -256,13 +291,13 @@ and_test:
   | e=separated_nonempty_list(OPAND, not_test) {
     match e with
     | [e] -> e
-    | values -> BoolOp { op = And; values }
+    | values -> boolop $loc ~op:And ~values
 }
 ;
 
 
 not_test:
-  | OPNOT operand=not_test { UnaryOp { op = Not; operand } }
+  | OPNOT operand=not_test { unaryop $loc ~op:Not ~operand }
   | e=comparison { e }
 ;
 
@@ -271,10 +306,10 @@ comparison:
   | l=expr o=comp_op c=comparison {
     let ops_and_exprs =
       match c with
-      | Compare { left; ops_and_exprs } -> (o, left) :: ops_and_exprs
+      | { loc = _; value = Compare { left; ops_and_exprs } } -> (o, left) :: ops_and_exprs
       | e -> [ o, e ]
     in
-    Compare { left = l; ops_and_exprs }
+    compare $loc ~left:l ~ops_and_exprs
   }
 ;
 
@@ -293,22 +328,22 @@ comp_op:
 
 expr:
   | e=xor_expr { e }
-  | left=xor_expr OPBOR right=expr { BinOp { left; op = BitOr; right } }
+  | left=xor_expr OPBOR right=expr { binop $loc ~left ~op:BitOr ~right }
 ;
 
 xor_expr:
   | e=and_expr { e }
-  | left=and_expr OPBXOR right=xor_expr { BinOp { left; op = BitXor; right } }
+  | left=and_expr OPBXOR right=xor_expr { binop $loc ~left ~op:BitXor ~right }
 ;
 
 and_expr:
   | e=shift_expr { e }
-  | left=shift_expr OPBAND right=and_expr { BinOp { left; op = BitAnd; right } }
+  | left=shift_expr OPBAND right=and_expr { binop $loc ~left ~op:BitAnd ~right }
 ;
 
 shift_expr:
   | e=arith_expr { e }
-  | left=arith_expr op=opshift right=shift_expr { BinOp { left; op; right } }
+  | left=arith_expr op=opshift right=shift_expr { binop $loc ~left ~op ~right }
 ;
 
 opshift:
@@ -318,7 +353,7 @@ opshift:
 
 arith_expr:
   | e=term { e }
-  | left=arith_expr op=oparith right=term { BinOp { left; op; right } }
+  | left=arith_expr op=oparith right=term { binop $loc ~left ~op ~right }
 ;
 
 oparith:
@@ -328,7 +363,7 @@ oparith:
 
 term:
   | e=factor { e }
-  | left=term op=opfactor right=factor { BinOp { left; op; right } }
+  | left=term op=opfactor right=factor { binop $loc ~left ~op ~right }
 ;
 
 opfactor:
@@ -339,38 +374,38 @@ opfactor:
 ;
 
 factor:
-  | OPADD operand=factor { UnaryOp { op = UAdd; operand } }
-  | OPSUB operand=factor { UnaryOp { op = USub; operand } }
-  | OPINVERT operand=factor { UnaryOp { op = Invert; operand } }
+  | OPADD operand=factor { unaryop $loc ~op:UAdd ~operand }
+  | OPSUB operand=factor { unaryop $loc ~op:USub ~operand }
+  | OPINVERT operand=factor { unaryop $loc ~op:Invert ~operand }
   | e=power { e }
 ;
 
 power:
   | e=atom_expr { e }
-  | left=atom_expr OPPOWER right=factor { BinOp { left; op = Pow; right } }
+  | left=atom_expr OPPOWER right=factor { binop $loc ~left ~op:Pow ~right }
 ;
 
 atom_expr:
   | e=atom { e }
   | func=atom_expr LPAREN args=separated_list(COMMA, argument) RPAREN {
     let args, keywords = merge_args args in
-    Call { func; args; keywords } }
-  | value=atom_expr DOT attr=IDENTIFIER { Attribute { value; attr } }
-  | value=atom_expr LBRACK slice=testlist RBRACK { Subscript { value; slice } }
+    call $loc ~func ~args ~keywords }
+  | value=atom_expr DOT attr=IDENTIFIER { attribute $loc ~value ~attr }
+  | value=atom_expr LBRACK slice=testlist RBRACK { subscript $loc ~value ~slice }
 ;
 
 atom:
   | LPAREN e=testlist RPAREN { e }
-  | LBRACK l=separated_list(COMMA, expr) RBRACK { List (Array.of_list l) }
+  | LBRACK l=separated_list(COMMA, expr) RBRACK { list $loc (Array.of_list l) }
   | LBRACK elt=expr FOR target=exprlist IN iter=or_test ifs=ifs f=fors RBRACK
-    { ListComp { elt; generators = { target; iter; ifs } :: f } }
-  | LBRACE key_values=separated_list(COMMA, key_value) RBRACE { Dict { key_values } }
-  | IDENTIFIER { Name $1 }
-  | STRING { Str $1 }
-  | INTEGER { Num (Z.of_string $1) }
-  | FLOAT { Float (float_of_string $1) }
-  | BOOL { Bool $1 }
-  | NONE { None_ }
+    { listcomp $loc ~elt ~generators:({ target; iter; ifs } :: f) }
+  | LBRACE key_values=separated_list(COMMA, key_value) RBRACE { dict $loc ~key_values }
+  | IDENTIFIER { name $loc $1 }
+  | STRING { str $loc $1 }
+  | INTEGER { num $loc (Z.of_string $1) }
+  | FLOAT { float $loc (float_of_string $1) }
+  | BOOL { bool $loc $1 }
+  | NONE { none $loc}
 ;
 
 argument:

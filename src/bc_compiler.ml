@@ -173,7 +173,7 @@ let unaryop_opcode : Ast.unaryop -> Bc_code.Opcode.t = function
   | Invert -> UNARY_INVERT
 
 let rec compile_stmt env stmt =
-  match (stmt : Ast.stmt) with
+  match (stmt.Ast.value : Ast.stmt) with
   | FunctionDef { name; args; body } ->
     let local_variables = Ast_utils.local_variables body in
     let body = compile body in
@@ -275,7 +275,7 @@ let rec compile_stmt env stmt =
     | Some { break = _; continue } -> [ O.jump JUMP_ABSOLUTE continue ])
 
 and compile_expr env expr =
-  match (expr : Ast.expr) with
+  match (expr.Ast.value : Ast.expr) with
   | None_ -> [ Env.load_const env Bc_value.none ]
   | Bool b -> [ Env.load_const env (Bc_value.bool b) ]
   | Num n -> [ Env.load_const env (Bc_value.int n) ]
@@ -394,7 +394,8 @@ and compile_expr env expr =
     value @ slice @ [ O.op BINARY_SUBSCR ]
 
 and delete env targets =
-  List.concat_map targets ~f:(function
+  List.concat_map targets ~f:(fun target ->
+      match target.value with
       | None_ | Bool _ | Num _ | Float _ | Str _ ->
         errorf "SyntaxError: can't delete constant"
       | Dict _ -> errorf "SyntaxError: can't delete dict"
@@ -416,7 +417,7 @@ and delete env targets =
 
 and aug_assign env ~target ~op ~value =
   let value = compile_expr env value in
-  match target with
+  match target.value with
   | None_ | Bool _ | Num _ | Float _ | Str _ ->
     errorf "SyntaxError: can't augmented assign to constant"
   | Dict _ -> errorf "SyntaxError: can't augmented assign to dict"
@@ -453,7 +454,8 @@ and aug_assign env ~target ~op ~value =
       ]
 
 and assign env ~target =
-  let rec loop = function
+  let rec loop expr =
+    match expr.Ast.value with
     | Ast.None_ | Bool _ | Num _ | Float _ | Str _ ->
       errorf "SyntaxError: can't assign to constant"
     | Dict _ -> errorf "SyntaxError: can't assign to dict"

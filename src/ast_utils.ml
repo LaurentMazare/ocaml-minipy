@@ -4,7 +4,8 @@ open! Import
 (* Local variables are variables that are assigned in the body. *)
 let local_variables body =
   let local_variables = Hash_set.create (module String) in
-  let rec loop = function
+  let rec loop stmt =
+    match stmt.Ast.value with
     | Ast.If { test = _; body; orelse } | While { test = _; body; orelse } ->
       List.iter body ~f:loop;
       List.iter orelse ~f:loop
@@ -29,7 +30,8 @@ let local_variables body =
           let as_name = Option.value as_name ~default:import_name in
           Hash_set.add local_variables as_name)
     | Assert _ | Return _ | Delete _ | Expr _ | Raise _ | Break | Continue | Pass -> ()
-  and loop_expr = function
+  and loop_expr expr =
+    match expr.Ast.value with
     | Name name -> Hash_set.add local_variables name
     | List l | Tuple l -> Array.iter l ~f:loop_expr
     | None_

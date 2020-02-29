@@ -46,66 +46,80 @@ type cmpop =
   | NotIn
 [@@deriving sexp]
 
+type position = Lexing.position =
+  { pos_fname : string
+  ; pos_lnum : int
+  ; pos_bol : int
+  ; pos_cnum : int
+  }
+[@@deriving sexp]
+
+type 'a with_loc =
+  { loc : position * position
+  ; value : 'a
+  }
+[@@deriving sexp]
+
 type stmt =
   | FunctionDef of
       { name : string
       ; args : arguments
-      ; body : stmt list
+      ; body : stmt with_loc list
       }
   | ClassDef of
       { name : string
       ; args : arguments
-      ; body : stmt list
+      ; body : stmt with_loc list
       }
   | If of
-      { test : expr
-      ; body : stmt list
-      ; orelse : stmt list
+      { test : expr with_loc
+      ; body : stmt with_loc list
+      ; orelse : stmt with_loc list
       }
   | For of
-      { target : expr
-      ; iter : expr
-      ; body : stmt list
-      ; orelse : stmt list
+      { target : expr with_loc
+      ; iter : expr with_loc
+      ; body : stmt with_loc list
+      ; orelse : stmt with_loc list
       }
   | While of
-      { test : expr
-      ; body : stmt list
-      ; orelse : stmt list
+      { test : expr with_loc
+      ; body : stmt with_loc list
+      ; orelse : stmt with_loc list
       }
   | Raise of
-      { exc : expr option
-      ; cause : expr option
+      { exc : expr with_loc option
+      ; cause : expr with_loc option
       }
   | Try of
-      { body : stmt list
+      { body : stmt with_loc list
       ; handlers : excepthandler list
-      ; orelse : stmt list
-      ; finalbody : stmt list
+      ; orelse : stmt with_loc list
+      ; finalbody : stmt with_loc list
       }
   | With of
-      { body : stmt list
-      ; context : expr
-      ; vars : expr option
+      { body : stmt with_loc list
+      ; context : expr with_loc
+      ; vars : expr with_loc option
       }
   | Assert of
-      { test : expr
-      ; msg : expr option
+      { test : expr with_loc
+      ; msg : expr with_loc option
       }
   | Import of importname list
   | ImportFrom of string * importname list
-  | Expr of { value : expr }
+  | Expr of { value : expr with_loc }
   | Assign of
-      { targets : expr list
-      ; value : expr
+      { targets : expr with_loc list
+      ; value : expr with_loc
       }
   | AugAssign of
-      { target : expr
+      { target : expr with_loc
       ; op : operator
-      ; value : expr
+      ; value : expr with_loc
       }
-  | Return of { value : expr option }
-  | Delete of { targets : expr list }
+  | Return of { value : expr with_loc option }
+  | Delete of { targets : expr with_loc list }
   | Pass
   | Break
   | Continue
@@ -117,70 +131,70 @@ and expr =
   | Float of float
   | Str of string
   | Name of string
-  | List of expr array
-  | Dict of { key_values : (expr * expr) list }
+  | List of expr with_loc array
+  | Dict of { key_values : (expr with_loc * expr with_loc) list }
   | ListComp of
-      { elt : expr
+      { elt : expr with_loc
       ; generators : comprehension list
       }
-  | Tuple of expr array
+  | Tuple of expr with_loc array
   | Lambda of
       { args : arguments
-      ; body : expr
+      ; body : expr with_loc
       }
   | BoolOp of
       { op : boolop
-      ; values : expr list
+      ; values : expr with_loc list
       }
   | BinOp of
-      { left : expr
+      { left : expr with_loc
       ; op : operator
-      ; right : expr
+      ; right : expr with_loc
       }
   | UnaryOp of
       { op : unaryop
-      ; operand : expr
+      ; operand : expr with_loc
       }
   | IfExp of
-      { test : expr
-      ; body : expr
-      ; orelse : expr
+      { test : expr with_loc
+      ; body : expr with_loc
+      ; orelse : expr with_loc
       }
   | Compare of
-      { left : expr
-      ; ops_and_exprs : (cmpop * expr) list
+      { left : expr with_loc
+      ; ops_and_exprs : (cmpop * expr with_loc) list
       }
   | Call of
-      { func : expr
-      ; args : expr list
-      ; keywords : (string * expr) list
+      { func : expr with_loc
+      ; args : expr with_loc list
+      ; keywords : (string * expr with_loc) list
       }
   | Attribute of
-      { value : expr
+      { value : expr with_loc
       ; attr : string
       }
   | Subscript of
-      { value : expr
-      ; slice : expr (* TODO: proper slices *)
+      { value : expr with_loc
+      ; slice : expr with_loc (* TODO: proper slices *)
       }
 
 and comprehension =
-  { target : expr
-  ; iter : expr
-  ; ifs : expr list
+  { target : expr with_loc
+  ; iter : expr with_loc
+  ; ifs : expr with_loc list
   }
 
 and arguments =
   { args : string list
   ; vararg : string option
-  ; kwonlyargs : (string * expr) list
+  ; kwonlyargs : (string * expr with_loc) list
   ; kwarg : string option
   }
 
 and excepthandler =
-  { type_ : expr option
+  { type_ : expr with_loc option
   ; name : string option
-  ; body : stmt list
+  ; body : stmt with_loc list
   }
 
 and importname =
@@ -189,4 +203,4 @@ and importname =
   }
 [@@deriving sexp]
 
-type t = stmt list [@@deriving sexp]
+type t = stmt with_loc list [@@deriving sexp]
