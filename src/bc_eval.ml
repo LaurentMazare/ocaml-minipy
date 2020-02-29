@@ -68,6 +68,19 @@ type backtrace = filename_and_lineno list [@@deriving sexp]
 
 exception Exn_with_backtrace of Exn.t * backtrace
 
+let () =
+  Caml.Printexc.register_printer (function
+      | Exn_with_backtrace (exn, backtrace) ->
+        let backtrace =
+          List.mapi backtrace ~f:(fun index { filename; lineno } ->
+              let lineno = Option.value_map lineno ~default:"unknown" ~f:Int.to_string in
+              Printf.sprintf "%2d %s: line %s" (1 + index) filename lineno)
+          |> String.concat ~sep:"\n"
+        in
+        Printf.sprintf "Backtrace:\n" ^ backtrace ^ "\n" ^ Exn.to_string exn
+        |> Option.some
+      | _ -> None)
+
 let backtrace t =
   Stack.fold t.frames ~init:[] ~f:(fun acc frame ->
       let filename, lineno = Bc_frame.current_filename_and_lineno frame in
