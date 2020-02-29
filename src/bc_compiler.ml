@@ -203,7 +203,30 @@ let rec compile_stmt env stmt =
       ; op MAKE_FUNCTION
       ; Env.store_name env name ~lineno
       ]
-  | ClassDef _ -> errorf ~lineno "Unsupported: ClassDef"
+  | ClassDef { name; args; body } ->
+    let local_variables = Ast_utils.local_variables body in
+    let body = compile body in
+    let to_capture =
+      List.filter
+        ((Env.names env |> Array.to_list) @ (Env.varnames env |> Array.to_list))
+        ~f:(fun name -> not (Hash_set.mem local_variables name))
+      |> List.dedup_and_sort ~compare:String.compare
+    in
+    let args = List.map args.args ~f:(Env.load_name env ~lineno) in
+    let empty_arguments =
+      { Ast.args = []; vararg = None; kwonlyargs = []; kwarg = None }
+    in
+    List.concat
+      [ [ op LOAD_BUILD_CLASS
+        ; Env.load_const
+            env
+            (Bc_value.code body ~args:empty_arguments ~to_capture)
+            ~lineno
+        ; Env.load_const env (Bc_value.str name) ~lineno
+        ]
+      ; args
+      ; [ op CALL_FUNCTION ~arg:(List.length args + 2); Env.store_name env name ~lineno ]
+      ]
   | If { test; body; orelse } ->
     let test = compile_expr env test in
     let body = List.concat_map body ~f:(compile_stmt env) in
