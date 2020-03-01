@@ -21,6 +21,10 @@ let create ~code ~local_scope ~global_scope ~builtins ~parent_frame =
   ; parent_frame
   }
 
+let eval_frame = ref None
+let set_eval_frame fn = eval_frame := Some fn
+let eval_frame ~frame = (Option.value_exn !eval_frame) ~frame
+
 let top_frame ~code ~global_scope ~builtins =
   create
     ~code
@@ -552,18 +556,18 @@ let call_scope (args : Ast.arguments) ~defaults ~arg_values ~keyword_values =
         (Hashtbl.keys keyword_values |> String.concat ~sep:","));
   scope
 
-let call_function_aux stack ~kwarg_names ~arg =
+let call_function_aux t ~kwarg_names ~arg =
   let n_kwargs = Array.length kwarg_names in
-  let kwargs = popn stack n_kwargs in
+  let kwargs = popn t.stack n_kwargs in
   let n_posargs = arg - n_kwargs in
-  let arg_values = popn stack n_posargs in
-  let fn = Stack.pop_exn stack in
+  let arg_values = popn t.stack n_posargs in
+  let fn = Stack.pop_exn t.stack in
   let keyword_values = List.zip_exn (Array.to_list kwarg_names) kwargs in
   match (fn : Bc_value.t) with
   | Builtin_fn { name = _; fn } ->
     let keyword_values = Map.of_alist_exn (module String) keyword_values in
     let value = fn arg_values keyword_values in
-    push_and_continue stack value
+    push_and_continue t.stack value
   | Function { name = _; code; args; defaults; captured; method_self } ->
     let keyword_values = Hashtbl.of_alist_exn (module String) keyword_values in
     let arg_values =
@@ -585,25 +589,32 @@ let call_function_aux stack ~kwarg_names ~arg =
           | data -> data
         in
         Hashtbl.set self_attrs ~key ~data);
-    (* TODO: call __init__ *)
-    push_and_continue stack self
+    (match Hashtbl.find attrs "__init__" with
+    | None -> ()
+    | Some (Function { name = _; code; args; defaults; captured; method_self = _ }) ->
+      let arg_values = self :: arg_values in
+      let keyword_values = Hashtbl.of_alist_exn (module String) keyword_values in
+      let local_scope = call_scope args ~defaults ~arg_values ~keyword_values in
+      List.iter captured ~f:(fun (name, value) ->
+          if not (Bc_scope.mem local_scope name) then Bc_scope.set local_scope name value);
+      let frame = call_frame t ~code ~local_scope in
+      eval_frame ~frame
+    | Some v -> Bc_value.cannot_be_interpreted_as v "callable");
+    push_and_continue t.stack self
   | _ -> errorf "'%s' object is not callable" (Bc_value.type_as_string fn)
 
-let call_function_kw stack ~arg =
+let call_function_kw t ~arg =
   let kwarg_names =
-    match (Stack.pop_exn stack : Bc_value.t) with
+    match (Stack.pop_exn t.stack : Bc_value.t) with
     | Tuple tuple ->
       Array.map tuple ~f:(function
           | Str name -> name
           | _ -> errorf "CALL_FUNCTION_KW expects a tuple of string")
     | v -> errorf "CALL_FUNCTION_KW expects a tuple, got '%s'" (Bc_value.type_as_string v)
   in
-  call_function_aux stack ~arg ~kwarg_names
+  call_function_aux t ~arg ~kwarg_names
 
-let call_function stack ~arg = call_function_aux stack ~kwarg_names:[||] ~arg
-let eval_frame = ref None
-let set_eval_frame fn = eval_frame := Some fn
-let eval_frame ~frame = (Option.value_exn !eval_frame) ~frame
+let call_function t ~arg = call_function_aux t ~kwarg_names:[||] ~arg
 
 let build_class t =
   let fn args _kwargs =
@@ -760,7 +771,7 @@ let eval_one t opcode ~arg =
   | STORE_FAST -> store_fast t ~arg
   | DELETE_FAST -> delete_fast t ~arg
   | RAISE_VARARGS -> failwith "Unsupported: RAISE_VARARGS"
-  | CALL_FUNCTION -> call_function t.stack ~arg
+  | CALL_FUNCTION -> call_function t ~arg
   | MAKE_FUNCTION ->
     let name = Stack.pop_exn t.stack |> Bc_value.str_exn in
     let code, args, to_capture = Stack.pop_exn t.stack |> Bc_value.code_exn in
@@ -779,7 +790,7 @@ let eval_one t opcode ~arg =
   | LOAD_DEREF -> failwith "Unsupported: LOAD_DEREF"
   | STORE_DEREF -> failwith "Unsupported: STORE_DEREF"
   | DELETE_DEREF -> failwith "Unsupported: DELETE_DEREF"
-  | CALL_FUNCTION_KW -> call_function_kw t.stack ~arg
+  | CALL_FUNCTION_KW -> call_function_kw t ~arg
   | CALL_FUNCTION_EX -> failwith "Unsupported: CALL_FUNCTION_EX"
   | SETUP_WITH -> failwith "Unsupported: SETUP_WITH"
   | EXTENDED_ARG -> failwith "Unsupported: EXTENDED_ARG"
