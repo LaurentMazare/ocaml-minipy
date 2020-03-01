@@ -106,7 +106,7 @@ module Unary_op = struct
       errorf
         "TypeError: bad operand type for unary %s: %s"
         (sexp_of_t t |> Sexp.to_string)
-        (Bc_value.type_ v |> Bc_value.Type_.to_string)
+        (Bc_value.type_as_string v)
 end
 
 module Binary_op = struct
@@ -141,8 +141,8 @@ module Binary_op = struct
     | _, _ ->
       errorf
         "TypeError in add %s %s"
-        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
-        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
+        (Bc_value.type_as_string v1)
+        (Bc_value.type_as_string v2)
 
   let bin_sub v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
@@ -153,8 +153,8 @@ module Binary_op = struct
     | _, _ ->
       errorf
         "TypeError in sub %s %s"
-        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
-        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
+        (Bc_value.type_as_string v1)
+        (Bc_value.type_as_string v2)
 
   let bin_mult v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
@@ -175,8 +175,8 @@ module Binary_op = struct
     | _, _ ->
       errorf
         "TypeError in mult %s %s"
-        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
-        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
+        (Bc_value.type_as_string v1)
+        (Bc_value.type_as_string v2)
 
   let bin_div v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
@@ -187,8 +187,8 @@ module Binary_op = struct
     | _, _ ->
       errorf
         "TypeError in div %s %s"
-        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
-        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
+        (Bc_value.type_as_string v1)
+        (Bc_value.type_as_string v2)
 
   let bin_floor_div v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
@@ -196,8 +196,8 @@ module Binary_op = struct
     | _, _ ->
       errorf
         "TypeError in floor-div %s %s"
-        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
-        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
+        (Bc_value.type_as_string v1)
+        (Bc_value.type_as_string v2)
 
   let bin_mod v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
@@ -205,8 +205,8 @@ module Binary_op = struct
     | _, _ ->
       errorf
         "TypeError in mod %s %s"
-        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
-        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
+        (Bc_value.type_as_string v1)
+        (Bc_value.type_as_string v2)
 
   let bin_pow v1 v2 =
     match (v1 : Bc_value.t), (v2 : Bc_value.t) with
@@ -224,8 +224,8 @@ module Binary_op = struct
     | _, _ ->
       errorf
         "TypeError in pow %s %s"
-        (Bc_value.type_ v1 |> Bc_value.Type_.to_string)
-        (Bc_value.type_ v2 |> Bc_value.Type_.to_string)
+        (Bc_value.type_as_string v1)
+        (Bc_value.type_as_string v2)
 
   let bin_subscr value index =
     match (value : Bc_value.t), (index : Bc_value.t) with
@@ -248,8 +248,8 @@ module Binary_op = struct
     | _, _ ->
       errorf
         "TypeError in subscript %s %s"
-        (Bc_value.type_ value |> Bc_value.Type_.to_string)
-        (Bc_value.type_ index |> Bc_value.Type_.to_string)
+        (Bc_value.type_as_string value)
+        (Bc_value.type_as_string index)
 
   let apply t v1 v2 =
     match t with
@@ -336,8 +336,8 @@ let compare op stack =
       errorf
         "TypeError in %s %s %s"
         (Ast.sexp_of_cmpop op |> Sexp.to_string)
-        (Bc_value.type_ tos |> Bc_value.Type_.to_string)
-        (Bc_value.type_ tos1 |> Bc_value.Type_.to_string)
+        (Bc_value.type_as_string tos)
+        (Bc_value.type_as_string tos1)
   in
   push_and_continue stack tos
 
@@ -416,10 +416,7 @@ let unpack_sequence stack ~arg =
     for i = Array.length ts - 1 downto 0 do
       Stack.push stack ts.(i)
     done
-  | _ ->
-    errorf
-      "TypeError when unpacking sequence %s"
-      (Bc_value.type_ value |> Bc_value.Type_.to_string));
+  | _ -> errorf "TypeError when unpacking sequence %s" (Bc_value.type_as_string value));
   Continue
 
 let store_subscr stack =
@@ -433,8 +430,8 @@ let store_subscr stack =
   | _, _ ->
     errorf
       "TypeError in store subscript %s[%s]"
-      (Bc_value.type_ obj |> Bc_value.Type_.to_string)
-      (Bc_value.type_ index |> Bc_value.Type_.to_string));
+      (Bc_value.type_as_string obj)
+      (Bc_value.type_as_string index));
   Continue
 
 let delete_subscr stack =
@@ -445,8 +442,8 @@ let delete_subscr stack =
   | _, _ ->
     errorf
       "TypeError in store subscript %s[%s]"
-      (Bc_value.type_ obj |> Bc_value.Type_.to_string)
-      (Bc_value.type_ index |> Bc_value.Type_.to_string));
+      (Bc_value.type_as_string obj)
+      (Bc_value.type_as_string index));
   Continue
 
 let popn stack n =
@@ -503,11 +500,7 @@ let load_attr stack attr =
   | List q ->
     let attr = Bc_list.attrs q ~attr in
     push_and_continue stack attr
-  | v ->
-    errorf
-      "'%s' object has no attribute '%s'"
-      (Bc_value.type_ v |> Bc_value.Type_.to_string)
-      attr
+  | v -> errorf "'%s' object has no attribute '%s'" (Bc_value.type_as_string v) attr
 
 let call_scope (args : Ast.arguments) ~defaults ~arg_values ~keyword_values =
   let scope = Bc_scope.create () in
@@ -573,8 +566,7 @@ let call_function_aux stack ~kwarg_names ~arg =
     List.iter captured ~f:(fun (name, value) ->
         if not (Bc_scope.mem local_scope name) then Bc_scope.set local_scope name value);
     Call_fn { code; local_scope }
-  | _ ->
-    errorf "'%s' object is not callable" (Bc_value.type_ fn |> Bc_value.Type_.to_string)
+  | _ -> errorf "'%s' object is not callable" (Bc_value.type_as_string fn)
 
 let call_function_kw stack ~arg =
   let kwarg_names =
@@ -583,10 +575,7 @@ let call_function_kw stack ~arg =
       Array.map tuple ~f:(function
           | Str name -> name
           | _ -> errorf "CALL_FUNCTION_KW expects a tuple of string")
-    | v ->
-      errorf
-        "CALL_FUNCTION_KW expects a tuple, got '%s'"
-        (Bc_value.type_ v |> Bc_value.Type_.to_string)
+    | v -> errorf "CALL_FUNCTION_KW expects a tuple, got '%s'" (Bc_value.type_as_string v)
   in
   call_function_aux stack ~arg ~kwarg_names
 
@@ -594,12 +583,18 @@ let call_function stack ~arg = call_function_aux stack ~kwarg_names:[||] ~arg
 
 let build_class =
   let fn args _kwargs =
+    let _code, parent_class, name =
+      match (args : Bc_value.t list) with
+      | [ code; Str name ] -> code, None, name
+      | [ code; Class parent_class; Str name ] -> code, Some parent_class, name
+      | _ ->
+        errorf
+          "build_class expects either two arguments (code, name) or three arguments \
+           (code, class, name), got (%s)"
+          (List.map args ~f:Bc_value.type_as_string |> String.concat ~sep:", ")
+    in
     Bc_value.Class
-      { name = List.last_exn args |> Bc_value.str_exn
-      ; attrs = empty_attrs ()
-      ; parent_class = None
-      ; id = Bc_value.Class_id.create ()
-      }
+      { name; attrs = empty_attrs (); parent_class; id = Bc_value.Class_id.create () }
   in
   Bc_value.Builtin_fn { name = "build_class"; fn }
 

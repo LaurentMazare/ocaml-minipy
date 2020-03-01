@@ -99,6 +99,8 @@ let type_ = function
   | Class _ -> Class
   | Object _ -> Object
 
+let type_as_string t = type_ t |> Type_.to_string
+
 let to_string ?(escape_special_chars = true) t =
   let rec loop ~e = function
     | None -> "None"

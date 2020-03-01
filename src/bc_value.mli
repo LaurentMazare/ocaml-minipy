@@ -71,6 +71,7 @@ and cls =
 type code = t Bc_code.t [@@deriving sexp_of]
 
 val type_ : t -> Type_.t
+val type_as_string : t -> string
 val to_string : ?escape_special_chars:bool -> t -> string
 val str_exn : t -> string
 val code_exn : t -> code * Ast.arguments * string list
