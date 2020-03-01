@@ -592,6 +592,17 @@ let call_function_kw stack ~arg =
 
 let call_function stack ~arg = call_function_aux stack ~kwarg_names:[||] ~arg
 
+let build_class =
+  let fn args _kwargs =
+    Bc_value.Class
+      { name = List.last_exn args |> Bc_value.str_exn
+      ; attrs = empty_attrs ()
+      ; parent_class = None
+      ; id = Bc_value.Class_id.create ()
+      }
+  in
+  Bc_value.Builtin_fn { name = "build_class"; fn }
+
 let eval_one t opcode ~arg =
   match (opcode : Bc_code.Opcode.t) with
   | POP_TOP -> pop_top t.stack
@@ -634,7 +645,7 @@ let eval_one t opcode ~arg =
   | GET_ITER -> get_iter t.stack
   | GET_YIELD_FROM_ITER -> failwith "Unsupported: GET_YIELD_FROM_ITER"
   | PRINT_EXPR -> failwith "Unsupported: PRINT_EXPR"
-  | LOAD_BUILD_CLASS -> failwith "Unsupported: LOAD_BUILD_CLASS"
+  | LOAD_BUILD_CLASS -> push_and_continue t.stack build_class
   | YIELD_FROM -> failwith "Unsupported: YIELD_FROM"
   | GET_AWAITABLE -> failwith "Unsupported: GET_AWAITABLE"
   | INPLACE_LSHIFT -> inplace Lshift t.stack

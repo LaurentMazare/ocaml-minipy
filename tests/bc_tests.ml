@@ -329,3 +329,17 @@ print(pd(2500))
         [(5, 2), (2, 2)] [(191, 1), (7, 1)] [(157, 1), (2, 1)]
         [(5, 4), (2, 2)]
       |}]
+
+let%expect_test "class" =
+  parse_compile_and_run
+    {|
+class A:
+  def set_a(self, a):
+    self._a = a
+
+  def twice_a(self):
+    return 2 * self._a
+
+
+|};
+  [%expect {| |}]
