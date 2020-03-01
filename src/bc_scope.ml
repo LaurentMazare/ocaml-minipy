@@ -8,3 +8,4 @@ let mem t key = Hashtbl.mem t key
 let set t key data = Hashtbl.set t ~key ~data
 let remove t key = Hashtbl.remove t key
 let of_alist_exn = Hashtbl.of_alist_exn (module String)
+let to_attrs = Hashtbl.copy

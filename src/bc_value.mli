@@ -41,13 +41,7 @@ type t =
       { name : string
       ; fn : t list -> t String_map.t -> t
       }
-  | Function of
-      { name : string
-      ; code : t Bc_code.t
-      ; args : Ast.arguments
-      ; defaults : (string * t) list
-      ; captured : (string * t) list
-      }
+  | Function of fn
   | Code of
       { code : t Bc_code.t
       ; args : Ast.arguments
@@ -61,10 +55,19 @@ type t =
       }
 
 and cls =
-  { name : string
+  { cls_name : string
   ; attrs : (string, t) Hashtbl.t
   ; parent_class : cls option
   ; id : Class_id.t
+  }
+
+and fn =
+  { name : string
+  ; code : t Bc_code.t
+  ; args : Ast.arguments
+  ; defaults : (string * t) list
+  ; captured : (string * t) list
+  ; method_self : t option
   }
 [@@deriving sexp_of]
 

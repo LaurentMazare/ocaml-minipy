@@ -340,6 +340,11 @@ class A:
   def twice_a(self):
     return 2 * self._a
 
-
+a = A()
+print(a)
+a.set_a(21)
+print(a.twice_a())
 |};
-  [%expect {| |}]
+  [%expect {|
+    <object.A>
+    42 |}]

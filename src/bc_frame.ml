@@ -500,6 +500,10 @@ let load_attr stack attr =
   | List q ->
     let attr = Bc_list.attrs q ~attr in
     push_and_continue stack attr
+  | Object { cls; attrs } ->
+    (match Hashtbl.find attrs attr with
+    | Some v -> push_and_continue stack v
+    | None -> errorf "object from class '%s' has no attribute '%s'" cls.cls_name attr)
   | v -> errorf "'%s' object has no attribute '%s'" (Bc_value.type_as_string v) attr
 
 let call_scope (args : Ast.arguments) ~defaults ~arg_values ~keyword_values =
@@ -560,12 +564,29 @@ let call_function_aux stack ~kwarg_names ~arg =
     let keyword_values = Map.of_alist_exn (module String) keyword_values in
     let value = fn arg_values keyword_values in
     push_and_continue stack value
-  | Function { name = _; code; args; defaults; captured } ->
+  | Function { name = _; code; args; defaults; captured; method_self } ->
     let keyword_values = Hashtbl.of_alist_exn (module String) keyword_values in
+    let arg_values =
+      match method_self with
+      | None -> arg_values
+      | Some self -> self :: arg_values
+    in
     let local_scope = call_scope args ~defaults ~arg_values ~keyword_values in
     List.iter captured ~f:(fun (name, value) ->
         if not (Bc_scope.mem local_scope name) then Bc_scope.set local_scope name value);
     Call_fn { code; local_scope }
+  | Class ({ attrs; _ } as cls) ->
+    let self_attrs = Hashtbl.create (module String) in
+    let self = Bc_value.Object { cls; attrs = self_attrs } in
+    Hashtbl.iteri attrs ~f:(fun ~key ~data ->
+        let data =
+          match data with
+          | Function fn -> Bc_value.Function { fn with method_self = Some self }
+          | data -> data
+        in
+        Hashtbl.set self_attrs ~key ~data);
+    (* TODO: call __init__ *)
+    push_and_continue stack self
   | _ -> errorf "'%s' object is not callable" (Bc_value.type_as_string fn)
 
 let call_function_kw stack ~arg =
@@ -580,23 +601,47 @@ let call_function_kw stack ~arg =
   call_function_aux stack ~arg ~kwarg_names
 
 let call_function stack ~arg = call_function_aux stack ~kwarg_names:[||] ~arg
+let eval_frame = ref None
+let set_eval_frame fn = eval_frame := Some fn
+let eval_frame ~frame = (Option.value_exn !eval_frame) ~frame
 
-let build_class =
+let build_class t =
   let fn args _kwargs =
-    let _code, parent_class, name =
+    let code, parent_class, cls_name =
       match (args : Bc_value.t list) with
-      | [ code; Str name ] -> code, None, name
-      | [ code; Class parent_class; Str name ] -> code, Some parent_class, name
+      | [ Code { code; _ }; Str name ] -> code, None, name
+      | [ Code { code; _ }; Class parent_class; Str name ] ->
+        code, Some parent_class, name
       | _ ->
         errorf
           "build_class expects either two arguments (code, name) or three arguments \
            (code, class, name), got (%s)"
           (List.map args ~f:Bc_value.type_as_string |> String.concat ~sep:", ")
     in
-    Bc_value.Class
-      { name; attrs = empty_attrs (); parent_class; id = Bc_value.Class_id.create () }
+    let local_scope = Bc_scope.create () in
+    let frame = call_frame t ~code ~local_scope in
+    eval_frame ~frame;
+    let attrs = Bc_scope.to_attrs local_scope in
+    Bc_value.Class { cls_name; attrs; parent_class; id = Bc_value.Class_id.create () }
   in
   Bc_value.Builtin_fn { name = "build_class"; fn }
+
+let store_attr t ~arg =
+  let name = t.code.names.(arg) in
+  let tos1, tos = pop2 t.stack in
+  match tos with
+  | Object { attrs; _ } ->
+    Hashtbl.set attrs ~key:name ~data:tos1;
+    Continue
+  | tos -> errorf "cannot set attribute on '%s'" (Bc_value.type_as_string tos)
+
+let delete_attr t ~arg =
+  let name = t.code.names.(arg) in
+  match Stack.pop_exn t.stack with
+  | Object { attrs; _ } ->
+    Hashtbl.remove attrs name;
+    Continue
+  | tos -> errorf "cannot delete attribute on '%s'" (Bc_value.type_as_string tos)
 
 let eval_one t opcode ~arg =
   match (opcode : Bc_code.Opcode.t) with
@@ -640,7 +685,7 @@ let eval_one t opcode ~arg =
   | GET_ITER -> get_iter t.stack
   | GET_YIELD_FROM_ITER -> failwith "Unsupported: GET_YIELD_FROM_ITER"
   | PRINT_EXPR -> failwith "Unsupported: PRINT_EXPR"
-  | LOAD_BUILD_CLASS -> push_and_continue t.stack build_class
+  | LOAD_BUILD_CLASS -> push_and_continue t.stack (build_class t)
   | YIELD_FROM -> failwith "Unsupported: YIELD_FROM"
   | GET_AWAITABLE -> failwith "Unsupported: GET_AWAITABLE"
   | INPLACE_LSHIFT -> inplace Lshift t.stack
@@ -670,8 +715,8 @@ let eval_one t opcode ~arg =
   | UNPACK_SEQUENCE -> unpack_sequence t.stack ~arg
   | FOR_ITER -> for_iter t.stack ~arg
   | UNPACK_EX -> failwith "Unsupported: UNPACK_EX"
-  | STORE_ATTR -> failwith "Unsupported: STORE_ATTR"
-  | DELETE_ATTR -> failwith "Unsupported: DELETE_ATTR"
+  | STORE_ATTR -> store_attr t ~arg
+  | DELETE_ATTR -> delete_attr t ~arg
   | STORE_GLOBAL -> store_global t ~arg
   | DELETE_GLOBAL -> delete_global t ~arg
   | LOAD_CONST -> push_and_continue t.stack t.code.consts.(arg)
@@ -725,7 +770,9 @@ let eval_one t opcode ~arg =
       List.filter_map to_capture ~f:(fun name ->
           find_name t name |> Option.map ~f:(fun v -> name, v))
     in
-    let value = Bc_value.Function { name; code; args; defaults; captured } in
+    let value =
+      Bc_value.Function { name; code; args; defaults; captured; method_self = None }
+    in
     push_and_continue t.stack value
   | BUILD_SLICE -> failwith "Unsupported: BUILD_SLICE"
   | LOAD_CLOSURE -> failwith "Unsupported: LOAD_CLOSURE"

@@ -56,13 +56,7 @@ type t =
       { name : string
       ; fn : t list -> t String_map.t -> t
       }
-  | Function of
-      { name : string
-      ; code : t Bc_code.t
-      ; args : Ast.arguments
-      ; defaults : (string * t) list
-      ; captured : (string * t) list
-      }
+  | Function of fn
   | Code of
       { code : t Bc_code.t
       ; args : Ast.arguments
@@ -76,10 +70,19 @@ type t =
       }
 
 and cls =
-  { name : string
+  { cls_name : string
   ; attrs : (string, t) Hashtbl.t
   ; parent_class : cls option
   ; id : Class_id.t
+  }
+
+and fn =
+  { name : string
+  ; code : t Bc_code.t
+  ; args : Ast.arguments
+  ; defaults : (string * t) list
+  ; captured : (string * t) list
+  ; method_self : t option
   }
 [@@deriving sexp_of]
 
@@ -129,8 +132,8 @@ let to_string ?(escape_special_chars = true) t =
     | Function { name; _ } -> Printf.sprintf "function<%s>" name
     | Code _ -> "<code>"
     | Iterator _ -> "<iterator>"
-    | Class cls -> Printf.sprintf "<class.%s>" cls.name
-    | Object { cls; attrs = _ } -> Printf.sprintf "<object.%s>" cls.name
+    | Class cls -> Printf.sprintf "<class.%s>" cls.cls_name
+    | Object { cls; attrs = _ } -> Printf.sprintf "<object.%s>" cls.cls_name
   in
   loop t ~e:escape_special_chars
 

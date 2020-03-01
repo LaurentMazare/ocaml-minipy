@@ -77,7 +77,7 @@ let backtrace ~frames =
       let filename, lineno = Bc_frame.current_filename_and_lineno frame in
       { filename; lineno } :: acc)
 
-let eval_in_frame ~frame =
+let eval_frame ~frame =
   let frames = Stack.create () in
   Stack.push frames frame;
   (* Avoid using recursion here so that the recursion depth can be controlled explicitely
@@ -106,16 +106,16 @@ let eval_in_frame ~frame =
             "non-empty stack upon return: %s"
             (Stack.sexp_of_t Bc_value.sexp_of_t callee_stack |> Sexp.to_string_hum)
             ();
-        Stack.top frames
-        |> Option.iter ~f:(fun caller_frame ->
-               Bc_frame.function_call_returned caller_frame value))
+        (match Stack.top frames with
+        | None -> ()
+        | Some caller_frame -> Bc_frame.function_call_returned caller_frame value))
   done
 
 let eval code =
   let global_scope = Bc_scope.create () in
   let builtins = builtins () in
   let frame = Bc_frame.top_frame ~code ~global_scope ~builtins in
-  eval_in_frame ~frame;
+  eval_frame ~frame;
   let stack = Bc_frame.stack frame in
   if not (Stack.is_empty stack)
   then
@@ -123,3 +123,5 @@ let eval code =
       "non-empty final stack: %s"
       (Stack.sexp_of_t Bc_value.sexp_of_t stack |> Sexp.to_string_hum)
       ()
+
+let () = Bc_frame.set_eval_frame eval_frame
