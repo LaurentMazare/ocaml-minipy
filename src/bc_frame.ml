@@ -621,7 +621,7 @@ let build_class t =
     let code, parent_class, cls_name =
       match (args : Bc_value.t list) with
       | [ Code { code; _ }; Str name ] -> code, None, name
-      | [ Code { code; _ }; Class parent_class; Str name ] ->
+      | [ Code { code; _ }; Str name; Class parent_class ] ->
         code, Some parent_class, name
       | _ ->
         errorf
@@ -633,6 +633,11 @@ let build_class t =
     let frame = call_frame t ~code ~local_scope in
     eval_frame ~frame;
     let attrs = Bc_scope.to_attrs local_scope in
+    (match parent_class with
+    | None -> ()
+    | Some parent_class ->
+      Hashtbl.iteri parent_class.attrs ~f:(fun ~key ~data ->
+          if not (Hashtbl.mem attrs key) then Hashtbl.set attrs ~key ~data));
     Bc_value.Class { cls_name; attrs; parent_class; id = Bc_value.Class_id.create () }
   in
   Bc_value.Builtin_fn { name = "build_class"; fn }

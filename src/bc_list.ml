@@ -7,7 +7,7 @@ let attrs queue ~attr =
   match attr with
   | "append" ->
     let append args kwargs =
-      check_empty_kwargs kwargs;
+      check_empty_kwargs kwargs ~name:"append";
       match args with
       | [ a ] ->
         Queue.enqueue queue a;
@@ -17,7 +17,7 @@ let attrs queue ~attr =
     builtin "append" append
   | "clear" ->
     let clear args kwargs =
-      check_empty_kwargs kwargs;
+      check_empty_kwargs kwargs ~name:"clear";
       if not (List.is_empty args) then errorf "clear expects no argument";
       Queue.clear queue;
       Bc_value.none
@@ -25,7 +25,7 @@ let attrs queue ~attr =
     builtin "clear" clear
   | "pop" ->
     let pop args kwargs =
-      check_empty_kwargs kwargs;
+      check_empty_kwargs kwargs ~name:"pop";
       if not (List.is_empty args) then errorf "pop expects no argument";
       match Queue.dequeue queue with
       | None -> errorf "pop from empty list"
@@ -34,7 +34,7 @@ let attrs queue ~attr =
     builtin "pop" pop
   | "reverse" ->
     let reverse args kwargs =
-      check_empty_kwargs kwargs;
+      check_empty_kwargs kwargs ~name:"reverse";
       if not (List.is_empty args) then errorf "reverse expects no argument";
       let result = Queue.create () in
       let nelems = Queue.length queue in
@@ -48,7 +48,7 @@ let attrs queue ~attr =
     builtin "reverse" reverse
   | "sort" ->
     let sort args kwargs =
-      check_empty_kwargs kwargs;
+      check_empty_kwargs kwargs ~name:"sort";
       if not (List.is_empty args) then errorf "reverse expects no argument";
       let sorted = Queue.to_array queue in
       Array.sort sorted ~compare:Poly.compare;

@@ -4,7 +4,7 @@ open Import
 let to_int v = Bc_value.to_int v |> Z.to_int
 
 let range_fn args kwargs =
-  check_empty_kwargs kwargs;
+  check_empty_kwargs kwargs ~name:"range";
   let start, stop, stride =
     match args with
     | [ v ] -> 0, to_int v, 1
@@ -25,7 +25,7 @@ let range_fn args kwargs =
   Bc_value.iterator ~next
 
 let len_fn args kwargs =
-  check_empty_kwargs kwargs;
+  check_empty_kwargs kwargs ~name:"len";
   let l =
     match (args : Bc_value.t list) with
     | [ Tuple l ] -> Array.length l
@@ -38,15 +38,85 @@ let len_fn args kwargs =
   Z.of_int l |> Bc_value.int
 
 let print_fn args kwargs =
-  check_empty_kwargs kwargs;
+  check_empty_kwargs kwargs ~name:"print";
   List.map args ~f:(Bc_value.to_string ~escape_special_chars:false)
   |> String.concat ~sep:" "
   |> Stdio.printf "%s\n";
   Bc_value.None
 
+let delattr_fn args kwargs =
+  check_empty_kwargs kwargs ~name:"delattr";
+  match (args : Bc_value.t list) with
+  | [ Object { attrs; _ }; Str key ] ->
+    Hashtbl.remove attrs key;
+    Bc_value.none
+  | _ -> errorf "delattr takes exactly two arguments (object, str)"
+
+let getattr_fn args kwargs =
+  check_empty_kwargs kwargs ~name:"getattr";
+  match (args : Bc_value.t list) with
+  | [ Object { attrs; _ }; Str key ] ->
+    (match Hashtbl.find attrs key with
+    | Some value -> value
+    | None -> errorf "object has no attribute %s" key)
+  | [ Object { attrs; _ }; Str key; default ] ->
+    Hashtbl.find attrs key |> Option.value ~default
+  | _ ->
+    errorf
+      "getattr takes two arguments (object, str) or three arguments (object, str, \
+       default)"
+
+let hasattr_fn args kwargs =
+  check_empty_kwargs kwargs ~name:"hasattr";
+  match (args : Bc_value.t list) with
+  | [ Object { attrs; _ }; Str key ] -> Bc_value.bool (Hashtbl.mem attrs key)
+  | _ -> errorf "hasattr takes exactly two arguments (object, str)"
+
+let setattr_fn args kwargs =
+  check_empty_kwargs kwargs ~name:"setattr";
+  match (args : Bc_value.t list) with
+  | [ Object { attrs; _ }; Str key; data ] ->
+    Hashtbl.set attrs ~key ~data;
+    Bc_value.none
+  | _ -> errorf "setattr takes exactly three arguments (object, str, value)"
+
+let isinstance_fn args kwargs =
+  check_empty_kwargs kwargs ~name:"isinstance";
+  match (args : Bc_value.t list) with
+  | [ Object { cls; _ }; v ] ->
+    let rec loop : Bc_value.t -> bool = function
+      | Tuple vs -> Array.exists vs ~f:loop
+      | Class target_class -> Bc_value.is_subclass cls ~target_class
+      | _ -> errorf "isinstance only accepts tuples or classes for its second argument"
+    in
+    Bc_value.bool (loop v)
+  | _ -> errorf "isinstance takes exactly two arguments (object, class)"
+
+let issubclass_fn args kwargs =
+  check_empty_kwargs kwargs ~name:"issubclass";
+  match (args : Bc_value.t list) with
+  | [ Class cls; v ] ->
+    let rec loop : Bc_value.t -> bool = function
+      | Tuple vs -> Array.exists vs ~f:loop
+      | Class target_class -> Bc_value.is_subclass cls ~target_class
+      | _ -> errorf "issubclass only accepts tuples or classes for its second argument"
+    in
+    Bc_value.bool (loop v)
+  | _ -> errorf "issubclass takes exactly two arguments (class1, class2)"
+
 let builtins () =
-  List.map [ "print", print_fn; "range", range_fn; "len", len_fn ] ~f:(fun (name, fn) ->
-      name, Bc_value.Builtin_fn { name; fn })
+  List.map
+    [ "print", print_fn
+    ; "range", range_fn
+    ; "len", len_fn
+    ; "delattr", delattr_fn
+    ; "getattr", getattr_fn
+    ; "hasattr", hasattr_fn
+    ; "setattr", setattr_fn
+    ; "isinstance", isinstance_fn
+    ; "issubclass", issubclass_fn
+    ]
+    ~f:(fun (name, fn) -> name, Bc_value.Builtin_fn { name; fn })
   |> Bc_scope.of_alist_exn
 
 type filename_and_lineno =

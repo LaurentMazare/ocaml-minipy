@@ -16,11 +16,12 @@ let empty_attrs () = Hashtbl.create (module String)
 
 module String_map = Map.M (String)
 
-let check_empty_kwargs kwargs =
+let check_empty_kwargs kwargs ~name =
   if not (Map.is_empty kwargs)
   then
     errorf
-      "no keyword argument expected, got %s"
+      "no keyword argument for %s expected, got %s"
+      name
       (Map.keys kwargs |> String.concat ~sep:",")
 
 let empty_kwargs = Map.empty (module String)
