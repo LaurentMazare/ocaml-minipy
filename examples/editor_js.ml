@@ -5,6 +5,8 @@ module Parse = Minipy.Parse
 module Format = Caml.Format
 open Js_of_ocaml_tyxml
 
+type t = { mutable mode : [ `classic | `bytecode ] }
+
 let protect ~f =
   try f () with
   | Minipy.RuntimeError message -> Stdio.eprintf "RuntimeError: %s\n%!" message
@@ -88,7 +90,18 @@ let setup_examples ~editor =
            ignore editor##focus;
            Js._false)
 
-let run () =
+let setup_modes t =
+  let select : 'a Js.t = by_id_coerce "modelist" Dom_html.CoerceTo.select in
+  let modes = [ "classic", `classic; "bytecode", `bytecode ] in
+  List.iter modes ~f:(fun (name, _) ->
+      Dom.appendChild select Tyxml_js.(Html.(option (txt name)) |> To_dom.of_element));
+  select##.onchange
+    := Dom_html.handler (fun _ ->
+           let i = select##.selectedIndex in
+           if i >= 0 && i < List.length modes then t.mode <- snd (List.nth_exn modes i);
+           Js._false)
+
+let run t =
   let editor_id = by_id "editor" in
   let editor = (Js.Unsafe.js_expr "ace")##edit (Js.string "editor") in
   ignore (editor##.commands##removeCommand (Js.string "gotoline"));
@@ -96,26 +109,31 @@ let run () =
   let output = by_id "output" in
   let execute () =
     let content = Js.to_string (Js.Unsafe.meth_call editor "getValue" [||])##trim in
-    let env = I.Env.empty () in
     let stmts = Parse.parse_string (content ^ "\n") in
     (match stmts with
     | Error { message; context } ->
       Stdio.eprintf "ParseError: %s\n%!" message;
       Option.iter context ~f:(fun c -> Stdio.eprintf "%s\n%!" c)
     | Ok stmts ->
-      (match List.last stmts with
-      | None -> ()
-      | Some { value = Expr { value }; loc = _ } ->
-        let stmts = List.drop_last_exn stmts in
-        eval_stmts env stmts;
-        protect ~f:(fun () ->
-            let value = I.eval_expr env value in
-            match value with
-            | Val_none -> ()
-            | value ->
-              Minipy.Value.to_string value ~escape_special_chars:false
-              |> Stdio.printf "%s\n%!")
-      | Some _ -> eval_stmts env stmts));
+      (match t.mode with
+      | `bytecode ->
+        let code = Minipy.Bc_compiler.compile stmts in
+        Minipy.Bc_eval.eval code
+      | `classic ->
+        let env = I.Env.empty () in
+        (match List.last stmts with
+        | None -> ()
+        | Some { value = Expr { value }; loc = _ } ->
+          let stmts = List.drop_last_exn stmts in
+          eval_stmts env stmts;
+          protect ~f:(fun () ->
+              let value = I.eval_expr env value in
+              match value with
+              | Val_none -> ()
+              | value ->
+                Minipy.Value.to_string value ~escape_special_chars:false
+                |> Stdio.printf "%s\n%!")
+        | Some _ -> eval_stmts env stmts)));
     editor_id##focus
   in
   let meta e =
@@ -137,12 +155,14 @@ let run () =
              Js._false
            | _ -> Js._true);
   setup_examples ~editor;
+  setup_modes t;
   setup_clear_button ~output;
   setup_exec_button ~execute;
   ignore (editor##focus ())
 
 let () =
+  let t = { mode = `classic } in
   Dom_html.window##.onload
     := Dom_html.handler (fun _ ->
-           run ();
+           run t;
            Js._false)
