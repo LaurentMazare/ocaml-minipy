@@ -5,9 +5,15 @@ module Parse = Minipy.Parse
 module Format = Caml.Format
 open Js_of_ocaml_tyxml
 
-type t = { mutable mode : [ `classic | `bytecode ] }
+type 'a t =
+  { mutable mode : [ `classic | `bytecode ]
+  ; editor : 'a Js_of_ocaml.Js.t
+  }
 
-let protect ~f =
+let require_module s =
+  Js.Unsafe.fun_call (Js.Unsafe.js_expr "require") [| Js.Unsafe.inject (Js.string s) |]
+
+let protect t ~f =
   try f () with
   | Minipy.RuntimeError message -> Stdio.eprintf "RuntimeError: %s\n%!" message
   | Minipy.Bc_eval.Exn_with_backtrace (exn, backtrace) ->
@@ -22,7 +28,17 @@ let protect ~f =
       Stdio.eprintf "Backtrace:\n%!";
       List.iteri backtrace ~f:(fun index { Minipy.Bc_eval.filename; lineno } ->
           let lineno = Option.value_map lineno ~f:Int.to_string ~default:"unknown" in
-          Stdio.eprintf "#%d: %s - line %s\n%!" (index + 1) filename lineno))
+          Stdio.eprintf "#%d: %s - line %s\n%!" (index + 1) filename lineno));
+    List.last backtrace
+    |> Option.iter ~f:(fun { Minipy.Bc_eval.lineno; filename = _ } ->
+           Option.iter lineno ~f:(fun lineno ->
+               let range =
+                 Js.Unsafe.new_obj
+                   ((Js.Unsafe.js_expr "ace")##require (Js.string "ace/range")) ## Range
+                   (Array.map [| lineno; 0; lineno; 10000 |] ~f:(fun i ->
+                        Float.of_int i |> Js.number_of_float |> Js.Unsafe.inject))
+               in
+               t.editor##getSession##addMarker (range, "red", "text", true)))
   | Minipy.Value.Raise { exc; cause } ->
     let exc = Option.map exc ~f:Minipy.Value.to_string in
     let cause = Option.map cause ~f:Minipy.Value.to_string in
@@ -32,7 +48,7 @@ let protect ~f =
       (Option.value cause ~default:"")
   | exn -> Stdio.eprintf "uncaught exception:\n%s\n%!" (Exn.to_string exn)
 
-let eval_stmts env stmts = protect ~f:(fun () -> I.eval_stmts env stmts)
+let eval_stmts t env stmts = protect t ~f:(fun () -> I.eval_stmts env stmts)
 let by_id s = Dom_html.getElementById s
 
 let by_id_coerce s f =
@@ -114,9 +130,10 @@ let setup_modes t =
            if i >= 0 && i < List.length modes then t.mode <- snd (List.nth_exn modes i);
            Js._false)
 
-let run t =
+let run () =
   let editor_id = by_id "editor" in
   let editor = (Js.Unsafe.js_expr "ace")##edit (Js.string "editor") in
+  let t = { editor; mode = `classic } in
   ignore (editor##.commands##removeCommand (Js.string "gotoline"));
   ignore (editor##.session##setMode (Js.string "ace/mode/python"));
   let output = by_id "output" in
@@ -130,7 +147,7 @@ let run t =
     | Ok stmts ->
       (match t.mode with
       | `bytecode ->
-        protect ~f:(fun () ->
+        protect t ~f:(fun () ->
             let code = Minipy.Bc_compiler.compile stmts in
             Minipy.Bc_eval.eval code)
       | `classic ->
@@ -139,15 +156,15 @@ let run t =
         | None -> ()
         | Some { value = Expr { value }; loc = _ } ->
           let stmts = List.drop_last_exn stmts in
-          eval_stmts env stmts;
-          protect ~f:(fun () ->
+          eval_stmts t env stmts;
+          protect t ~f:(fun () ->
               let value = I.eval_expr env value in
               match value with
               | Val_none -> ()
               | value ->
                 Minipy.Value.to_string value ~escape_special_chars:false
                 |> Stdio.printf "%s\n%!")
-        | Some _ -> eval_stmts env stmts)));
+        | Some _ -> eval_stmts t env stmts)));
     editor_id##focus
   in
   let meta e =
@@ -175,8 +192,7 @@ let run t =
   ignore (editor##focus ())
 
 let () =
-  let t = { mode = `classic } in
   Dom_html.window##.onload
     := Dom_html.handler (fun _ ->
-           run t;
+           run ();
            Js._false)
