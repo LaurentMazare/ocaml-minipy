@@ -10,6 +10,19 @@ type t = { mutable mode : [ `classic | `bytecode ] }
 let protect ~f =
   try f () with
   | Minipy.RuntimeError message -> Stdio.eprintf "RuntimeError: %s\n%!" message
+  | Minipy.Bc_eval.Exn_with_backtrace (exn, backtrace) ->
+    let exn =
+      match exn with
+      | Minipy.RuntimeError message -> Printf.sprintf "RuntimeError: %s" message
+      | exn -> Exn.to_string exn
+    in
+    Stdio.eprintf "%s\n%!" exn;
+    if not (List.is_empty backtrace)
+    then (
+      Stdio.eprintf "Backtrace:\n%!";
+      List.iteri backtrace ~f:(fun index { Minipy.Bc_eval.filename; lineno } ->
+          let lineno = Option.value_map lineno ~f:Int.to_string ~default:"unknown" in
+          Stdio.eprintf "#%d: %s - line %s\n%!" (index + 1) filename lineno))
   | Minipy.Value.Raise { exc; cause } ->
     let exc = Option.map exc ~f:Minipy.Value.to_string in
     let cause = Option.map cause ~f:Minipy.Value.to_string in
@@ -17,7 +30,7 @@ let protect ~f =
       "%s: %s\n%!"
       (Option.value exc ~default:"unk")
       (Option.value cause ~default:"")
-  | exn -> Stdio.printf "uncaught exception:\n%s\n%!" (Exn.to_string exn)
+  | exn -> Stdio.eprintf "uncaught exception:\n%s\n%!" (Exn.to_string exn)
 
 let eval_stmts env stmts = protect ~f:(fun () -> I.eval_stmts env stmts)
 let by_id s = Dom_html.getElementById s
@@ -117,8 +130,9 @@ let run t =
     | Ok stmts ->
       (match t.mode with
       | `bytecode ->
-        let code = Minipy.Bc_compiler.compile stmts in
-        Minipy.Bc_eval.eval code
+        protect ~f:(fun () ->
+            let code = Minipy.Bc_compiler.compile stmts in
+            Minipy.Bc_eval.eval code)
       | `classic ->
         let env = I.Env.empty () in
         (match List.last stmts with
