@@ -23,7 +23,6 @@ let create ~code ~local_scope ~global_scope ~builtins ~parent_frame =
 
 let eval_frame = ref None
 let set_eval_frame fn = eval_frame := Some fn
-let eval_frame ~frame = (Option.value_exn !eval_frame) ~frame
 
 let top_frame ~code ~global_scope ~builtins =
   create
@@ -40,6 +39,10 @@ let call_frame t ~code ~local_scope =
     ~global_scope:t.global_scope
     ~builtins:t.builtins
     ~parent_frame:(Some t)
+
+let eval_code t ~code ~local_scope =
+  let frame = call_frame t ~code ~local_scope in
+  (Option.value_exn !eval_frame) ~frame
 
 type internal_action =
   | Continue (* Different from loop continue. *)
@@ -597,8 +600,7 @@ let call_function_aux t ~kwarg_names ~arg =
       let local_scope = call_scope args ~defaults ~arg_values ~keyword_values in
       List.iter captured ~f:(fun (name, value) ->
           if not (Bc_scope.mem local_scope name) then Bc_scope.set local_scope name value);
-      let frame = call_frame t ~code ~local_scope in
-      eval_frame ~frame
+      eval_code t ~code ~local_scope
     | Some v -> Bc_value.cannot_be_interpreted_as v "callable");
     push_and_continue t.stack self
   | _ -> errorf "'%s' object is not callable" (Bc_value.type_as_string fn)
@@ -630,8 +632,7 @@ let build_class t =
           (List.map args ~f:Bc_value.type_as_string |> String.concat ~sep:", ")
     in
     let local_scope = Bc_scope.create () in
-    let frame = call_frame t ~code ~local_scope in
-    eval_frame ~frame;
+    eval_code t ~code ~local_scope;
     let attrs = Bc_scope.to_attrs local_scope in
     (match parent_class with
     | None -> ()
