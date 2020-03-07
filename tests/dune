@@ -3,3 +3,8 @@
  (inline_tests)
  (libraries minipy sexplib stdio)
  (preprocess (pps ppx_custom_printf ppx_sexp_conv ppx_expect)))
+
+(alias
+ (name runtest)
+ (deps (glob_files ./scripts/*.py))
+)

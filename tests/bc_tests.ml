@@ -3,20 +3,6 @@ open Minipy
 
 let debug = false
 
-let code =
-  { Bc_code.opcodes =
-      [| Bc_code.Opcode.LOAD_NAME, 0; LOAD_CONST, 0; CALL_FUNCTION, 1; POP_TOP, 0 |]
-      |> Array.map ~f:(fun (opcode, arg) -> { Bc_code.opcode; arg; lineno = 0 })
-  ; consts = [| Bc_value.Str "foobar" |]
-  ; varnames = [||]
-  ; names = [| "print" |]
-  ; filename = "test"
-  }
-
-let%expect_test "bytecode" =
-  let () = Bc_eval.eval code in
-  [%expect {| foobar |}]
-
 let parse_compile_and_run str =
   let ast = Basic_tests.parse_str str in
   let code = Bc_compiler.compile ast in
