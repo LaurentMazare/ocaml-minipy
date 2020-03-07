@@ -283,8 +283,34 @@ let rec compile_stmt env stmt =
       ; orelse
       ; [ label3 ]
       ]
-  | Raise _ -> errorf ~lineno "Unsupported: Raise"
-  | Try _ -> errorf ~lineno "Unsupported: Try"
+  | Raise { exc = None; cause = None } -> [ op RAISE_VARARGS ~arg:0 ]
+  | Raise { exc = Some exc; cause = None } ->
+    compile_expr env exc @ [ op RAISE_VARARGS ~arg:1 ]
+  | Raise { exc = Some exc; cause = Some cause } ->
+    compile_expr env exc @ compile_expr env cause @ [ op RAISE_VARARGS ~arg:2 ]
+  | Raise { exc = None; cause = Some _ } ->
+    errorf ~lineno "Unsupported: Raise with cause and no exc"
+  | Try { body; handlers; orelse; finalbody } ->
+    if not (List.is_empty orelse) then errorf ~lineno "Unsupported try with else";
+    let jump_to_except, label_except = O.label () in
+    let jump_to_finally, label_finally = O.label () in
+    let body = List.concat_map body ~f:(compile_stmt env) in
+    let finalbody = List.concat_map finalbody ~f:(compile_stmt env) in
+    let handlers =
+      (* TODO: finish *)
+      List.concat_map handlers ~f:(fun { Ast.type_ = _; name = _; body } ->
+          let body = List.concat_map body ~f:(compile_stmt env) in
+          List.concat [ [ op POP_EXCEPT ]; body; [ jump JUMP_ABSOLUTE jump_to_finally ] ])
+    in
+    List.concat
+      [ [ jump SETUP_FINALLY jump_to_finally; jump SETUP_EXCEPT jump_to_except ]
+      ; body
+      ; [ op POP_EXCEPT; jump JUMP_ABSOLUTE jump_to_finally; label_except ]
+      ; handlers
+      ; [ label_finally ]
+      ; finalbody
+      ; [ op END_FINALLY ]
+      ]
   | With _ -> errorf ~lineno "Unsupported: With"
   | Assert _ -> errorf ~lineno "Unsupported: Assert"
   | Import _ -> errorf ~lineno "Unsupported: Import"
