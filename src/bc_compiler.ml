@@ -297,10 +297,33 @@ let rec compile_stmt env stmt =
     let body = List.concat_map body ~f:(compile_stmt env) in
     let finalbody = List.concat_map finalbody ~f:(compile_stmt env) in
     let handlers =
-      (* TODO: finish *)
-      List.concat_map handlers ~f:(fun { Ast.type_ = _; name = _; body } ->
+      List.concat_map handlers ~f:(fun { Ast.type_; name; body } ->
+          let jump_to, label = O.label () in
           let body = List.concat_map body ~f:(compile_stmt env) in
-          List.concat [ [ op POP_EXCEPT ]; body; [ jump JUMP_ABSOLUTE jump_to_finally ] ])
+          let check_type =
+            match type_ with
+            | None -> []
+            | Some type_ ->
+              let type_ = compile_expr env type_ in
+              List.concat
+                [ [ op DUP_TOP ]
+                ; type_
+                ; [ op COMPARE_OP ~arg:(Bc_code.int_of_cmpop Is)
+                  ; jump POP_JUMP_IF_FALSE jump_to
+                  ]
+                ]
+          in
+          let pop_or_store =
+            match name with
+            | None -> op POP_TOP
+            | Some name -> Env.store_name env name ~lineno
+          in
+          List.concat
+            [ check_type
+            ; [ op POP_TOP; pop_or_store; op POP_TOP; op POP_EXCEPT ]
+            ; body
+            ; [ jump JUMP_ABSOLUTE jump_to_finally; label ]
+            ])
     in
     List.concat
       [ [ jump SETUP_FINALLY jump_to_finally; jump SETUP_EXCEPT jump_to_except ]
