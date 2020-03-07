@@ -3,7 +3,7 @@ open Import
 
 let to_int v = Bc_value.to_int v |> Z.to_int
 
-let range_fn args kwargs =
+let range_fn _eval_fn args kwargs =
   check_empty_kwargs kwargs ~name:"range";
   let start, stop, stride =
     match args with
@@ -24,7 +24,7 @@ let range_fn args kwargs =
   in
   Bc_value.iterator ~next
 
-let len_fn args kwargs =
+let len_fn _eval_fn args kwargs =
   check_empty_kwargs kwargs ~name:"len";
   let l =
     match (args : Bc_value.t list) with
@@ -37,14 +37,24 @@ let len_fn args kwargs =
   in
   Z.of_int l |> Bc_value.int
 
-let print_fn args kwargs =
+let to_string eval_fn (v : Bc_value.t) ~escape_special_chars =
+  let default_fn = Bc_value.to_string ~escape_special_chars in
+  match v with
+  | Object { cls = _; attrs } ->
+    (match Hashtbl.find attrs "__str__" with
+    | Some (Function fn) -> eval_fn fn [] [] |> Bc_value.str_exn
+    | Some _ -> errorf "__str__ is not callable"
+    | None -> default_fn v)
+  | v -> default_fn v
+
+let print_fn eval_fn args kwargs =
   check_empty_kwargs kwargs ~name:"print";
-  List.map args ~f:(Bc_value.to_string ~escape_special_chars:false)
+  List.map args ~f:(to_string eval_fn ~escape_special_chars:false)
   |> String.concat ~sep:" "
   |> Stdio.printf "%s\n";
   Bc_value.None
 
-let delattr_fn args kwargs =
+let delattr_fn _eval_fn args kwargs =
   check_empty_kwargs kwargs ~name:"delattr";
   match (args : Bc_value.t list) with
   | [ Object { attrs; _ }; Str key ] ->
@@ -52,7 +62,7 @@ let delattr_fn args kwargs =
     Bc_value.none
   | _ -> errorf "delattr takes exactly two arguments (object, str)"
 
-let getattr_fn args kwargs =
+let getattr_fn _eval_fn args kwargs =
   check_empty_kwargs kwargs ~name:"getattr";
   match (args : Bc_value.t list) with
   | [ Object { attrs; _ }; Str key ] ->
@@ -66,13 +76,13 @@ let getattr_fn args kwargs =
       "getattr takes two arguments (object, str) or three arguments (object, str, \
        default)"
 
-let hasattr_fn args kwargs =
+let hasattr_fn _eval_fn args kwargs =
   check_empty_kwargs kwargs ~name:"hasattr";
   match (args : Bc_value.t list) with
   | [ Object { attrs; _ }; Str key ] -> Bc_value.bool (Hashtbl.mem attrs key)
   | _ -> errorf "hasattr takes exactly two arguments (object, str)"
 
-let setattr_fn args kwargs =
+let setattr_fn _eval_fn args kwargs =
   check_empty_kwargs kwargs ~name:"setattr";
   match (args : Bc_value.t list) with
   | [ Object { attrs; _ }; Str key; data ] ->
@@ -80,7 +90,7 @@ let setattr_fn args kwargs =
     Bc_value.none
   | _ -> errorf "setattr takes exactly three arguments (object, str, value)"
 
-let isinstance_fn args kwargs =
+let isinstance_fn _eval_fn args kwargs =
   check_empty_kwargs kwargs ~name:"isinstance";
   match (args : Bc_value.t list) with
   | [ Object { cls; _ }; v ] ->
@@ -92,7 +102,7 @@ let isinstance_fn args kwargs =
     Bc_value.bool (loop v)
   | _ -> errorf "isinstance takes exactly two arguments (object, class)"
 
-let issubclass_fn args kwargs =
+let issubclass_fn _eval_fn args kwargs =
   check_empty_kwargs kwargs ~name:"issubclass";
   match (args : Bc_value.t list) with
   | [ Class cls; v ] ->
@@ -103,6 +113,12 @@ let issubclass_fn args kwargs =
     in
     Bc_value.bool (loop v)
   | _ -> errorf "issubclass takes exactly two arguments (class1, class2)"
+
+let str_fn eval_fn args kwargs =
+  check_empty_kwargs kwargs ~name:"str";
+  match (args : Bc_value.t list) with
+  | [ v ] -> to_string eval_fn v ~escape_special_chars:false |> Bc_value.str
+  | _ -> errorf "str takes exactly one argument"
 
 let builtins () =
   List.map
@@ -115,6 +131,7 @@ let builtins () =
     ; "setattr", setattr_fn
     ; "isinstance", isinstance_fn
     ; "issubclass", issubclass_fn
+    ; "str", str_fn
     ]
     ~f:(fun (name, fn) -> name, Bc_value.Builtin_fn { name; fn })
   |> Bc_scope.of_alist_exn

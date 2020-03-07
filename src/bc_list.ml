@@ -1,7 +1,7 @@
 open Base
 open Import
 
-let builtin name fn = Bc_value.Builtin_fn { name; fn }
+let builtin name fn = Bc_value.Builtin_fn { name; fn = (fun _eval -> fn) }
 
 let attrs queue ~attr =
   match attr with

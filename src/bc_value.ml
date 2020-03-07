@@ -54,7 +54,7 @@ type t =
   | Str of string
   | Builtin_fn of
       { name : string
-      ; fn : t list -> t String_map.t -> t
+      ; fn : eval_fn -> t list -> t String_map.t -> t
       }
   | Function of fn
   | Code of
@@ -68,6 +68,8 @@ type t =
       { cls : cls
       ; attrs : (string, t) Hashtbl.t
       }
+
+and eval_fn = fn -> t list -> (string * t) list -> t
 
 and cls =
   { cls_name : string

@@ -399,3 +399,20 @@ print(issubclass(A, B), issubclass(B, A), issubclass(A, A), issubclass(B, B))
         True False True True
         False True True True
       |}]
+
+let%expect_test "fn" =
+  parse_compile_and_run
+    {|
+class A():
+  def __init__(self, x):
+    self._x = x
+
+  def __str__(self):
+    return 'foo<' + str(self._x) + '>'
+
+a = A(42)
+print(a)
+print(str(a))
+|};
+  [%expect {|
+  |}]

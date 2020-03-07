@@ -41,8 +41,18 @@ let call_frame t ~code ~local_scope =
     ~parent_frame:(Some t)
 
 let eval_code t ~code ~local_scope =
+  let top_stack_len = Stack.length t.stack in
   let frame = call_frame t ~code ~local_scope in
-  (Option.value_exn !eval_frame) ~frame
+  (Option.value_exn !eval_frame) ~frame;
+  if Stack.length t.stack = top_stack_len
+  then Bc_value.none
+  else if Stack.length t.stack = top_stack_len + 1
+  then Stack.pop_exn t.stack
+  else
+    errorf
+      "unexpected stack size: initial %d, current %d"
+      top_stack_len
+      (Stack.length t.stack)
 
 type internal_action =
   | Continue (* Different from loop continue. *)
@@ -559,6 +569,19 @@ let call_scope (args : Ast.arguments) ~defaults ~arg_values ~keyword_values =
         (Hashtbl.keys keyword_values |> String.concat ~sep:","));
   scope
 
+let eval_fn t fn arg_values keyword_values =
+  let { Bc_value.name = _; code; args; defaults; captured; method_self } = fn in
+  let arg_values =
+    match method_self with
+    | None -> arg_values
+    | Some self -> self :: arg_values
+  in
+  let keyword_values = Hashtbl.of_alist_exn (module String) keyword_values in
+  let local_scope = call_scope args ~defaults ~arg_values ~keyword_values in
+  List.iter captured ~f:(fun (name, value) ->
+      if not (Bc_scope.mem local_scope name) then Bc_scope.set local_scope name value);
+  eval_code t ~code ~local_scope
+
 let call_function_aux t ~kwarg_names ~arg =
   let n_kwargs = Array.length kwarg_names in
   let kwargs = popn t.stack n_kwargs in
@@ -569,7 +592,7 @@ let call_function_aux t ~kwarg_names ~arg =
   match (fn : Bc_value.t) with
   | Builtin_fn { name = _; fn } ->
     let keyword_values = Map.of_alist_exn (module String) keyword_values in
-    let value = fn arg_values keyword_values in
+    let value = fn (eval_fn t) arg_values keyword_values in
     push_and_continue t.stack value
   | Function { name = _; code; args; defaults; captured; method_self } ->
     let keyword_values = Hashtbl.of_alist_exn (module String) keyword_values in
@@ -592,15 +615,9 @@ let call_function_aux t ~kwarg_names ~arg =
           | data -> data
         in
         Hashtbl.set self_attrs ~key ~data);
-    (match Hashtbl.find attrs "__init__" with
+    (match Hashtbl.find self_attrs "__init__" with
     | None -> ()
-    | Some (Function { name = _; code; args; defaults; captured; method_self = _ }) ->
-      let arg_values = self :: arg_values in
-      let keyword_values = Hashtbl.of_alist_exn (module String) keyword_values in
-      let local_scope = call_scope args ~defaults ~arg_values ~keyword_values in
-      List.iter captured ~f:(fun (name, value) ->
-          if not (Bc_scope.mem local_scope name) then Bc_scope.set local_scope name value);
-      eval_code t ~code ~local_scope
+    | Some (Function fn) -> ignore (eval_fn t fn arg_values keyword_values : Bc_value.t)
     | Some v -> Bc_value.cannot_be_interpreted_as v "callable");
     push_and_continue t.stack self
   | _ -> errorf "'%s' object is not callable" (Bc_value.type_as_string fn)
@@ -619,7 +636,7 @@ let call_function_kw t ~arg =
 let call_function t ~arg = call_function_aux t ~kwarg_names:[||] ~arg
 
 let build_class t =
-  let fn args _kwargs =
+  let fn _eval_fn args _kwargs =
     let code, parent_class, cls_name =
       match (args : Bc_value.t list) with
       | [ Code { code; _ }; Str name ] -> code, None, name
@@ -632,7 +649,7 @@ let build_class t =
           (List.map args ~f:Bc_value.type_as_string |> String.concat ~sep:", ")
     in
     let local_scope = Bc_scope.create () in
-    eval_code t ~code ~local_scope;
+    ignore (eval_code t ~code ~local_scope : Bc_value.t);
     let attrs = Bc_scope.to_attrs local_scope in
     (match parent_class with
     | None -> ()

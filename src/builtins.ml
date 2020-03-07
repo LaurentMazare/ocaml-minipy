@@ -105,7 +105,7 @@ let issubclass _ args kwargs =
   | _ -> errorf "issubclass takes exactly two arguments (class1, class2)"
 
 let single_argument ~f ~name interp args kwargs =
-  empty_kwargs kwargs ~name:"str";
+  empty_kwargs kwargs ~name;
   match (args : Value.t list) with
   | [ v ] -> f interp v
   | _ -> errorf "%s takes exactly one argument" name
