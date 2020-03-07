@@ -415,4 +415,6 @@ print(a)
 print(str(a))
 |};
   [%expect {|
+    foo<42>
+    foo<42>
   |}]

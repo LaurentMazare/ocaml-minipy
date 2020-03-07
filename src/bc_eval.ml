@@ -193,7 +193,7 @@ let eval_frame ~frame =
             "non-empty stack upon return: %s"
             (Stack.sexp_of_t Bc_value.sexp_of_t callee_stack |> Sexp.to_string_hum)
             ();
-        (match Stack.top frames with
+        (match Bc_frame.parent_frame callee_frame with
         | None -> ()
         | Some caller_frame -> Bc_frame.function_call_returned caller_frame value))
   done
