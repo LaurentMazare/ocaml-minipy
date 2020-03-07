@@ -37,15 +37,19 @@ let len_fn _eval_fn args kwargs =
   in
   Z.of_int l |> Bc_value.int
 
-let to_string eval_fn (v : Bc_value.t) ~escape_special_chars =
-  let default_fn = Bc_value.to_string ~escape_special_chars in
-  match v with
+let maybe_call_method eval_fn v method_ =
+  match (v : Bc_value.t) with
   | Object { cls = _; attrs } ->
-    (match Hashtbl.find attrs "__str__" with
-    | Some (Function fn) -> eval_fn fn [] [] |> Bc_value.str_exn
-    | Some _ -> errorf "__str__ is not callable"
-    | None -> default_fn v)
-  | v -> default_fn v
+    (match Hashtbl.find attrs method_ with
+    | Some (Function fn) -> `ok (eval_fn fn [] [])
+    | Some _ -> errorf "%s is not callable" method_
+    | None -> `not_found)
+  | _ -> `not_found
+
+let to_string eval_fn (v : Bc_value.t) ~escape_special_chars =
+  match maybe_call_method eval_fn v "__str__" with
+  | `ok v -> Bc_value.str_exn v
+  | `not_found -> Bc_value.to_string ~escape_special_chars v
 
 let print_fn eval_fn args kwargs =
   check_empty_kwargs kwargs ~name:"print";
@@ -114,11 +118,49 @@ let issubclass_fn _eval_fn args kwargs =
     Bc_value.bool (loop v)
   | _ -> errorf "issubclass takes exactly two arguments (class1, class2)"
 
-let str_fn eval_fn args kwargs =
-  check_empty_kwargs kwargs ~name:"str";
+let single_argument ~f ~name eval_fn args kwargs =
+  check_empty_kwargs kwargs ~name;
   match (args : Bc_value.t list) with
-  | [ v ] -> to_string eval_fn v ~escape_special_chars:false |> Bc_value.str
-  | _ -> errorf "str takes exactly one argument"
+  | [ v ] -> f eval_fn v
+  | _ -> errorf "%s takes exactly one argument" name
+
+let str_fn =
+  single_argument ~name:"str" ~f:(fun eval_fn v ->
+      to_string eval_fn v ~escape_special_chars:false |> Bc_value.str)
+
+let bool_fn =
+  single_argument ~name:"bool" ~f:(fun eval_fn v ->
+      match maybe_call_method eval_fn v "__bool__" with
+      | `ok v -> v
+      | `not_found -> Bc_value.to_bool v |> Bc_value.bool)
+
+let int_fn =
+  single_argument ~name:"int" ~f:(fun eval_fn v ->
+      match maybe_call_method eval_fn v "__int__" with
+      | `ok v -> v
+      | `not_found ->
+        (match v with
+        | Int v -> v
+        | Float f -> Z.of_float f
+        | Bool true -> Z.one
+        | Bool false -> Z.zero
+        | Str s -> Z.of_string s
+        | _ -> errorf "cannot convert to int")
+        |> Bc_value.int)
+
+let float_fn =
+  single_argument ~name:"float" ~f:(fun eval_fn v ->
+      match maybe_call_method eval_fn v "__float__" with
+      | `ok v -> v
+      | `not_found ->
+        (match v with
+        | Int v -> Z.to_float v
+        | Float f -> f
+        | Bool true -> 1.
+        | Bool false -> 0.
+        | Str s -> Float.of_string s
+        | _ -> errorf "cannot convert to float")
+        |> Bc_value.float)
 
 let builtins () =
   List.map
@@ -132,6 +174,9 @@ let builtins () =
     ; "isinstance", isinstance_fn
     ; "issubclass", issubclass_fn
     ; "str", str_fn
+    ; "bool", bool_fn
+    ; "int", int_fn
+    ; "float", float_fn
     ]
     ~f:(fun (name, fn) -> name, Bc_value.Builtin_fn { name; fn })
   |> Bc_scope.of_alist_exn
