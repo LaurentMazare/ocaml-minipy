@@ -19,6 +19,12 @@ let%expect_test "run-script" =
          Stdio.printf "EOF\n\n%!");
   [%expect
     {|
+    >> running scripts/exceptions1.py
+    raised: ( "Backtrace:\
+     \n 1 scripts/exceptions1.py: line 1\
+     \n(Failure \"Unsupported: SETUP_FINALLY\")")
+    EOF
+
     >> running scripts/functions.py
     1 -1 1 -1 -1 1 42
     6 0
