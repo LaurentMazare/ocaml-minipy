@@ -1,8 +1,16 @@
 open Base
 open Import
 
+module Block = struct
+  type t =
+    { stack_level : int
+    ; kind : [ `except | `finally ]
+    }
+end
+
 type t =
   { stack : Bc_value.t Stack.t
+  ; block_stack : Block.t Stack.t
   ; code : Bc_value.code
   ; mutable counter : int
   ; local_scope : Bc_scope.t
@@ -13,6 +21,7 @@ type t =
 
 let create ~code ~local_scope ~global_scope ~builtins ~parent_frame =
   { stack = Stack.create ()
+  ; block_stack = Stack.create ()
   ; code
   ; counter = 0
   ; local_scope
@@ -734,9 +743,17 @@ let eval_one t opcode ~arg =
   | IMPORT_STAR -> failwith "Unsupported: IMPORT_STAR"
   | SETUP_ANNOTATIONS -> failwith "Unsupported: SETUP_ANNOTATIONS"
   | YIELD_VALUE -> failwith "Unsupported: YIELD_VALUE"
-  | POP_BLOCK -> failwith "Unsupported: POP_BLOCK"
-  | END_FINALLY -> failwith "Unsupported: END_FINALLY"
-  | POP_EXCEPT -> failwith "Unsupported: POP_EXCEPT"
+  | POP_BLOCK ->
+    ignore (Stack.pop_exn t.block_stack : Block.t);
+    Continue
+  | END_FINALLY ->
+    let block = Stack.pop_exn t.block_stack in
+    assert (Caml.( = ) block.kind `finally);
+    Continue
+  | POP_EXCEPT ->
+    let block = Stack.pop_exn t.block_stack in
+    assert (Caml.( = ) block.kind `finally);
+    Continue
   | STORE_NAME ->
     let name = t.code.names.(arg) in
     let value = Stack.pop_exn t.stack in
@@ -788,8 +805,12 @@ let eval_one t opcode ~arg =
   | LOAD_GLOBAL -> load_global t ~arg
   | CONTINUE_LOOP -> failwith "Unsupported: CONTINUE_LOOP"
   | SETUP_LOOP -> failwith "Unsupported: SETUP_LOOP"
-  | SETUP_EXCEPT -> failwith "Unsupported: SETUP_EXCEPT"
-  | SETUP_FINALLY -> failwith "Unsupported: SETUP_FINALLY"
+  | SETUP_EXCEPT ->
+    Stack.push t.block_stack { stack_level = Stack.length t.stack; kind = `except };
+    Continue
+  | SETUP_FINALLY ->
+    Stack.push t.block_stack { stack_level = Stack.length t.stack; kind = `finally };
+    Continue
   | LOAD_FAST -> load_fast t ~arg
   | STORE_FAST -> store_fast t ~arg
   | DELETE_FAST -> delete_fast t ~arg
