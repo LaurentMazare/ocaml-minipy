@@ -753,7 +753,7 @@ let eval_one t opcode ~arg =
     Continue
   | POP_EXCEPT ->
     let block = Stack.pop_exn t.block_stack in
-    assert (Caml.( = ) block.kind `finally);
+    assert (Caml.( = ) block.kind `except);
     Continue
   | STORE_NAME ->
     let name = t.code.names.(arg) in

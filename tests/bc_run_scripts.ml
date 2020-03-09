@@ -24,7 +24,7 @@ let%expect_test "run-script" =
     {|
     >> running scripts/exceptions1.py
     before error
-    raised: (Failure "non-empty stack upon return: (None None None)")
+    raised
     EOF
 
     >> running scripts/functions.py
