@@ -5,6 +5,7 @@ module Block = struct
   type t =
     { stack_level : int
     ; kind : [ `except | `finally ]
+    ; jump_to : int
     }
 end
 
@@ -806,10 +807,14 @@ let eval_one t opcode ~arg =
   | CONTINUE_LOOP -> failwith "Unsupported: CONTINUE_LOOP"
   | SETUP_LOOP -> failwith "Unsupported: SETUP_LOOP"
   | SETUP_EXCEPT ->
-    Stack.push t.block_stack { stack_level = Stack.length t.stack; kind = `except };
+    Stack.push
+      t.block_stack
+      { stack_level = Stack.length t.stack; kind = `except; jump_to = arg };
     Continue
   | SETUP_FINALLY ->
-    Stack.push t.block_stack { stack_level = Stack.length t.stack; kind = `finally };
+    Stack.push
+      t.block_stack
+      { stack_level = Stack.length t.stack; kind = `finally; jump_to = arg };
     Continue
   | LOAD_FAST -> load_fast t ~arg
   | STORE_FAST -> store_fast t ~arg
@@ -894,3 +899,20 @@ let current_filename_and_lineno t =
     else Some t.code.opcodes.(t.counter).lineno
   in
   t.code.filename, lineno
+
+let handle_exn t _exn =
+  match Stack.top t.block_stack with
+  | None -> `uncaught
+  | Some { stack_level; jump_to; kind = _ } ->
+    let to_drop = Stack.length t.stack - stack_level in
+    if to_drop < 0
+    then
+      Printf.failwithf "unexpected stack size %d %d" (Stack.length t.stack) stack_level ();
+    for _i = 1 to to_drop do
+      ignore (Stack.pop_exn t.stack : Bc_value.t)
+    done;
+    Stack.push t.stack Bc_value.none;
+    Stack.push t.stack Bc_value.none;
+    Stack.push t.stack Bc_value.none;
+    t.counter <- jump_to;
+    `caught

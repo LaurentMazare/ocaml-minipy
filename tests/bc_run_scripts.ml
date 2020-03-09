@@ -1,11 +1,14 @@
 open Base
 open Minipy
 
+let debug = false
 let script_dir = "scripts"
 
 let run_one filename =
   let ast = Parse.parse_file filename |> Parse.ok_exn in
-  Bc_compiler.compile ast |> Bc_eval.eval
+  let code = Bc_compiler.compile ast in
+  if debug then Stdio.printf "%s\n%!" (Bc_value.sexp_of_code code |> Sexp.to_string_hum);
+  Bc_eval.eval code
 
 let%expect_test "run-script" =
   Caml.Sys.readdir script_dir
@@ -20,9 +23,8 @@ let%expect_test "run-script" =
   [%expect
     {|
     >> running scripts/exceptions1.py
-    raised: ( "Backtrace:\
-     \n 1 scripts/exceptions1.py: line 1\
-     \n(Failure \"Unsupported: SETUP_FINALLY\")")
+    before error
+    raised: (Failure "non-empty stack upon return: (None None None)")
     EOF
 
     >> running scripts/functions.py

@@ -221,15 +221,15 @@ let eval_frame ~frame =
     | None -> continue := false
     | Some frame ->
       let action =
-        try Bc_frame.eval_step frame with
-        | exn -> raise (Exn_with_backtrace (exn, backtrace ~frames))
+        try Ok (Bc_frame.eval_step frame) with
+        | exn -> Error (Exn_with_backtrace (exn, backtrace ~frames))
       in
       (match action with
-      | Continue -> ()
-      | Call_fn { code; local_scope } ->
+      | Ok Continue -> ()
+      | Ok (Call_fn { code; local_scope }) ->
         let call_frame = Bc_frame.call_frame frame ~code ~local_scope in
         Stack.push frames call_frame
-      | Return value ->
+      | Ok (Return value) ->
         let callee_frame = Stack.pop_exn frames in
         let callee_stack = Bc_frame.stack callee_frame in
         if not (Stack.is_empty callee_stack)
@@ -240,7 +240,19 @@ let eval_frame ~frame =
             ();
         (match Bc_frame.parent_frame callee_frame with
         | None -> ()
-        | Some caller_frame -> Bc_frame.function_call_returned caller_frame value))
+        | Some caller_frame -> Bc_frame.function_call_returned caller_frame value)
+      | Error exn ->
+        let rec loop () =
+          match Stack.top frames with
+          | None -> raise exn
+          | Some frame ->
+            (match Bc_frame.handle_exn frame exn with
+            | `caught -> ()
+            | `uncaught ->
+              ignore (Stack.pop_exn frames : Bc_frame.t);
+              loop ())
+        in
+        loop ())
   done
 
 let eval code =
