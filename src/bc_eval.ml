@@ -246,7 +246,7 @@ let eval_frame ~frame =
           match Stack.top frames with
           | None -> raise exn
           | Some frame ->
-            (match Bc_frame.handle_exn frame exn with
+            (match Bc_frame.unwind_blocks frame exn with
             | `caught -> ()
             | `uncaught ->
               ignore (Stack.pop_exn frames : Bc_frame.t);

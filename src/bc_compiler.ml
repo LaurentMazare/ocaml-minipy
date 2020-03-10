@@ -291,49 +291,7 @@ let rec compile_stmt env stmt =
   | Raise { exc = None; cause = Some _ } ->
     errorf ~lineno "Unsupported: Raise with cause and no exc"
   | Try { body; handlers; orelse; finalbody } ->
-    if not (List.is_empty orelse) then errorf ~lineno "Unsupported try with else";
-    let jump_to_except, label_except = O.label () in
-    let jump_to_finally, label_finally = O.label () in
-    let body = List.concat_map body ~f:(compile_stmt env) in
-    let finalbody = List.concat_map finalbody ~f:(compile_stmt env) in
-    let handlers =
-      List.concat_map handlers ~f:(fun { Ast.type_; name; body } ->
-          let jump_to, label = O.label () in
-          let body = List.concat_map body ~f:(compile_stmt env) in
-          let check_type =
-            match type_ with
-            | None -> []
-            | Some type_ ->
-              let type_ = compile_expr env type_ in
-              List.concat
-                [ [ op DUP_TOP ]
-                ; type_
-                ; [ op COMPARE_OP ~arg:(Bc_code.int_of_cmpop Is)
-                  ; jump POP_JUMP_IF_FALSE jump_to
-                  ]
-                ]
-          in
-          let pop_or_store =
-            match name with
-            | None -> op POP_TOP
-            | Some name -> Env.store_name env name ~lineno
-          in
-          List.concat
-            [ check_type
-            ; [ op POP_TOP; pop_or_store; op POP_TOP; op POP_EXCEPT ]
-            ; body
-            ; [ jump JUMP_ABSOLUTE jump_to_finally; label ]
-            ])
-    in
-    List.concat
-      [ [ jump SETUP_FINALLY jump_to_finally; jump SETUP_EXCEPT jump_to_except ]
-      ; body
-      ; [ op POP_EXCEPT; jump JUMP_ABSOLUTE jump_to_finally; label_except ]
-      ; handlers
-      ; [ label_finally ]
-      ; finalbody
-      ; [ op END_FINALLY ]
-      ]
+    compile_try env ~body ~handlers ~orelse ~finalbody ~lineno
   | With _ -> errorf ~lineno "Unsupported: With"
   | Assert _ -> errorf ~lineno "Unsupported: Assert"
   | Import _ -> errorf ~lineno "Unsupported: Import"
@@ -580,6 +538,73 @@ and assign_targets env ~targets ~value =
   let dups = List.init (List.length targets - 1) ~f:(fun _ -> op DUP_TOP) in
   let targets = List.concat_map targets ~f:(fun target -> assign env ~target) in
   value @ dups @ targets
+
+and compile_try env ~body ~handlers ~orelse ~finalbody ~lineno =
+  let op = O.op ~lineno in
+  let jump = O.jump ~lineno in
+  let jump_to_except, label_except = O.label () in
+  let jump_to_finally, label_finally = O.label () in
+  let jump_to_else, label_else = O.label () in
+  let setup_finally, finalbody =
+    match finalbody with
+    | [] -> [], [ label_finally ]
+    | _ ->
+      let setup_finally = [ jump SETUP_FINALLY jump_to_finally ] in
+      let finalbody =
+        List.concat
+          [ [ op POP_BLOCK; op ENTER_FINALLY; label_finally ]
+          ; List.concat_map finalbody ~f:(compile_stmt env)
+          ; [ op END_FINALLY ]
+          ]
+      in
+      setup_finally, finalbody
+  in
+  let handlers =
+    List.concat_map handlers ~f:(fun { Ast.type_; name; body } ->
+        let jump_to, label = O.label () in
+        let body = List.concat_map body ~f:(compile_stmt env) in
+        let check_type =
+          match type_ with
+          | None -> [ op POP_TOP ]
+          | Some type_ ->
+            let pop_or_store =
+              match name with
+              | None -> op POP_TOP
+              | Some name -> Env.store_name env name ~lineno
+            in
+            List.concat
+              [ [ op DUP_TOP ]
+              ; compile_expr env type_
+              ; [ op COMPARE_OP ~arg:(Bc_code.int_of_cmpop Is)
+                ; jump POP_JUMP_IF_FALSE jump_to
+                ; pop_or_store
+                ]
+              ]
+        in
+        let setup_finally =
+          match finalbody with
+          | [] -> []
+          | _ -> [ op POP_BLOCK; op ENTER_FINALLY ]
+        in
+        List.concat
+          [ check_type
+          ; body
+          ; [ op POP_EXCEPT ]
+          ; setup_finally
+          ; [ jump JUMP_ABSOLUTE jump_to_finally; label ]
+          ])
+  in
+  List.concat
+    [ setup_finally
+    ; [ jump SETUP_EXCEPT jump_to_except ]
+    ; List.concat_map body ~f:(compile_stmt env)
+    ; [ op POP_BLOCK; jump JUMP_ABSOLUTE jump_to_else; label_except ]
+    ; handlers
+    ; [ op RAISE_VARARGS ~arg:0; label_else ]
+    ; List.concat_map orelse ~f:(compile_stmt env)
+    ; finalbody
+    ; [ op END_FINALLY ]
+    ]
 
 and compile (ast : Ast.t) =
   let env = Env.create () in

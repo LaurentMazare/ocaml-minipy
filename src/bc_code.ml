@@ -122,6 +122,7 @@ module Opcode = struct
     | BUILD_TUPLE_UNPACK_WITH_CALL
     | LOAD_METHOD
     | CALL_METHOD
+    | ENTER_FINALLY (*borrowed from RustPython *)
   [@@deriving sexp]
 
   let of_int opcode =
@@ -245,6 +246,7 @@ module Opcode = struct
     | 158 -> BUILD_TUPLE_UNPACK_WITH_CALL
     | 160 -> LOAD_METHOD
     | 161 -> CALL_METHOD
+    | 250 -> ENTER_FINALLY
     | i -> Printf.failwithf "unknown opcode %d" i ()
 end
 

@@ -121,6 +121,7 @@ module Opcode : sig
     | BUILD_TUPLE_UNPACK_WITH_CALL
     | LOAD_METHOD
     | CALL_METHOD
+    | ENTER_FINALLY
   [@@deriving sexp]
 
   val of_int : int -> t

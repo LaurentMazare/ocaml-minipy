@@ -2,10 +2,25 @@ open Base
 open Import
 
 module Block = struct
+  module Kind = struct
+    type t =
+      | Try_except of { jump_to : int }
+      | Except_handler
+      | Finally of { jump_to : int }
+      | Finally_handler
+
+    let is_finally = function
+      | Finally _ -> true
+      | Try_except _ | Except_handler | Finally_handler -> false
+
+    let is_except_handler = function
+      | Except_handler -> true
+      | Try_except _ | Finally _ | Finally_handler -> false
+  end
+
   type t =
     { stack_level : int
-    ; kind : [ `except | `finally ]
-    ; jump_to : int
+    ; kind : Kind.t
     }
 end
 
@@ -687,6 +702,22 @@ let delete_attr t ~arg =
     Continue
   | tos -> errorf "cannot delete attribute on '%s'" (Bc_value.type_as_string tos)
 
+let push_block t kind =
+  Stack.push t.block_stack { stack_level = Stack.length t.stack; kind }
+
+let push_block_and_continue t kind =
+  push_block t kind;
+  Continue
+
+let truncate_stack t ~stack_level =
+  let to_drop = Stack.length t.stack - stack_level in
+  if to_drop < 0
+  then
+    Printf.failwithf "unexpected stack size %d %d" (Stack.length t.stack) stack_level ();
+  for _i = 1 to to_drop do
+    ignore (Stack.pop_exn t.stack : Bc_value.t)
+  done
+
 let eval_one t opcode ~arg =
   match (opcode : Bc_code.Opcode.t) with
   | POP_TOP -> pop_top t.stack
@@ -745,15 +776,17 @@ let eval_one t opcode ~arg =
   | SETUP_ANNOTATIONS -> failwith "Unsupported: SETUP_ANNOTATIONS"
   | YIELD_VALUE -> failwith "Unsupported: YIELD_VALUE"
   | POP_BLOCK ->
-    ignore (Stack.pop_exn t.block_stack : Block.t);
+    let block = Stack.pop_exn t.block_stack in
+    truncate_stack t ~stack_level:block.stack_level;
     Continue
   | END_FINALLY ->
     let block = Stack.pop_exn t.block_stack in
-    assert (Caml.( = ) block.kind `finally);
+    assert (Block.Kind.is_finally block.kind);
     Continue
   | POP_EXCEPT ->
     let block = Stack.pop_exn t.block_stack in
-    assert (Caml.( = ) block.kind `except);
+    assert (Block.Kind.is_except_handler block.kind);
+    (* TODO: pop exception *)
     Continue
   | STORE_NAME ->
     let name = t.code.names.(arg) in
@@ -806,16 +839,9 @@ let eval_one t opcode ~arg =
   | LOAD_GLOBAL -> load_global t ~arg
   | CONTINUE_LOOP -> failwith "Unsupported: CONTINUE_LOOP"
   | SETUP_LOOP -> failwith "Unsupported: SETUP_LOOP"
-  | SETUP_EXCEPT ->
-    Stack.push
-      t.block_stack
-      { stack_level = Stack.length t.stack; kind = `except; jump_to = arg };
-    Continue
-  | SETUP_FINALLY ->
-    Stack.push
-      t.block_stack
-      { stack_level = Stack.length t.stack; kind = `finally; jump_to = arg };
-    Continue
+  | SETUP_EXCEPT -> push_block_and_continue t (Try_except { jump_to = arg })
+  | ENTER_FINALLY -> push_block_and_continue t Finally_handler
+  | SETUP_FINALLY -> push_block_and_continue t (Finally { jump_to = arg })
   | LOAD_FAST -> load_fast t ~arg
   | STORE_FAST -> store_fast t ~arg
   | DELETE_FAST -> delete_fast t ~arg
@@ -900,19 +926,18 @@ let current_filename_and_lineno t =
   in
   t.code.filename, lineno
 
-let handle_exn t _exn =
-  match Stack.top t.block_stack with
+let unwind_blocks t _exn =
+  match Stack.pop t.block_stack with
   | None -> `uncaught
-  | Some { stack_level; jump_to; kind = _ } ->
-    let to_drop = Stack.length t.stack - stack_level in
-    if to_drop < 0
-    then
-      Printf.failwithf "unexpected stack size %d %d" (Stack.length t.stack) stack_level ();
-    for _i = 1 to to_drop do
-      ignore (Stack.pop_exn t.stack : Bc_value.t)
-    done;
-    Stack.push t.stack Bc_value.none;
-    Stack.push t.stack Bc_value.none;
-    Stack.push t.stack Bc_value.none;
-    t.counter <- jump_to;
+  | Some { stack_level = _; kind } ->
+    (match kind with
+    | Try_except { jump_to } ->
+      push_block t Except_handler;
+      Stack.push t.stack Bc_value.none;
+      t.counter <- jump_to
+    | Finally { jump_to } ->
+      push_block t Finally_handler;
+      t.counter <- jump_to
+    | Except_handler -> (* TODO: pop exception *) ()
+    | Finally_handler -> ());
     `caught
