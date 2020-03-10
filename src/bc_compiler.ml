@@ -545,9 +545,9 @@ and compile_try env ~body ~handlers ~orelse ~finalbody ~lineno =
   let jump_to_except, label_except = O.label () in
   let jump_to_finally, label_finally = O.label () in
   let jump_to_else, label_else = O.label () in
-  let setup_finally, finalbody =
+  let setup_finally, finalbody, pop_enter_finally =
     match finalbody with
-    | [] -> [], [ label_finally ]
+    | [] -> [], [ label_finally ], []
     | _ ->
       let setup_finally = [ jump SETUP_FINALLY jump_to_finally ] in
       let finalbody =
@@ -557,7 +557,8 @@ and compile_try env ~body ~handlers ~orelse ~finalbody ~lineno =
           ; [ op END_FINALLY ]
           ]
       in
-      setup_finally, finalbody
+      let pop_enter_finally = [ op POP_BLOCK; op ENTER_FINALLY ] in
+      setup_finally, finalbody, pop_enter_finally
   in
   let handlers =
     List.concat_map handlers ~f:(fun { Ast.type_; name; body } ->
@@ -581,16 +582,11 @@ and compile_try env ~body ~handlers ~orelse ~finalbody ~lineno =
                 ]
               ]
         in
-        let setup_finally =
-          match finalbody with
-          | [] -> []
-          | _ -> [ op POP_BLOCK; op ENTER_FINALLY ]
-        in
         List.concat
           [ check_type
           ; body
           ; [ op POP_EXCEPT ]
-          ; setup_finally
+          ; pop_enter_finally
           ; [ jump JUMP_ABSOLUTE jump_to_finally; label ]
           ])
   in
@@ -603,7 +599,6 @@ and compile_try env ~body ~handlers ~orelse ~finalbody ~lineno =
     ; [ op RAISE_VARARGS ~arg:0; label_else ]
     ; List.concat_map orelse ~f:(compile_stmt env)
     ; finalbody
-    ; [ op END_FINALLY ]
     ]
 
 and compile (ast : Ast.t) =

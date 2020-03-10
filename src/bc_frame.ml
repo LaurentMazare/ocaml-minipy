@@ -916,6 +916,7 @@ let eval_step t =
 
 let function_call_returned t v = Stack.push t.stack v
 let stack t = t.stack
+let counter t = t.counter
 let parent_frame t = t.parent_frame
 
 let current_filename_and_lineno t =

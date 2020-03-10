@@ -18,7 +18,11 @@ let%expect_test "run-script" =
          let filename = Caml.Filename.concat script_dir filename in
          Stdio.printf ">> running %s\n%!" filename;
          (try run_one filename with
-         | exn -> Stdio.printf "raised: %s\n%!" (Exn.to_string exn));
+         | exn ->
+           let ast = Parse.parse_file filename |> Parse.ok_exn in
+           let code = Bc_compiler.compile ast in
+           Stdio.printf "%s\n%!" (Bc_value.sexp_of_code code |> Sexp.to_string_hum);
+           Stdio.printf "raised: %s\n%!" (Exn.to_string exn));
          Stdio.printf "EOF\n\n%!");
   [%expect
     {|
