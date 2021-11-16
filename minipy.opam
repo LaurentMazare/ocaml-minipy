@@ -22,6 +22,7 @@ depends: [
   "ppx_expect" {>= "v0.14" & < "v0.15"}
   "ppx_sexp_conv" {>= "v0.14" & < "v0.15"}
   "ppx_yojson_conv" {>= "v0.14" & < "v0.15"}
+  "sexplib" {>= "v0.14" & < "v0.15"}
   "stdio" {>= "v0.14" & < "v0.15"}
   "zarith"
 ]
