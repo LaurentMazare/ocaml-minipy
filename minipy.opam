@@ -20,6 +20,7 @@ depends: [
   "ocaml-compiler-libs"
   "ppx_custom_printf" {>= "v0.14" & < "v0.15"}
   "ppx_expect" {>= "v0.14" & < "v0.15"}
+  "ppx_let" {>= "v0.14" & < "v0.15"}
   "ppx_sexp_conv" {>= "v0.14" & < "v0.15"}
   "ppx_yojson_conv" {>= "v0.14" & < "v0.15"}
   "sexplib" {>= "v0.14" & < "v0.15"}
