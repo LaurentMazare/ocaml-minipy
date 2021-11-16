@@ -1,6 +1,8 @@
 # minipy
 Minimalist Python-like language interpreter in OCaml.
 
+![Main workflow](https://github.com/LaurentMazare/ocaml-torch/workflows/Main%20workflow/badge.svg)
+
 Try the interpreter [online](http://laurentmazare.github.io/minipy/) or
 use the [editor](http://laurentmazare.github.io/minipy/editor.html)
 (these rely on [js_of_ocaml](https://ocsigen.org/js_of_ocaml/3.5.1/manual/overview)).
