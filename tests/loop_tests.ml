@@ -51,8 +51,7 @@ print(double_loop(100))
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect
-    {|
+  [%expect {|
         3628800 3628800
         30
         605

@@ -299,8 +299,7 @@ module Python37 = struct
     | Module of { body : stmt list }
     | Expression of { body : expr }
   [@@deriving yojson, sexp]
-end
-[@warning "-30"]
+end [@warning "-30"]
 
 let of_file filename =
   try
