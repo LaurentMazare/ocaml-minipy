@@ -17,9 +17,7 @@
  *)
 
 let default_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/"
-
 let uri_safe_alphabet = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-_"
-
 let padding = '='
 
 let of_char ?(alphabet = default_alphabet) x =
@@ -48,7 +46,9 @@ let decode ?alphabet input =
     and c = of_char ?alphabet input.[(4 * i) + 2]
     and d = of_char ?alphabet input.[(4 * i) + 3] in
     let n = (a lsl 18) lor (b lsl 12) lor (c lsl 6) lor d in
-    let x = (n lsr 16) land 255 and y = (n lsr 8) land 255 and z = n land 255 in
+    let x = (n lsr 16) land 255
+    and y = (n lsr 8) land 255
+    and z = n land 255 in
     Bytes.set output ((3 * i) + 0) (char_of_int x);
     if i <> words - 1 || padding < 2 then Bytes.set output ((3 * i) + 1) (char_of_int y);
     if i <> words - 1 || padding < 1 then Bytes.set output ((3 * i) + 2) (char_of_int z)
@@ -63,7 +63,9 @@ let encode ?(pad = true) ?alphabet input =
   let output = Bytes.make (words * 4) '\000' in
   let get i = if i >= length then 0 else int_of_char input.[i] in
   for i = 0 to words - 1 do
-    let x = get ((3 * i) + 0) and y = get ((3 * i) + 1) and z = get ((3 * i) + 2) in
+    let x = get ((3 * i) + 0)
+    and y = get ((3 * i) + 1)
+    and z = get ((3 * i) + 2) in
     let n = (x lsl 16) lor (y lsl 8) lor z in
     let a = (n lsr 18) land 63
     and b = (n lsr 12) land 63

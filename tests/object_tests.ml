@@ -79,7 +79,8 @@ print(issubclass(A, B), issubclass(B, A), issubclass(A, A), issubclass(B, B))
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect {|
+  [%expect
+    {|
         43
         44
         True False True True

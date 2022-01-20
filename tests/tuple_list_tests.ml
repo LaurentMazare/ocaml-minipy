@@ -91,8 +91,7 @@ print(l)
 |}
   in
   Interpreter.simple_eval ast;
-  [%expect
-    {|
+  [%expect {|
         [0, 1, 4, 9, 16]
         [0, 1, 9, 16]
         [0, 1, 9]
